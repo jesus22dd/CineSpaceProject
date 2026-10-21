@@ -2,9 +2,9 @@ export function observeRating(element) {
     const source = element?.querySelector('.account-rating-source');
     const preview = element?.querySelector('.account-rating-preview');
     const paragraph = element?.querySelector('.account-rating-comment');
-    const button = element?.querySelector('.account-rating-expand');
+    const more = element?.querySelector('.account-rating-more');
     const heading = element?.querySelector('h2');
-    if (!source || !preview || !paragraph) return { dispose() {} };
+    if (!source || !preview || !paragraph || !more) return { dispose() {} };
 
     let disposed = false;
     let width = -1;
@@ -14,19 +14,19 @@ export function observeRating(element) {
         // Local offsets also avoid viewport scroll anchoring during text measurement.
         return preview.offsetHeight <= paragraph.clientHeight + 1 &&
             preview.offsetWidth <= paragraph.clientWidth + 1 &&
-            button.offsetTop + button.offsetHeight <= paragraph.clientHeight + 1 &&
-            button.offsetLeft + button.offsetWidth <= paragraph.clientWidth + 1;
+            more.offsetTop + more.offsetHeight <= paragraph.clientHeight + 1 &&
+            more.offsetLeft + more.offsetWidth <= paragraph.clientWidth + 1;
     }
     function measure() {
         frame = 0;
         if (disposed || !element.isConnected) return;
-        const text = source.textContent;
+        const text = source.textContent.replace(/\s+/gu, ' ').trim();
         element.dataset.overflow = 'false';
         preview.textContent = text;
         const truncated = !fits();
         if (!truncated && heading.scrollWidth <= heading.clientWidth + 1) return;
         element.dataset.overflow = 'true';
-        preview.textContent = text + ' ';
+        preview.textContent = text;
         if (fits()) return;
 
         // Reserve the inline button while measuring the final visible line.
@@ -35,13 +35,13 @@ export function observeRating(element) {
         let high = characters.length;
         while (low < high) {
             const middle = Math.ceil((low + high) / 2);
-            preview.textContent = characters.slice(0, middle).join('').trimEnd() + '… ';
+            preview.textContent = characters.slice(0, middle).join('').trimEnd();
             if (fits()) low = middle; else high = middle - 1;
         }
         let excerpt = characters.slice(0, low).join('');
         const word = excerpt.search(/\s+\S*$/u);
         if (word > excerpt.length * .7 && /\S/u.test(characters[low] ?? '')) excerpt = excerpt.slice(0, word);
-        preview.textContent = excerpt.trimEnd() + '… ';
+        preview.textContent = excerpt.trimEnd();
     }
     function schedule() {
         if (!disposed && !frame) frame = requestAnimationFrame(measure);

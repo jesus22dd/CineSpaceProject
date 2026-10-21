@@ -1,0 +1,4 @@
+.login-recovery { display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:0 4px; margin:0 0 12px; color:var(--cinema-muted); font-size:13px; line-height:20px; text-align:center; }
+.login-recovery a { display:inline-flex; align-items:center; min-height:44px; padding:4px 2px; border-radius:3px; color:var(--cinema-link); font-weight:600; text-decoration:underline; text-decoration-color:transparent; text-underline-offset:3px; }
+.login-recovery a:hover { text-decoration-color:currentColor; }
+.login-recovery a:focus-visible { outline:2px solid var(--cinema-focus); outline-offset:2px; text-decoration-color:currentColor; }

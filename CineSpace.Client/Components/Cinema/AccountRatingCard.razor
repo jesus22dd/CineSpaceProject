@@ -17,7 +17,7 @@
             <span class="account-rating-stars" aria-hidden="true">@for(int i=1;i<=5;i++){<i class="@(i<=Calificacion.Calificacion ? "fas" : "far") fa-star"></i>}</span><span>@Calificacion.Calificacion/5</span>
         </div>
         <span class="account-rating-source" hidden>@Comentario</span>
-        <p class="account-rating-comment" id="@comentarioId"><span class="account-rating-preview">@Comentario</span><button type="button" class="account-rating-expand" aria-haspopup="dialog" aria-label="Ver comentario completo de @Nombre" @onclick="() => mostrarComentario = true">Ver más</button></p>
+        <p class="account-rating-comment" id="@comentarioId"><span class="account-rating-preview">@Comentario</span><span class="account-rating-more"><span aria-hidden="true">…&nbsp;</span><button type="button" class="account-rating-expand" aria-haspopup="dialog" aria-label="Ver comentario completo de @Nombre" @onclick="() => mostrarComentario = true">Ver más</button></span></p>
     }else{
         <button type="button" class="btn btn-primary account-rating-action" aria-label="Calificar @Nombre" @onclick="() => OnCalificar.InvokeAsync(Pendiente)"><i class="far fa-star" aria-hidden="true"></i>Calificar película</button>
     }

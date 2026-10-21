@@ -18,7 +18,7 @@
             <label for="loginPassword" class="form-label">Contraseña</label>
             <input type="password" class="form-control" id="loginPassword" @bind="loginPassword" @bind:event="oninput" @bind:after="GuardarBorrador" autocomplete="current-password" placeholder="Ingresa tu contraseña" required />
         </div>
-        <p><a href="/recuperar-clave">Olvidé mi contraseña</a></p>
+        <p class="login-recovery"><span>¿Olvidaste tu contraseña?</span><a href="/recuperar-clave" aria-label="Recuperar mi contraseña">Haz clic aquí</a></p>
         <GoogleAccess />
         <button type="submit" class="btn btn-primary w-100">Iniciar sesión</button>
         </fieldset>

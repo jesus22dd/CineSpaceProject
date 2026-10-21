@@ -1,4 +1,5 @@
-.account-rating { position:relative; isolation:isolate; overflow-anchor:none; box-sizing:border-box; height:184px; min-width:0; overflow:hidden; padding:16px 20px; display:flex; flex-direction:column; align-items:start; gap:8px; border:1px solid var(--cinema-line); border-radius:8px; background:var(--cinema-surface); color:var(--cinema-ink); }
+.account-rating { position:relative; isolation:isolate; overflow-anchor:none; box-sizing:border-box; height:156px; min-width:0; overflow:hidden; padding:14px 20px; display:flex; flex-direction:column; align-items:start; gap:6px; border:1px solid var(--cinema-line); border-radius:8px; background:var(--cinema-surface); color:var(--cinema-ink); }
+.account-rating.is-pending { height:184px; padding-block:16px; gap:8px; }
 .account-rating-backdrop { position:absolute; inset:0; z-index:-1; width:100%; height:100%; object-fit:cover; opacity:.14; pointer-events:none; }
 .account-rating-heading { width:100%; min-width:0; }
 .account-rating h2 { margin:0 0 5px; color:var(--cinema-heading); font-size:19px; line-height:24px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -6,13 +7,14 @@
 .account-rating-score { display:flex; align-items:center; gap:10px; font-size:12px; line-height:18px; font-weight:600; color:var(--cinema-heading); }
 .account-rating-stars { display:inline-flex; gap:4px; color:var(--cinema-link); }
 .account-rating-comment { position:relative; flex-shrink:0; width:100%; height:42px; margin:0; overflow:hidden; font-size:14px; line-height:21px; white-space:pre-line; text-wrap:wrap; overflow-wrap:anywhere; }
-.account-rating-expand { display:none; position:relative; margin:0; padding:0; border:0; background:transparent; color:var(--cinema-link); font-family:inherit; font-size:13px; font-weight:600; line-height:21px; white-space:nowrap; vertical-align:baseline; cursor:pointer; }
+.account-rating-more { display:none; position:relative; white-space:nowrap; vertical-align:baseline; }
+.account-rating-expand { display:inline; position:relative; margin:0; padding:0; border:0; background:transparent; color:var(--cinema-link); font-family:inherit; font-size:13px; font-weight:600; line-height:21px; white-space:nowrap; vertical-align:baseline; cursor:pointer; }
 .account-rating-expand::after { content:""; position:absolute; inset:-10px 0; }
-.account-rating[data-overflow="true"] .account-rating-expand { display:inline-block; }
+.account-rating[data-overflow="true"] .account-rating-more { display:inline-block; }
 .account-rating-expand:hover { text-decoration:underline; }
 .account-rating-expand:focus-visible { outline:2px solid var(--cinema-link); outline-offset:2px; border-radius:2px; }
 .account-rating-pending-label { display:inline-flex; align-items:center; gap:6px; margin:2px 0 6px; padding:4px 8px; border:1px solid #d0d1d8; border-radius:4px; background:#fff; color:#3e3340; font-size:11px; line-height:15px; font-weight:700; }
 .account-rating-action { flex-shrink:0; min-height:44px; margin-top:auto; }
 .account-rating-detail-meta { margin:0 0 16px; color:var(--cinema-muted); font-size:12px; }
 .account-rating-detail { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; }
-@media(max-width:480px) { .account-rating { padding:16px; }.account-rating h2 { font-size:18px; } }
+@media(max-width:480px) { .account-rating { padding-inline:16px; }.account-rating h2 { font-size:18px; } }
