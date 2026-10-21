@@ -33,6 +33,11 @@ window.descargarFacturaPDF = async function (elementId, fileName) {
     function line(top, start = left, end = right, gray = 195, thickness = .25) {
         pdf.setDrawColor(gray); pdf.setLineWidth(thickness); pdf.line(start, top, end, top);
     }
+    function frame(top, height, divisions = []) {
+        pdf.setDrawColor(105); pdf.setLineWidth(.2); pdf.rect(left, top, width, height);
+        divisions.forEach(x => pdf.line(x, top, x, top + height));
+    }
+    function tableRule(top) { line(top, left, right, 35, .6); }
     function wrap(value, maxWidth, size = 9.5, bold = false) {
         pdf.setFont('helvetica', bold ? 'bold' : 'normal'); pdf.setFontSize(size);
         return pdf.splitTextToSize(clean(value), maxWidth);
@@ -81,61 +86,74 @@ window.descargarFacturaPDF = async function (elementId, fileName) {
     const columns = sections.slice(0, 2).map(section => {
         const rows = [];
         function append(value, bold = false, size = 9.5, gap = 1.8) {
-            wrap(value, 81, size, bold).forEach(value => rows.push({ value, bold, size, gap:0 }));
+            wrap(value, 79, size, bold).forEach(value => rows.push({ value, bold, size, gap:0 }));
             if (rows.length) rows[rows.length - 1].gap = gap;
         }
         for (const node of section.querySelectorAll(':scope > p, :scope > h4')) append(node.textContent, node.tagName === 'H4' || !!node.querySelector('strong'), node.tagName === 'H4' ? 10.5 : 9.5);
         for (const field of section.querySelectorAll('.invoice-details > div')) append(`${clean(field.querySelector('dt')?.textContent)}: ${clean(field.querySelector('dd')?.textContent)}`, false, 9);
         return { title:clean(section.querySelector('h3')?.textContent).toUpperCase(), rows };
     });
-    function columnTitles() { columns.forEach((column, i) => text(column.title, left + i * 93, y, 8, true, 100)); y += 8; }
-    columnTitles();
-    let dividerStart = y - 11;
+    function columnTitles() {
+        frame(y, 9, [105]);
+        tableRule(y);
+        columns.forEach((column, i) => text(column.title, left + 4 + i * 87, y + 6, 9, true, 20));
+        const bodyStart = y + 9;
+        y += 16;
+        return bodyStart;
+    }
+    let bodyStart = columnTitles();
     const rowCount = Math.max(0, ...columns.map(column => column.rows.length));
     for (let index = 0; index < rowCount; index++) {
         if (y + 7 > bottom) {
-            pdf.setDrawColor(210); pdf.setLineWidth(.2); pdf.line(105, dividerStart, 105, y);
-            reserve(7); columnTitles(); dividerStart = y - 11;
+            frame(bodyStart, y - bodyStart, [105]);
+            tableRule(y);
+            reserve(7); bodyStart = columnTitles();
         }
         let gap = 0;
-        columns.forEach((column, i) => { const row = column.rows[index]; if (row) { text(row.value, left + i * 93, y, row.size, row.bold); gap = Math.max(gap, row.gap); } });
+        columns.forEach((column, i) => { const row = column.rows[index]; if (row) { text(row.value, left + 4 + i * 87, y, row.size, row.bold); gap = Math.max(gap, row.gap); } });
         y += 4.8 + gap;
     }
-    pdf.setDrawColor(210); pdf.setLineWidth(.2); pdf.line(105, dividerStart, 105, y - 2);
+    frame(bodyStart, y - bodyStart, [105]);
+    tableRule(y);
     y += 9;
 
     const edges = [left, 100, 120, 156, right];
     const headers = [...source.querySelectorAll('.invoice-table thead th')].map(cell => clean(cell.textContent));
     function tableHeading() {
-        reserve(12); pdf.setFillColor(245); pdf.rect(left, y, width, 10, 'F'); line(y, left, right, 110);
-        headers.forEach((value, i) => text(value, i === 0 ? left + 3 : edges[i + 1] - 3, y + 6.5, 8, true, 60, i === 0 ? 'left' : 'right'));
-        y += 10; line(y, left, right, 150);
+        reserve(12); frame(y, 10, edges.slice(1, -1));
+        tableRule(y);
+        headers.forEach((value, i) => text(value, i === 0 ? left + 3 : edges[i + 1] - 3, y + 6.5, 9, true, 20, i === 0 ? 'left' : 'right'));
+        y += 10;
     }
     tableHeading();
     for (const row of source.querySelectorAll('.invoice-table tbody tr')) {
         const cells = [...row.querySelectorAll('td')].map(cell => clean(cell.textContent));
         const description = wrap(cells[0], 76, 9.5);
         const rowHeight = Math.max(13, description.length * 5 + 7);
-        if (reserve(rowHeight + 1)) tableHeading();
+        if (y + rowHeight + 1 > bottom) { tableRule(y); reserve(rowHeight + 1); tableHeading(); }
+        frame(y, rowHeight, edges.slice(1, -1));
         description.forEach((value, i) => text(value, left + 3, y + 7 + i * 5));
         cells.slice(1, 4).forEach((value, i) => fit(value, edges[i + 2] - 3, y + 7, edges[i + 2] - edges[i + 1] - 6, 9.5, false, 'right'));
-        y += rowHeight; line(y);
+        y += rowHeight;
     }
+    tableRule(y);
     y += 10;
     const footer = [...source.querySelectorAll('.invoice-footer p')].map(node => clean(node.textContent));
     const payment = footer[0]?.replace(/^Método de pago:\s*/iu, '') || '';
-    const paymentLines = wrap(payment, 77, 9.5);
-    const summaryHeight = Math.max(22, 12 + paymentLines.length * 5);
-    reserve(summaryHeight + 35);
-    pdf.setDrawColor(190); pdf.setLineWidth(.25); pdf.rect(left, y, 84, summaryHeight);
-    text('INFORMACIÓN DE PAGO', left + 3, y + 6, 7.5, true, 100);
-    paymentLines.forEach((value, i) => text(value, left + 3, y + 13 + i * 5, 9.5));
-    pdf.setDrawColor(50); pdf.rect(116, y, 76, summaryHeight);
-    text('TOTAL PAGADO', 120, y + 7, 8, true, 90);
-    fit(read('.invoice-amount strong'), 188, y + 16, 65, 17, true, 'right');
+    const paymentLines = wrap(payment, 79, 9.5);
+    const summaryHeight = Math.max(24, 14 + paymentLines.length * 5);
+    const notes = footer.slice(1, -1).map(note => wrap(note, width, 8.5));
+    reserve(summaryHeight + 12 + notes.reduce((height, lines) => height + lines.length * 4.5 + 3, 0));
+    frame(y, summaryHeight, [105]);
+    tableRule(y); tableRule(y + summaryHeight);
+    line(y + 8, left, right, 105, .2);
+    text('INFORMACIÓN DE PAGO', left + 4, y + 5.5, 9, true, 20);
+    text('TOTAL PAGADO', 109, y + 5.5, 9, true, 20);
+    paymentLines.forEach((value, i) => text(value, left + 4, y + 17 + i * 5, 9.5));
+    fit(read('.invoice-amount strong'), 188, y + 18, 79, 17, true, 'right');
     y += summaryHeight + 12;
-    for (const note of footer.slice(1, -1)) {
-        for (const value of wrap(note, width, 8.5)) { reserve(5); text(value, left, y, 8.5, false, 100); y += 4.5; }
+    for (const lines of notes) {
+        for (const value of lines) { reserve(5); text(value, left, y, 8.5, false, 100); y += 4.5; }
         y += 3;
     }
     const count = pdf.getNumberOfPages();

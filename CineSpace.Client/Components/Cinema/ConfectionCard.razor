@@ -16,7 +16,7 @@
     }
     else
     {
-        <button type="button" class="confectionery-photo" aria-label="Ver detalles de @Combo.Nombre" aria-expanded="false" aria-controls="@IdDetalle" @ref="disparador" @onclick="Abrir"><img src="@Combo.Foto" alt="" loading="lazy" decoding="async" width="768" height="768" /></button>
+        <button type="button" class="confectionery-photo" aria-label="Ver detalles de @Combo.Nombre" aria-expanded="false" aria-controls="@IdDetalle" @ref="disparador" @onclick="Abrir"><span class="confectionery-rest-title" aria-hidden="true"><span>@Combo.Nombre</span></span><img src="@Combo.Foto" alt="" loading="lazy" decoding="async" width="768" height="768" /></button>
         @if (Cantidad > 0) { <span class="confectionery-in-cart"><i class="fas fa-check" aria-hidden="true"></i>@Cantidad en carrito</span> }
         <div class="confectionery-card-body"><h2><button type="button" @onclick="Abrir">@Combo.Nombre</button></h2><strong class="confectionery-card-price">@(Combo.Precio > 0 ? $"{Combo.Precio:N2} Bs" : "Precio por definir")</strong><button type="button" class="btn btn-primary confectionery-add" aria-label="Añadir @Combo.Nombre al carrito" disabled="@NoDisponible" @onclick="() => OnAñadir.InvokeAsync((Combo, 1))"><i class="fas fa-plus" aria-hidden="true"></i>Añadir</button></div>
     }

@@ -1,16 +1,30 @@
-.confectionery-card { position: relative; width: 100%; min-width: 0; overflow: hidden; align-self: start; border: 1px solid var(--cinema-line); border-radius: 10px; background: var(--cinema-surface); }
-.confectionery-photo { display: block; width: 100%; aspect-ratio: 1; padding: 12px; border: 0; background: var(--cinema-raised); cursor: pointer; }
-.confectionery-photo img { display: block; width: 100%; height: 100%; object-fit: contain; transition: transform 180ms ease-out; }
-.confectionery-photo:hover img { transform: scale(1.025); }
-.confectionery-card-body { display: grid; gap: 12px; padding: 16px; }
-.confectionery-card h2 { margin: 0; min-width: 0; color: var(--cinema-heading); font: 500 18px/1.3 'Outfit',sans-serif; overflow-wrap: anywhere; }
-.confectionery-card-body h2 { height: 2.6em; }
+.confectionery-card { position: relative; width: 100%; min-width: 0; overflow: hidden; align-self: start; border: 1px solid var(--cinema-line); border-radius: 10px; background: transparent; isolation: isolate; }
+.confectionery-card:not(.is-expanded) { aspect-ratio: 1; }
+.confectionery-photo { position: absolute; inset: 0; display: block; width: 100%; height: 100%; padding: 48px 8px 8px; border: 0; background: transparent; cursor: pointer; }
+.confectionery-rest-title { position: absolute; z-index: 1; inset: 0 0 auto; display: flex; align-items: center; height: 44px; padding: 6px 10px; background: #2a2a2e; color: #fff; text-align: left; font: 500 15px/1.15 'Outfit',sans-serif; transition: opacity 180ms ease-out,visibility 180ms; }
+.confectionery-rest-title > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.confectionery-photo::after { content: ''; position: absolute; inset: 24% 0 0; background: linear-gradient(180deg,transparent 0%,rgb(24 12 20 / 58%) 48%,rgb(24 12 20 / 96%) 100%); opacity: 0; transition: opacity 180ms ease-out; pointer-events: none; }
+.confectionery-photo img { display: block; width: 100%; height: 100%; object-fit: contain; transition: transform 220ms cubic-bezier(.23,1,.32,1); }
+.confectionery-card-body { position: absolute; z-index: 1; bottom: 0; left: 0; right: 0; display: grid; gap: 4px; padding: 12px; pointer-events: none; visibility: hidden; opacity: 0; transform: translateY(10px); transition: transform 220ms cubic-bezier(.23,1,.32,1),opacity 180ms ease-out,visibility 180ms; }
+.confectionery-card h2 { margin: 0; min-width: 0; color: var(--cinema-heading); font: 500 16px/1.25 'Outfit',sans-serif; overflow-wrap: anywhere; }
+.confectionery-card-body h2 { color: var(--cinema-paper); line-height: 1.15; }
 .confectionery-card-body h2 button { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; }
-.confectionery-card-body h2 button:hover { color: var(--cinema-link); }
-.confectionery-card-price { color: var(--cinema-heading); font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.confectionery-add { display: inline-flex; width: 100%; justify-content: center; align-items: center; min-width: 0; min-height: 44px; padding: 8px; gap: 6px; font-size: 13px; }
-.confectionery-in-cart { position: absolute; z-index: 3; top: 10px; right: 10px; display: inline-flex; gap: 6px; align-items: center; background: var(--cinema-wine); color: var(--cinema-paper); padding: 6px 8px; border-radius: 4px; font-size: 11px; pointer-events: none; }
-.confectionery-card.is-expanded { min-height: 100%; }
+.confectionery-card-body h2 button { pointer-events: auto; }
+.confectionery-card-price { color: var(--cinema-paper); font-size: 14px; line-height: 20px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.confectionery-add { display: inline-flex; width: 100%; justify-content: center; align-items: center; min-width: 0; height: 44px; min-height: 44px; padding: 8px; gap: 6px; font-size: 12px; pointer-events: auto; visibility: hidden; opacity: 0; transition: opacity 160ms ease-out,visibility 160ms; }
+.confectionery-card:has(:focus-visible) .confectionery-card-body { transform: translateY(0); visibility: visible; opacity: 1; }
+.confectionery-card:has(:focus-visible) .confectionery-add { visibility: visible; opacity: 1; }
+.confectionery-card:has(:focus-visible) .confectionery-rest-title { opacity: 0; visibility: hidden; }
+.confectionery-card:has(:focus-visible) .confectionery-photo::after { opacity: 1; }
+@media (hover: hover) and (pointer: fine) {
+    .confectionery-card:hover .confectionery-card-body { transform: translateY(0); visibility: visible; opacity: 1; }
+    .confectionery-card:hover .confectionery-add { visibility: visible; opacity: 1; }
+    .confectionery-card:hover .confectionery-rest-title { opacity: 0; visibility: hidden; }
+    .confectionery-card:hover .confectionery-photo::after { opacity: 1; }
+    .confectionery-card:hover .confectionery-photo img { transform: translateY(-16px) scale(1.08); }
+}
+.confectionery-in-cart { position: absolute; z-index: 3; top: 50px; right: 8px; display: inline-flex; gap: 6px; align-items: center; background: var(--cinema-wine); color: var(--cinema-paper); padding: 6px 8px; border-radius: 4px; font-size: 11px; pointer-events: none; }
+.confectionery-card.is-expanded { min-height: 100%; background: var(--cinema-surface); outline: 1px solid var(--cinema-line); outline-offset: -1px; }
 .confectionery-inline-detail { padding: 16px; animation: show-confection-detail 180ms ease-out; }
 .confectionery-detail-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .confectionery-detail-heading img { width: 96px; height: 96px; padding: 4px; border-radius: 6px; background: var(--cinema-raised); object-fit: contain; }
@@ -34,7 +48,7 @@
 .confectionery-detail-cart i { margin-right: 6px; }
 .confectionery-selection-total { text-align: center; font-variant-numeric: tabular-nums; }
 button:focus-visible { outline: 2px solid var(--cinema-link); outline-offset: -3px; box-shadow: none; }
-@container confectionery-catalog (max-width: 600px) {
+@container confectionery-catalog (max-width: 450px) {
     .confectionery-card { grid-row: var(--confectionery-row); grid-column: var(--confectionery-column); }
     .confectionery-card.is-expanded { grid-column: 1 / -1; min-height: 0; z-index: 4; }
     .confectionery-card.is-expanded:nth-child(odd) + .confectionery-card,.confectionery-card:has(+ .is-expanded:nth-child(even)) { visibility: hidden; }
@@ -53,5 +67,5 @@ button:focus-visible { outline: 2px solid var(--cinema-link); outline-offset: -3
     .confectionery-pick-quantity > div { flex-shrink: 0; }
 }
 @keyframes show-confection-detail { from { opacity: .65; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-@media(max-width: 420px) { .confectionery-card-body,.confectionery-inline-detail { padding: 12px; } .confectionery-card-body { gap: 10px; } .confectionery-card h2 { font-size: 15px; } .confectionery-photo { padding: 8px; } .confectionery-in-cart { top: 6px; right: 6px; padding: 5px 6px; font-size: 10px; } }
-@media(prefers-reduced-motion: reduce) { .confectionery-inline-detail { animation: none; } .confectionery-photo img { transition: none; } .confectionery-photo:hover img { transform: none; } }
+@media(max-width: 420px) { .confectionery-card h2,.confectionery-rest-title { font-size: 14px; } .confectionery-card-price { font-size: 13px; } .confectionery-in-cart { right: 6px; padding: 5px 6px; font-size: 10px; } }
+@media(prefers-reduced-motion: reduce) { .confectionery-inline-detail { animation: none; } .confectionery-photo img,.confectionery-card-body,.confectionery-add,.confectionery-rest-title,.confectionery-photo::after { transition: none; } .confectionery-card:hover .confectionery-photo img { transform: none; } }

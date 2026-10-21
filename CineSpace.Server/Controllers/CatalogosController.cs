@@ -96,7 +96,14 @@ public sealed class CatalogosController(ICatalogoService catalogos, CineSpaceDbC
         if (!string.IsNullOrWhiteSpace(consulta.Buscar)) query = query.Where(x => EF.Functions.ILike(x.Nombre, "%" + consulta.Buscar.Trim() + "%"));
         if (consulta.Estado == "publicados") query = query.Where(x => x.Publicado);
         if (consulta.Estado == "ocultos") query = query.Where(x => !x.Publicado);
-        query = consulta.Orden is "antiguos" or "antiguas" or "Más antiguos" ? query.OrderBy(x => x.Id) : query.OrderByDescending(x => x.Id);
+        var antiguas = consulta.Orden is "antiguos" or "antiguas" or "Más antiguos";
+        if (!consulta.Categoria.HasValue)
+        {
+            // Prioriza la categoría antes de paginar, sin depender de los IDs del seed.
+            var ordenados = query.OrderByDescending(x => EF.Functions.ILike(x.Categoria.Nombre, "Combos"));
+            query = antiguas ? ordenados.ThenBy(x => x.Id) : ordenados.ThenByDescending(x => x.Id);
+        }
+        else query = antiguas ? query.OrderBy(x => x.Id) : query.OrderByDescending(x => x.Id);
         return Convertir(await repositorio.PaginarAsync(query, consulta, ct), MapasCine.Combo);
     }
     [HttpGet("combos/carrito"), AllowAnonymous]
