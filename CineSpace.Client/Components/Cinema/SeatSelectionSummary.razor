@@ -1,0 +1,46 @@
+@namespace CineSpace.Client.Components.Cinema
+@using CineSpace.Shared.Models
+
+<aside class="seat-summary" aria-labelledby="@TituloId">
+    <div class="seat-selection-heading">
+        <div class="seat-selection-title-row">
+            <h4 id="@TituloId">Tus butacas</h4>
+            <button type="button" class="seat-clear" aria-label="Vaciar butacas" title="Vaciar butacas" disabled="@(Seleccionados.Count == 0)" @onclick="OnVaciar"><i class="fas fa-trash-can" aria-hidden="true"></i>Vaciar</button>
+        </div>
+        <p role="status" aria-live="polite">@Seleccionados.Count de @TotalEntradas butacas seleccionadas</p>
+    </div>
+    @if (Seleccionados.Count > 0)
+    {
+        <ul class="selected-seat-list" aria-label="Butacas seleccionadas">
+            @foreach (var id in Seleccionados.OrderBy(a => PlanoSala.Posicion(a, out var f, out _) ? f : int.MaxValue).ThenBy(a => PlanoSala.Posicion(a, out _, out var c) ? c : int.MaxValue))
+            {
+                <li @key="id"><span class="selected-seat-label">@id</span><button type="button" aria-label="Quitar butaca @id" title="Quitar butaca @id" @onclick="() => OnQuitar.InvokeAsync(id)"><i class="fas fa-xmark" aria-hidden="true"></i></button></li>
+            }
+        </ul>
+    }
+    <dl class="seat-cost">
+        <div><dt>Precio por entrada</dt><dd>@Sala.PrecioFinal.ToString("N2") Bs</dd></div>
+        @if (Sala.Oferta)
+        {
+            <div class="seat-offer"><dt>@Sala.Descuento% de descuento</dt><dd><del>@Sala.Precio.ToString("N2") Bs</del></dd></div>
+        }
+        <div><dt>Tickets</dt><dd>@TotalEntradas</dd></div>
+        <div><dt>Butacas elegidas</dt><dd>@Seleccionados.Count / @TotalEntradas</dd></div>
+        <div class="seat-total"><dt>Total</dt><dd>@((Sala.PrecioFinal * TotalEntradas).ToString("N2")) <small>Bs</small></dd></div>
+    </dl>
+    <div class="booking-actions">
+        <button type="button" class="btn btn-primary" disabled="@(TotalEntradas == 0 || Seleccionados.Count != TotalEntradas)" @onclick="OnContinuar">Continuar<i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+        <button type="button" class="btn btn-secondary" @onclick="OnVolver">Cambiar tickets</button>
+    </div>
+</aside>
+
+@code {
+    [Parameter, EditorRequired] public SalaCine Sala { get; set; } = default!;
+    [Parameter, EditorRequired] public HashSet<string> Seleccionados { get; set; } = new();
+    [Parameter, EditorRequired] public string TituloId { get; set; } = "seat-selection-title";
+    [Parameter] public int TotalEntradas { get; set; }
+    [Parameter] public EventCallback<string> OnQuitar { get; set; }
+    [Parameter] public EventCallback OnVaciar { get; set; }
+    [Parameter] public EventCallback OnContinuar { get; set; }
+    [Parameter] public EventCallback OnVolver { get; set; }
+}

@@ -1,0 +1,28 @@
+.movie-artwork { container-type: inline-size; margin-top: 32px; padding-top: 28px; border-top: 1px solid var(--cinema-line); }
+.artwork-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.artwork-heading h3 { margin: 0 0 8px; font-size: 22px; }
+.artwork-heading p,.artwork-status { color: var(--cinema-muted); margin: 0; }
+.artwork-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+.artwork-tabs button { flex: 0 1 auto; min-height: 44px; padding: 8px 16px; border: 1px solid var(--cinema-control-border); border-radius: 6px; background: var(--cinema-input); color: var(--cinema-heading); }
+.artwork-tabs button[aria-pressed=true] { background: var(--cinema-accent-soft); color: var(--cinema-link); border-color: var(--cinema-accent); }
+.artwork-tabs span { margin-left: 6px; font-variant-numeric: tabular-nums; }
+.artwork-grid { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 16px; }
+.artwork-grid.is-landscape { grid-template-columns: repeat(4,minmax(0,1fr)); }
+.artwork-card { min-width: 0; }
+.artwork-choice { display: block; width: 100%; padding: 0; overflow: hidden; border: 1px solid var(--cinema-control-border); border-radius: 8px; background: var(--cinema-input); color: var(--cinema-heading); text-align: left; }
+.artwork-choice img { width: 100%; aspect-ratio: 2/3; object-fit: contain; display: block; }
+.is-landscape .artwork-choice img { aspect-ratio: 16/9; }
+.artwork-state { display: flex; gap: 8px; align-items: center; min-height: 44px; padding: 10px 12px; font-size: 13px; font-weight: 600; }
+.artwork-choice[aria-pressed=true] { border-color: var(--cinema-accent); }
+.artwork-choice[aria-pressed=true] .artwork-state { background: var(--cinema-accent); color: var(--cinema-on-action); }
+.artwork-choice:hover .artwork-state { text-decoration: underline; text-underline-offset: 3px; }
+.artwork-details { display: flex; justify-content: space-between; align-items: center; gap: 4px; padding-top: 4px; font-size: 12px; color: var(--cinema-muted); }
+.artwork-details small { display: block; font-size: 11px; font-variant-numeric: tabular-nums; }
+.artwork-enlarge { display: grid; place-items: center; flex: 0 0 44px; height: 44px; border: 0; background: var(--cinema-input); color: var(--cinema-heading); border-radius: 6px; }
+.artwork-choice:focus-visible,.artwork-enlarge:focus-visible,.artwork-tabs button:focus-visible { outline: 2px solid var(--cinema-focus); outline-offset: 3px; }
+.artwork-pagination { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 24px; }
+.artwork-pagination span { font-size: 12px; color: var(--cinema-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.artwork-preview { display: block; width: 100%; max-height: 65vh; object-fit: contain; margin-bottom: 16px; }
+@container(max-width:760px) { .artwork-grid { grid-template-columns: repeat(3,minmax(0,1fr)); } .artwork-grid.is-landscape { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@container(max-width:560px) { .artwork-grid,.artwork-grid.is-landscape { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; } }
+@media(max-width:767px) { .artwork-grid,.artwork-grid.is-landscape { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; } .artwork-tabs button { padding: 8px 10px; font-size: 13px; } .artwork-tabs span { margin-left: 4px; } .artwork-state { padding: 8px; font-size: 12px; gap: 4px; } .artwork-pagination .btn { min-width: 0; padding: 10px 12px; font-size: 12px; } }

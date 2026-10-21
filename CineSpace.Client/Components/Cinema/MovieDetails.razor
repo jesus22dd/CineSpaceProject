@@ -1,0 +1,41 @@
+@namespace CineSpace.Client.Components.Cinema
+@using CineSpace.Shared.Models
+@inject PeliculaService Peliculas
+@inject SalaService Salas
+
+<section id="details-@Pelicula.Id" class="pelicula-detalle-container" aria-label="Detalles de @Pelicula.Titulo">
+    <div class="detail-heading"><div><h2>@Pelicula.Titulo</h2><p class="detail-meta">@Pelicula.GenerosTexto <span>Sinopsis y tráiler</span></p></div><button type="button" class="btn-close-detalle" @onclick="OnCerrar" aria-label="Cerrar detalles"><i class="fas fa-times" aria-hidden="true"></i></button></div>
+    <div class="detalle-expandido-content">
+        <div class="detalle-trailer-container">
+            @if (!string.IsNullOrEmpty(Pelicula.TrailerUrl))
+            {
+                <iframe src="@ObtenerUrlEmbebidaYoutube(Pelicula.TrailerUrl)" title="Tráiler de @Pelicula.Titulo" loading="lazy" allowfullscreen></iframe>
+            }
+            else
+            {
+                <div class="no-trailer-message"><i class="fas fa-play" aria-hidden="true"></i><p>Tráiler no disponible.</p></div>
+            }
+        </div>
+        <div class="detalle-sinopsis-container" role="region" aria-label="Sinopsis de @Pelicula.Titulo" tabindex="0"><h3>Sinopsis</h3><p>@(string.IsNullOrEmpty(Pelicula.Sinopsis) ? "La sinopsis de esta película aún no está disponible." : Pelicula.Sinopsis)</p></div>
+    </div>
+    <div class="detail-booking"><div class="detail-functions"><h3>Experiencias disponibles</h3><div class="detail-times">@foreach (var experiencia in Peliculas.ObtenerExperienciasDisponiblesParaPelicula(Pelicula.Id)) { <span>@Salas.NombreExperiencia(experiencia)</span> }</div></div><button type="button" class="btn btn-primary" @onclick="() => OnReservar.InvokeAsync(Pelicula)">Reservar</button></div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public Pelicula Pelicula { get; set; } = default!;
+    [Parameter] public EventCallback<Pelicula> OnReservar { get; set; }
+    [Parameter] public EventCallback OnCerrar { get; set; }
+    private static string ObtenerUrlEmbebidaYoutube(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return string.Empty;
+        if (uri.Host == "youtu.be") return $"https://www.youtube.com/embed/{uri.AbsolutePath.Trim('/')}?rel=0";
+        if (uri.Host is "www.youtube.com" or "youtube.com" or "www.youtube-nocookie.com")
+        {
+            if (uri.AbsolutePath.StartsWith("/embed/")) return url;
+            var id = uri.Query.TrimStart('?').Split('&').FirstOrDefault(p => p.StartsWith("v="))?.Substring(2);
+            if (!string.IsNullOrEmpty(id)) return $"https://www.youtube.com/embed/{id}?rel=0";
+        }
+        return string.Empty;
+    }
+}
+

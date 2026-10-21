@@ -1,0 +1,35 @@
+@namespace CineSpace.Client.Components.Shared
+@inject PedidosConfiteriaService Pedidos
+@inject CatalogosService Catalogos
+@implements IDisposable
+
+<section class="mini-cart" aria-label="Resumen del carrito">
+    <div class="mini-cart-heading"><h2>Tu carrito</h2><span>@Pedidos.CantidadCarrito</span></div>
+    @if (!string.IsNullOrEmpty(error)) { <p class="mini-cart-error" role="alert">@error</p> }
+    @if (Pedidos.CantidadCarrito == 0)
+    {
+        <div class="mini-cart-empty"><i class="fas fa-bag-shopping" aria-hidden="true"></i><p>Tu película sabe mejor con algo rico.</p><span>Añade un combo para empezar.</span></div>
+    }
+    else
+    {
+        <button type="button" class="mini-cart-clear" disabled="@(ocupado || Pedidos.ErrorCarga != null)" @onclick="() => confirmarVaciado = true"><i class="fas fa-trash-can" aria-hidden="true"></i>Vaciar carrito</button>
+        <ul class="mini-cart-items">@foreach (var item in Pedidos.Carrito) { var foto = Catalogos.Combos.FirstOrDefault(c => c.Id == item.ComboId)?.Foto; <li @key="item.ComboId"><div class="mini-cart-product">@if (!string.IsNullOrEmpty(foto)) { <img src="@foto" alt="" /> }<div><strong>@item.Nombre</strong><span>@((item.PrecioUnitario * item.Cantidad).ToString("N2")) Bs</span></div><button type="button" class="mini-cart-remove" aria-label="Eliminar @item.Nombre del carrito" disabled="@ocupado" @onclick="() => Cambiar(item.ComboId, 0)"><i class="fas fa-xmark" aria-hidden="true"></i></button></div><div class="mini-cart-quantity"><button type="button" aria-label="Reducir cantidad de @item.Nombre" disabled="@(ocupado || item.Cantidad <= 1)" @onclick="() => Cambiar(item.ComboId, item.Cantidad - 1)"><i class="fas fa-minus" aria-hidden="true"></i></button><span>@item.Cantidad</span><button type="button" aria-label="Aumentar cantidad de @item.Nombre" disabled="@(ocupado || item.Cantidad >= 20)" @onclick="() => Cambiar(item.ComboId, item.Cantidad + 1)"><i class="fas fa-plus" aria-hidden="true"></i></button></div></li> }</ul>
+        <div class="mini-cart-total" aria-live="polite" aria-atomic="true"><span>Total</span><strong>@Pedidos.TotalCarrito.ToString("N2") <small>Bs</small></strong></div>
+        @if (Pedidos.CarritoDesactualizado) { <p class="mini-cart-help">Un combo cambió. Revisa el precio y la disponibilidad en tu carrito.</p> }
+        <a class="btn btn-primary mini-cart-checkout" href="/confiteria/carrito">Ir al carrito<i class="fas fa-arrow-right" aria-hidden="true"></i></a><p class="mini-cart-help">Confirma tu pedido y obtén tu QR.</p>
+    }
+</section>
+@if (confirmarVaciado)
+{
+    <ConfectionCartClearDialog OnClose="() => confirmarVaciado = false" OnConfirm="Vaciar" />
+}
+@code {
+    private bool confirmarVaciado;
+    private bool ocupado;
+    private string error = "";
+    protected override void OnInitialized() => Pedidos.Changed += Cambiado;
+    private void Cambiado() => _ = InvokeAsync(StateHasChanged);
+    private async Task Vaciar() { if (ocupado) return; ocupado = true; error = ""; try { await Pedidos.VaciarCarritoAsync(); } catch (ArgumentException ex) { error = ex.Message; } catch (InvalidOperationException ex) { error = ex.Message; } catch { error = "No pudimos vaciar el carrito. Inténtalo de nuevo."; } finally { ocupado = false; } }
+    private async Task Cambiar(int id, int cantidad) { if (ocupado) return; ocupado = true; error = ""; try { await Pedidos.CantidadAsync(id, cantidad); } catch (ArgumentException ex) { error = ex.Message; } catch (InvalidOperationException ex) { error = ex.Message; } catch { error = "No pudimos guardar el cambio. Inténtalo de nuevo."; } finally { ocupado = false; } }
+    public void Dispose() => Pedidos.Changed -= Cambiado;
+}

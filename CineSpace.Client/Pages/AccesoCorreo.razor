@@ -1,0 +1,48 @@
+@page "/recuperar-clave"
+@page "/restablecer-clave"
+@page "/confirmar-cuenta"
+@inject ApiCine Api
+@inject NavigationManager Navigation
+@inject AuthDialogService Auth
+
+<PageTitle>@Titulo - CineSpace</PageTitle>
+<section class="email-access auth-form-content" aria-labelledby="email-access-title">
+    <a href="/" class="order-back"><i class="fas fa-arrow-left" aria-hidden="true"></i>Volver a CineSpace</a>
+    <h1 id="email-access-title">@Titulo</h1>
+    @if (mensaje.Length > 0) { <p class="alert @(error ? "alert-danger" : "alert-success")" role="@(error ? "alert" : "status")">@mensaje</p> }
+    @if (Ruta == "confirmar-cuenta")
+    {
+        @if (ocupado) { <p role="status"><span class="button-spinner" aria-hidden="true"></span>Confirmando tu correo…</p> }
+        else if (confirmada) { <button class="btn btn-primary" @onclick="Iniciar">Iniciar sesión</button> }
+        else { <p>Abre el enlace que enviamos a tu correo para activar la cuenta. Si ha caducado, vuelve a registrarte.</p><a class="btn btn-primary" href="/login">Volver al acceso</a> }
+    }
+    else if (Ruta == "restablecer-clave" && !confirmada)
+    {
+        <form @onsubmit="Restablecer" @onsubmit:preventDefault><label for="reset-password" class="form-label">Nueva contraseña</label><input id="reset-password" type="password" class="form-control" required minlength="10" maxlength="128" autocomplete="new-password" @bind="password" /><p class="form-text">Al menos 10 caracteres, con mayúscula, minúscula, número y símbolo.</p><label for="reset-password-confirm" class="form-label">Repite la contraseña</label><input id="reset-password-confirm" type="password" class="form-control" required minlength="10" maxlength="128" autocomplete="new-password" @bind="repetir" /><button class="btn btn-primary" disabled="@ocupado">@if (ocupado) { <span class="button-spinner" aria-hidden="true"></span> }Guardar contraseña</button></form>
+    }
+    else if (!confirmada)
+    {
+        <p>Te enviaremos un enlace para recuperar el acceso a tu cuenta.</p><form @onsubmit="Recuperar" @onsubmit:preventDefault><label for="recovery-email" class="form-label">Correo electrónico</label><input id="recovery-email" type="email" class="form-control" required autocomplete="email" @bind="correo" /><button class="btn btn-primary" disabled="@ocupado">@if (ocupado) { <span class="button-spinner" aria-hidden="true"></span> }Enviar instrucciones</button></form>
+    }
+    else { <button class="btn btn-primary" @onclick="Iniciar">Iniciar sesión</button> }
+</section>
+@code {
+    [SupplyParameterFromQuery] public string? Usuario { get; set; }
+    [SupplyParameterFromQuery] public string? Token { get; set; }
+    [SupplyParameterFromQuery] public string? Email { get; set; }
+    private string Ruta => Navigation.ToBaseRelativePath(Navigation.Uri).Split('?')[0];
+    private string Titulo => Ruta == "confirmar-cuenta" ? "Confirma tu cuenta" : Ruta == "restablecer-clave" ? "Elige una nueva contraseña" : "Recupera tu cuenta";
+    private string correo = "", password = "", repetir = "", mensaje = "";
+    private bool ocupado, error, confirmada;
+    private string? enlaceProcesado;
+    protected override async Task OnParametersSetAsync()
+    {
+        correo = Email ?? correo;
+        if (Ruta == "confirmar-cuenta" && Usuario is not null && Token is not null && enlaceProcesado != Token)
+        { enlaceProcesado = Token; await Ejecutar(async () => { var result = await Api.Post<ResultadoOperacion>("api/auth/confirmar",new ConfirmarCuenta(Usuario,Token)); mensaje = result.Mensaje; confirmada = true; }); }
+    }
+    private Task Recuperar() => Ejecutar(async () => { mensaje = (await Api.Post<ResultadoOperacion>("api/auth/recuperar",new SolicitudCorreo(correo))).Mensaje; });
+    private Task Restablecer() => Ejecutar(async () => { if (password != repetir) throw new ArgumentException("Las contraseñas no coinciden."); mensaje = (await Api.Post<ResultadoOperacion>("api/auth/restablecer",new RestablecerClave(correo,Token ?? "",password))).Mensaje; password = repetir = ""; confirmada = true; });
+    private async Task Ejecutar(Func<Task> accion) { if (ocupado) return; ocupado = true; error = false; try { await accion(); } catch (Exception ex) { mensaje = ex.Message; error = true; } finally { ocupado = false; } }
+    private void Iniciar() { Auth.AbrirDesdeRuta(null); Navigation.NavigateTo("/"); }
+}

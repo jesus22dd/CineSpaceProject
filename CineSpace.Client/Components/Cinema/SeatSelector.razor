@@ -1,0 +1,130 @@
+@namespace CineSpace.Client.Components.Cinema
+@using CineSpace.Shared.Models
+@using Microsoft.AspNetCore.Components.Sections
+@implements IAsyncDisposable
+@inject SalaService SalaService
+@inject IJSRuntime JS
+
+<h3>Elige tus butacas</h3>
+<p class="text-muted">@PeliculaActual?.Titulo · @PeliculaActual?.FechaFuncion?.ToString("dd/MM/yyyy") · @HorarioSeleccionado</p>
+@if (PeliculaActual is not null)
+{
+    var configuracion = SalaService.ObtenerConfiguracionSala(PeliculaActual.NumeroSala);
+    var sala = SalaService.ObtenerSala(PeliculaActual.NumeroSala);
+    var experiencia = (PeliculaActual.ExperienciaFuncion ?? SalaService.ObtenerExperienciaPelicula(PeliculaActual.Id));
+    var existentes = configuracion.ObtenerTodosLosAsientos().ToHashSet();
+    var primeraDisponible = existentes.Where(a => !AsientosOcupados.Contains(a)).OrderBy(a => PlanoSala.Posicion(a, out var f, out _) ? f : int.MaxValue).ThenBy(a => PlanoSala.Posicion(a, out _, out var c) ? c : int.MaxValue).FirstOrDefault();
+    <div class="seat-selector @(AsientosSeleccionados.Count > 0 ? "has-selection" : "")">
+        <section class="seat-room" aria-labelledby="seat-room-title">
+            <header class="seat-room-heading"><div><h4 id="seat-room-title">@configuracion.Nombre</h4><p>@SalaService.NombreExperiencia(experiencia) · @existentes.Count butacas</p></div></header>
+            <p id="seat-instructions" class="seat-hint" role="status">@AsientosSeleccionados.Count de @MaximoAsientos butacas elegidas. @(AsientosSeleccionados.Count == MaximoAsientos ? "Si eliges otra, se reemplazará la primera que seleccionaste." : "Toca una butaca disponible para seleccionarla.")</p>
+            <span class="visually-hidden" role="status" aria-live="polite">@AvisoSeleccion</span>
+            <div class="seat-view-tools" role="group" aria-label="Vista del mapa de butacas"><button type="button" class="btn btn-secondary" @onclick="() => CambiarEscala(-4)" disabled="@(tamano <= 24)"><i class="fas fa-magnifying-glass-minus" aria-hidden="true"></i>Alejar</button><button type="button" class="btn btn-secondary" @onclick="AjustarVista" aria-pressed="@(automatico ? "true" : "false")">Ajustar</button><button type="button" class="btn btn-secondary" @onclick="() => CambiarEscala(4)" disabled="@(tamano >= 56)"><i class="fas fa-magnifying-glass-plus" aria-hidden="true"></i>Acercar</button></div>
+            <svg class="seat-symbols" aria-hidden="true" focusable="false"><defs><symbol id="@simbolo" viewBox="0 0 32 32"><path d="M7 18V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v11" /><rect x="6" y="17" width="20" height="10" rx="3" /><path d="M6 13H4v11a3 3 0 0 0 3 3h18a3 3 0 0 0 3-3V13h-2M10 27v2m12-2v2" /></symbol></defs></svg>
+            <div id="seat-selection-map" class="seat-map-scroll" role="region" aria-label="Mapa de butacas de la sala" aria-describedby="seat-instructions seat-map-help" tabindex="0" data-columns="@configuracion.AsientosPorFila" data-rows="@configuracion.NumeroFilas" style="@($"--seat-size: {tamano}px")" @ref="mapa">
+                <div class="sala-cine">
+                    <div class="seat-screen" aria-label="Pantalla, delante de la fila A"><svg viewBox="0 0 600 48" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="M12 38 Q300 2 588 38" /></svg><span>Pantalla</span></div>
+                    @for (var r = 0; r < configuracion.NumeroFilas; r++)
+                    {
+                        var fila = PlanoSala.Fila(r);
+                        <div class="fila-asientos" role="group" aria-label="Fila @fila"><span class="etiqueta-fila" aria-hidden="true">@fila</span>
+                        @for (var c = 0; c < configuracion.AsientosPorFila; c++)
+                        {
+                            var id = PlanoSala.Asiento(r, c);
+                            if (!existentes.Contains(id)) { <span class="seat-map-gap" aria-hidden="true"></span> }
+                            else
+                            {
+                                var seleccionada = AsientosSeleccionados.Contains(id);
+                                var ocupada = AsientosOcupados.Contains(id);
+                                var categoria = configuracion.ObtenerCategoriaAsiento(id);
+                                var clase = categoria == CategoriaAsiento.Comfort ? "comfort" : categoria == CategoriaAsiento.VIP ? "vip" : "regular";
+                                var nombre = categoria == CategoriaAsiento.Comfort ? "confort" : categoria == CategoriaAsiento.VIP ? "VIP" : "regular";
+                                <button @key="id" type="button" class="asiento @clase @(seleccionada ? "seleccionado" : "") @(ocupada ? "ocupado" : "")" data-seat="@id" data-row="@r" data-col="@c" tabindex="@(id == primeraDisponible ? 0 : -1)" disabled="@ocupada" aria-pressed="@(seleccionada ? "true" : "false")" aria-label="@($"Asiento {id}, {nombre}, {(ocupada ? "ocupado" : seleccionada ? "seleccionado" : "disponible")}")" title="@($"{id} · {nombre}")" @onclick="() => ToggleAsiento(id)">
+                                    <svg class="seat-chair" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="@($"#{simbolo}")" /></svg>
+                                    @if (ocupada) { <i class="fas fa-xmark seat-unavailable" aria-hidden="true"></i> }
+                                    else { <span class="seat-number">@(c + 1)</span>@if (seleccionada) { <i class="fas fa-check seat-check" aria-hidden="true"></i> } }
+                                </button>
+                            }
+                        }
+                        <span class="etiqueta-fila row-end" aria-hidden="true">@fila</span></div>
+                    }
+                </div>
+            </div>
+            <p id="seat-map-help" class="seat-scroll-hint">Amplía para ver más detalle y desliza para recorrer la sala. Con teclado, usa las flechas entre butacas.</p>
+            <div class="leyenda-asientos" aria-label="Estados de las butacas">
+                <span><span class="seat-key available" aria-hidden="true"><svg class="seat-chair" viewBox="0 0 32 32"><use href="@($"#{simbolo}")" /></svg></span>Disponible</span>
+                <span><span class="seat-key selected" aria-hidden="true"><svg class="seat-chair" viewBox="0 0 32 32"><use href="@($"#{simbolo}")" /></svg><i class="fas fa-check"></i></span>Selección</span>
+                <span><span class="seat-key occupied" aria-hidden="true"><svg class="seat-chair" viewBox="0 0 32 32"><use href="@($"#{simbolo}")" /></svg><i class="fas fa-xmark"></i></span>Ocupada</span>
+                @if (configuracion.MapaAsientosPorCategoria.GetValueOrDefault(CategoriaAsiento.Comfort)?.Count > 0) { <span><span class="seat-key comfort" aria-hidden="true"><svg class="seat-chair" viewBox="0 0 32 32"><use href="@($"#{simbolo}")" /></svg></span>Confort</span> }
+                @if (configuracion.MapaAsientosPorCategoria.GetValueOrDefault(CategoriaAsiento.VIP)?.Count > 0) { <span><span class="seat-key vip" aria-hidden="true"><svg class="seat-chair" viewBox="0 0 32 32"><use href="@($"#{simbolo}")" /></svg></span>VIP</span> }
+            </div>
+        </section>
+        <div class="seat-inline-summary" id="seat-selection-summary" tabindex="-1" @ref="resumen">
+            <SeatSelectionSummary Sala="sala" Seleccionados="AsientosSeleccionados" TotalEntradas="MaximoAsientos" TituloId="seat-selection-inline-title" OnQuitar="QuitarButaca" OnVaciar="SolicitarVaciado" OnContinuar="OnContinuar" OnVolver="OnVolver" />
+        </div>
+        <SectionContent SectionName="seat-summary">
+        @if (AsientosSeleccionados.Count > 0)
+        {
+            <button type="button" class="seat-summary-shortcut @(resumenAlcanzado ? "is-return" : "")" aria-controls="@(resumenAlcanzado ? "seat-selection-map" : "seat-selection-summary")" @onclick="NavegarSeleccion">
+                <span><strong>@AsientosSeleccionados.Count @(AsientosSeleccionados.Count == 1 ? "butaca" : "butacas")</strong><span>@((sala.PrecioFinal * AsientosSeleccionados.Count).ToString("N2")) Bs</span></span>
+                <span class="seat-shortcut-action">@(resumenAlcanzado ? "Volver a butacas" : "Ver resumen")<i class="@(resumenAlcanzado ? "fas fa-arrow-up" : "fas fa-arrow-down")" aria-hidden="true"></i></span>
+            </button>
+        }
+
+            <div class="seat-edge-summary" data-seat-dock>
+                <SeatSelectionSummary Sala="sala" Seleccionados="AsientosSeleccionados" TotalEntradas="MaximoAsientos" TituloId="seat-selection-dock-title" OnQuitar="QuitarButaca" OnVaciar="SolicitarVaciado" OnContinuar="OnContinuar" OnVolver="OnVolver" />
+            </div>
+        </SectionContent>
+    </div>
+    @if (confirmarVaciado)
+    {
+        <SeatSelectionClearDialog Cantidad="AsientosSeleccionados.Count" OnClose="CerrarVaciado" OnConfirm="OnVaciar" />
+    }
+}
+@code {
+    [Parameter] public Pelicula? PeliculaActual { get; set; }
+    [Parameter] public string? HorarioSeleccionado { get; set; }
+    [Parameter] public HashSet<string> AsientosSeleccionados { get; set; } = new();
+    [Parameter] public HashSet<string> AsientosOcupados { get; set; } = new();
+    [Parameter] public int MaximoAsientos { get; set; }
+    [Parameter] public string AvisoSeleccion { get; set; } = "";
+    [Parameter] public EventCallback<string> OnAsientoToggle { get; set; }
+    [Parameter] public EventCallback OnVaciar { get; set; }
+    [Parameter] public EventCallback OnContinuar { get; set; }
+    [Parameter] public EventCallback OnVolver { get; set; }
+    private readonly string simbolo = "seat-chair-" + Guid.NewGuid().ToString("N");
+    private ElementReference mapa, resumen;
+    private IJSObjectReference? modulo;
+    private DotNetObjectReference<SeatSelector>? referencia;
+    private int tamano = 44, recomendado = 44;
+    private bool automatico = true, disposed, resumenAlcanzado, confirmarVaciado, restaurarFocoResumen;
+    private void CerrarVaciado() { confirmarVaciado = false; restaurarFocoResumen = true; }
+    private void SolicitarVaciado() { if (AsientosSeleccionados.Count > 0) confirmarVaciado = true; }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (restaurarFocoResumen && modulo != null && !disposed)
+        {
+            restaurarFocoResumen = false;
+            await modulo.InvokeVoidAsync("focusSelectionSummary", mapa);
+        }
+        if (PeliculaActual == null || modulo != null || disposed) return;
+        var cargado = await JS.InvokeAsync<IJSObjectReference>("import", "./js/seat-map.js");
+        if (disposed) { await cargado.DisposeAsync(); return; }
+        modulo = cargado;
+        referencia = DotNetObjectReference.Create(this);
+        await modulo.InvokeVoidAsync("connectSeatMap", mapa, resumen, referencia);
+    }
+    [JSInvokable] public Task AjustarMapa(int valor) => InvokeAsync(() => { recomendado = Math.Clamp(valor, 24, 44); if (automatico && tamano != recomendado) { tamano = recomendado; StateHasChanged(); } });
+    private void CambiarEscala(int paso) { automatico = false; tamano = Math.Clamp(tamano + paso, 24, 56); }
+    private async Task AjustarVista() { automatico = true; tamano = recomendado; if (modulo != null) await modulo.InvokeVoidAsync("centerSeatMap", mapa); }
+    [JSInvokable] public Task ActualizarAccesoResumen(bool alcanzado) => InvokeAsync(() => { if (!disposed && resumenAlcanzado != alcanzado) { resumenAlcanzado = alcanzado; StateHasChanged(); } });
+    private async Task NavegarSeleccion() { if (modulo != null) await modulo.InvokeVoidAsync("showSeatSection", resumenAlcanzado ? mapa : resumen); }
+    private async Task ToggleAsiento(string id) { if (!AsientosOcupados.Contains(id) && PeliculaActual != null && SalaService.ObtenerTodosLosAsientos(PeliculaActual.NumeroSala).Contains(id)) await OnAsientoToggle.InvokeAsync(id); }
+    private async Task QuitarButaca(string id) { await ToggleAsiento(id); if (modulo != null) await modulo.InvokeVoidAsync("focusSeat", mapa, id); }
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+        if (modulo != null) { try { await modulo.InvokeVoidAsync("disconnectSeatMap", mapa); await modulo.DisposeAsync(); } catch (JSDisconnectedException) { } }
+        referencia?.Dispose();
+    }
+}

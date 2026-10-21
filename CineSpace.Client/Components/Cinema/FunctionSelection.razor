@@ -1,0 +1,36 @@
+@namespace CineSpace.Client.Components.Cinema
+@using CineSpace.Shared.Models
+@inject SalaService Salas
+<h3>Elige tu función</h3>
+<p class="text-muted">@Pelicula.Titulo · @Salas.NombreExperiencia(Experiencia)</p>
+<section class="function-selection" aria-label="Funciones disponibles">
+    @if(Funciones.Count>0)
+    {
+        <label for="function-date" class="form-label">Fecha</label>
+        <select id="function-date" class="form-select function-date" value="@fecha.ToString("yyyy-MM-dd")" @onchange="CambiarFecha">@foreach(var dia in Funciones.Select(f=>f.Inicio.Date).Distinct().OrderBy(d=>d)){<option value="@dia.ToString("yyyy-MM-dd")">@dia.ToString("dddd dd 'de' MMMM",System.Globalization.CultureInfo.GetCultureInfo("es-ES"))</option>}</select>
+        <h4>Horarios disponibles</h4>
+        <div class="function-options">
+        @foreach(var funcion in Funciones.Where(f=>f.Inicio.Date==fecha.Date))
+        {
+            var sala=Salas.ObtenerSala(funcion.NumeroSala);
+            <div class="function-option"><input type="radio" id="funcion-@funcion.Id" name="funcion" value="@funcion.Id" checked="@(funcion.Id==Seleccionada)" @onchange="()=>OnSeleccionar.InvokeAsync(funcion)" /><label for="funcion-@funcion.Id"><strong>@funcion.Inicio.ToString("HH:mm")</strong><span>@sala.Nombre</span><span>@sala.PrecioFinal.ToString("N2") Bs @if(funcion.EnPreventa){<small> · Preventa</small>}</span></label></div>
+        }
+        </div>
+        <p class="function-help">Selecciona un horario para continuar. El precio corresponde a la sala elegida.</p>
+    }
+    else { <p role="status">No hay funciones disponibles para esta experiencia. Puedes elegir otra.</p> }
+    <div class="booking-actions"><button class="btn btn-secondary" @onclick="OnVolver">Atrás</button><button class="btn btn-primary" disabled="@(!Funciones.Any(f=>f.Id==Seleccionada&&f.Inicio.Date==fecha.Date))" @onclick="OnContinuar">Continuar</button></div>
+</section>
+@code {
+    [Parameter,EditorRequired] public Pelicula Pelicula {get;set;}=new();
+    [Parameter] public int Experiencia {get;set;}
+    [Parameter] public IReadOnlyList<FuncionCine> Funciones {get;set;}=Array.Empty<FuncionCine>();
+    [Parameter] public string? Seleccionada {get;set;}
+    [Parameter] public EventCallback<FuncionCine?> OnSeleccionar {get;set;}
+    [Parameter] public EventCallback OnContinuar {get;set;}
+    [Parameter] public EventCallback OnVolver {get;set;}
+    private DateTime fecha;
+    private string? origen;
+    protected override void OnParametersSet() { var clave=$"{Pelicula.Id}:{Experiencia}";if(origen!=clave){origen=clave;fecha=Funciones.FirstOrDefault(f=>f.Id==Seleccionada)?.Inicio.Date??Funciones.FirstOrDefault()?.Inicio.Date??DateTime.Today;} }
+    private async Task CambiarFecha(ChangeEventArgs e) { fecha=DateTime.ParseExact(e.Value!.ToString()!,"yyyy-MM-dd",System.Globalization.CultureInfo.InvariantCulture);await OnSeleccionar.InvokeAsync(null); }
+}

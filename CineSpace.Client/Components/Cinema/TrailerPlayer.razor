@@ -1,0 +1,36 @@
+@namespace CineSpace.Client.Components.Cinema
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<dialog class="trailer-lightbox" aria-label="Tráiler de @Titulo" @ref="elemento">
+    <div class="trailer-stage">
+        <iframe class="booking-trailer-video" src="@(Url + "&autoplay=1&playsinline=1&fs=1")" title="Tráiler de @Titulo" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+        <div class="trailer-controls"><button type="button" data-trailer-fullscreen aria-label="Pantalla completa" title="Pantalla completa"><i class="fas fa-expand" aria-hidden="true"></i></button><button type="button" data-dialog-autofocus aria-label="Cerrar tráiler" title="Cerrar tráiler" @onclick="CerrarDialogo"><i class="fas fa-times" aria-hidden="true"></i></button></div>
+    </div>
+</dialog>
+@code {
+    [Parameter] public string Titulo {get;set;} = "";
+    [Parameter] public string Url {get;set;} = "";
+    [Parameter] public EventCallback OnClose {get;set;}
+    private ElementReference elemento;
+    private IJSObjectReference? modulo, control;
+    private DotNetObjectReference<TrailerPlayer>? referencia;
+    private bool disposed;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if(!firstRender || disposed)return;
+        var loaded = await JS.InvokeAsync<IJSObjectReference>("import","./js/trailer-player.js");
+        if(disposed){await loaded.DisposeAsync();return;}
+        modulo = loaded; referencia = DotNetObjectReference.Create(this);
+        var connected = await modulo.InvokeAsync<IJSObjectReference>("connectTrailer",elemento,referencia);
+        if(disposed){await connected.InvokeVoidAsync("dispose");await connected.DisposeAsync();return;}
+        control = connected;
+    }
+    [JSInvokable] public Task CerrarDialogo() => OnClose.InvokeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+        if(control != null){try{await control.InvokeVoidAsync("dispose");await control.DisposeAsync();}catch(JSDisconnectedException){}}
+        referencia?.Dispose();if(modulo != null)await modulo.DisposeAsync();
+    }
+}

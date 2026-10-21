@@ -1,0 +1,27 @@
+@namespace CineSpace.Client.Components.Shared
+@inject PedidosConfiteriaService Pedidos
+
+<AppDialog Title="¿Vaciar el carrito?" OnClose="OnClose" @ref="dialogo">
+    <ChildContent>
+        <p>Vas a quitar <strong>@Pedidos.CantidadCarrito @(Pedidos.CantidadCarrito == 1 ? "producto" : "productos")</strong> del carrito. Puedes volver a añadir tus combos desde confitería.</p>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="btn btn-secondary" data-dialog-autofocus @onclick="Cerrar">Cancelar</button>
+        <button type="button" class="btn btn-danger" @onclick="Confirmar">Vaciar carrito</button>
+    </Footer>
+</AppDialog>
+
+@code {
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    private AppDialog? dialogo;
+    private bool confirmando;
+    private Task Cerrar() => dialogo?.CerrarDialogo() ?? Task.CompletedTask;
+    private async Task Confirmar()
+    {
+        if (confirmando) return;
+        confirmando = true;
+        await Cerrar();
+        await OnConfirm.InvokeAsync();
+    }
+}

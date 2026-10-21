@@ -1,0 +1,55 @@
+@namespace CineSpace.Client.Components.Cinema
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<article class="movie-card confectionery-card @(abierta ? "is-expanded" : Revelada ? "is-revealed" : "")" style="--confectionery-row: @(Indice / 2 + 1); --confectionery-column: @(Indice % 2 + 1)" @ref="elemento" @onpointerenter="Entrar" @onpointerleave="Salir" @onfocusin="Enfocar" @onfocusout="Desenfocar" @onkeydown="Tecla">
+    @if (abierta)
+    {
+        <div class="confectionery-inline-detail" id="@IdDetalle">
+            <div class="confectionery-detail-heading"><img src="@Combo.Foto" alt="" /><button type="button" class="confectionery-close-detail" aria-label="Cerrar detalles de @Combo.Nombre" @ref="cerrar" @onclick="Cerrar"><i class="fas fa-xmark" aria-hidden="true"></i></button></div>
+            <div class="confectionery-detail-copy"><span class="confectionery-detail-category">@Categoria</span><h2>@Combo.Nombre</h2><p class="confectionery-detail-description">@Combo.Descripcion</p></div>
+            <div class="confectionery-detail-price"><strong>@(Combo.Precio > 0 ? $"{Combo.Precio:N2} Bs" : "Precio por definir")</strong><span>por unidad</span></div>
+            @if (Cantidad > 0) { <p class="confectionery-detail-cart"><i class="fas fa-check" aria-hidden="true"></i>@Cantidad en tu carrito</p> }
+            <div class="confectionery-pick-quantity"><span>Cantidad a añadir</span><div><button type="button" aria-label="Reducir unidades de @Combo.Nombre" disabled="@(Deshabilitada || seleccion <= 1)" @onclick="() => seleccion--"><i class="fas fa-minus" aria-hidden="true"></i></button><output aria-live="polite" aria-label="Unidades a añadir de @Combo.Nombre">@seleccion</output><button type="button" aria-label="Aumentar unidades de @Combo.Nombre" disabled="@(Deshabilitada || seleccion >= Maximo)" @onclick="() => seleccion++"><i class="fas fa-plus" aria-hidden="true"></i></button></div></div>
+            <button type="button" class="btn btn-primary confectionery-detail-add" aria-label="Añadir @seleccion @(seleccion == 1 ? "unidad" : "unidades") de @Combo.Nombre al carrito" disabled="@NoDisponible" @onclick="() => OnAñadir.InvokeAsync((Combo, seleccion))"><i class="fas fa-plus" aria-hidden="true"></i>Añadir al carrito</button>
+            @if (seleccion > 1) { <span class="confectionery-selection-total">Subtotal · @((Combo.Precio * seleccion).ToString("N2")) Bs</span> }
+            @if (Cantidad >= 20) { <p class="confectionery-detail-cart">Ya tienes el máximo de 20 unidades.</p> }
+        </div>
+    }
+    else
+    {
+        <div class="movie-poster-container"><img src="@Combo.Foto" alt="@Combo.Nombre" loading="lazy" decoding="async" /></div>
+        @if (Cantidad > 0) { <span class="confectionery-in-cart"><i class="fas fa-check" aria-hidden="true"></i>@Cantidad en carrito</span> }
+        <button type="button" class="movie-card-trigger" aria-label="Ver detalles de @Combo.Nombre" aria-expanded="false" aria-controls="@IdDetalle" @ref="disparador" @onclick="Abrir"></button>
+        <div class="movie-card-body"><h2>@Combo.Nombre</h2><strong class="confectionery-card-price">@(Combo.Precio > 0 ? $"{Combo.Precio:N2} Bs" : "Precio por definir")</strong><div class="movie-actions" inert="@(!Revelada)"><button type="button" class="btn btn-primary confectionery-add" aria-label="Añadir @Combo.Nombre al carrito" disabled="@NoDisponible" @onclick="() => OnAñadir.InvokeAsync((Combo, 1))"><i class="fas fa-plus" aria-hidden="true"></i>Añadir</button></div></div>
+    }
+</article>
+@code {
+    [Parameter, EditorRequired] public ComboConfiteria Combo { get; set; } = null!;
+    [Parameter] public string Categoria { get; set; } = "";
+    [Parameter] public int Cantidad { get; set; }
+    [Parameter] public bool Deshabilitada { get; set; }
+    [Parameter] public int Indice { get; set; }
+    [Parameter] public bool Abierta { get; set; }
+    [Parameter] public EventCallback<bool> OnAbiertaChanged { get; set; }
+    [Parameter] public EventCallback<(ComboConfiteria Combo, int Cantidad)> OnAñadir { get; set; }
+    private int seleccion = 1;
+    private int Maximo => Math.Max(1, 20 - Cantidad);
+    private bool NoDisponible => Deshabilitada || Combo.Precio <= 0 || Cantidad >= 20;
+    private bool abierta => Abierta;
+    private bool raton, foco, omitirFoco, enfocarDetalle, devolverFoco;
+    private bool Revelada => raton || foco;
+    private string IdDetalle => $"confection-detail-{Combo.Id}";
+    private ElementReference elemento, disparador, cerrar;
+    private IJSObjectReference? modulo;
+    protected override void OnParametersSet() => seleccion = abierta ? Math.Clamp(seleccion, 1, Maximo) : 1;
+    protected override async Task OnAfterRenderAsync(bool firstRender) { if (firstRender) modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/catalogue.js"); if (enfocarDetalle) { enfocarDetalle = false; await cerrar.FocusAsync(preventScroll: true); } if (devolverFoco) { devolverFoco = false; await disparador.FocusAsync(preventScroll: true); } }
+    private async Task Abrir() { enfocarDetalle = true; await OnAbiertaChanged.InvokeAsync(true); }
+    private async Task Cerrar() { raton = foco = false; omitirFoco = true; devolverFoco = true; seleccion = 1; await OnAbiertaChanged.InvokeAsync(false); }
+    private void Entrar(PointerEventArgs e) { if (e.PointerType == "mouse") raton = true; }
+    private void Salir(PointerEventArgs e) { if (e.PointerType == "mouse") raton = false; }
+    private void Enfocar() { if (omitirFoco) { omitirFoco = false; return; } foco = true; }
+    private async Task Desenfocar() { if (modulo != null && !await modulo.InvokeAsync<bool>("containsFocus", elemento)) foco = false; }
+    private async Task Tecla(KeyboardEventArgs e) { if (e.Key == "Escape") { if (abierta) await Cerrar(); else { raton = foco = false; } } }
+    public async ValueTask DisposeAsync() { if (modulo != null) { try { await modulo.DisposeAsync(); } catch (JSDisconnectedException) { } } }
+}

@@ -1,0 +1,153 @@
+@inject ApiCine Api
+@inject HttpClient Http
+@inject IJSRuntime JS
+@page "/reviews"
+@using CineSpace.Shared.Models
+@using CineSpace.Client.Components.Reviews
+@using System.Globalization
+@inject UsuarioService UsuarioService
+@inject PeliculaService PeliculaService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Gestión de Reseñas - Cine Space</PageTitle>
+
+@if (UsuarioService.EsAdministrador())
+{
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Gestión de Reseñas</h2>
+            <div>
+                <button class="btn btn-success me-2" @onclick="ExportarReseñas">
+                    <i class="fa fa-file-excel me-2"></i>Exportar Reseñas
+                </button>
+                <button class="btn btn-outline-primary" @onclick="VolverADashboard">
+                    <i class="fa fa-chart-bar me-2"></i>Volver a Dashboard
+                </button>
+            </div>
+        </div>
+
+        <div class="alert alert-info mb-4">
+            <h5>Información</h5>
+            <p>Esta sección permite administrar las reseñas de películas realizadas por los usuarios. Puede filtrar, ver detalles y eliminar reseñas inapropiadas.</p>
+        </div>
+
+        <div class="card shadow mb-4 review-statistics-summary">
+            <div class="card-header bg-primary text-white py-3">
+                <h4 class="mb-0">Estadísticas de Reseñas</h4>
+            </div>
+            <div class="card-body">
+                <div class="row text-center review-statistics">
+                    <div class="col-md-3">
+                        <div class="stat-box">
+                            <h3>@estadisticas.Total</h3>
+                            <p>Total Reseñas</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-box">
+                            <h3>@estadisticas.Peliculas</h3>
+                            <p>Películas Reseñadas</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-box">
+                            <h3>@estadisticas.Promedio.ToString("0.0")</h3>
+                            <p>Calificación Promedio</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-box">
+                            <h3>@estadisticas.Usuarios</h3>
+                            <p>Usuarios con Reseñas</p>
+                        </div>
+                    </div>
+                </div>
+
+                <section class="review-rating-distribution" aria-labelledby="review-distribution-title">
+                    <h5 id="review-distribution-title">Distribución de Calificaciones</h5>
+                    @if (estadisticas.Total == 0)
+                    {
+                        <p class="review-statistics-empty">Todavía no hay calificaciones registradas.</p>
+                    }
+                    else
+                    {
+                        <div class="review-rating-bar" role="img" aria-label="Distribución de reseñas de una a cinco estrellas; detalle a continuación">
+                            @foreach (var grupo in distribucionCalificaciones)
+                            {
+                                <span class="review-rating-fill rating-@grupo.Key" style="width: @(grupo.Porcentaje.ToString("0.######", CultureInfo.InvariantCulture))%" title="@($"{grupo.Key} estrellas: {grupo.Count} reseñas ({grupo.Porcentaje:0.0}%)")"></span>
+                            }
+                        </div>
+                        <ul class="review-rating-legend" aria-label="Cantidad y porcentaje de reseñas por calificación">
+                            @foreach (var grupo in distribucionCalificaciones)
+                            {
+                                <li><span class="review-rating-label"><span class="review-rating-dot rating-@grupo.Key" aria-hidden="true"></span>@grupo.Key <i class="fas fa-star" aria-hidden="true"></i><span class="visually-hidden">estrellas</span></span><strong>@grupo.Count<span class="visually-hidden"> reseñas</span></strong><span class="review-rating-percent">@grupo.Porcentaje.ToString("0.0")%</span></li>
+                            }
+                        </ul>
+                    }
+                </section>
+            </div>
+        </div>
+
+        <ReviewsFilter OnFiltroAplicado="AplicarFiltros" />
+
+        <ReviewGrid Calificaciones="calificacionesFiltradas" 
+                   OnEliminar="EliminarCalificacion"
+                   OnDestacar="DestacarCalificacion"
+                   CalificacionesDestacadas="calificacionesDestacadas"
+                   ElementosPorPaginaInicial="10" TotalItems="totalItems" OnConsulta="ConsultarGrid" />
+
+        @if (!string.IsNullOrEmpty(statusMessage))
+        {
+            <div class="alert @(isError ? "alert-danger" : "alert-success") mt-4">
+                @statusMessage
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="alert alert-danger">
+        <h4>Acceso Denegado</h4>
+        <p>Solo los administradores pueden acceder a esta función.</p>
+    </div>
+}
+
+@code {
+    private List<CalificacionPelicula> calificacionesFiltradas = [];
+    private HashSet<CalificacionPelicula> calificacionesDestacadas = [];
+    private EstadisticasResenas estadisticas = new(0,0,0,0,[]);
+    private ConsultaPagina consulta = new() { Tamano = 10 };
+    private int totalItems;
+    private string statusMessage = "";
+    private bool isError;
+    private List<DistribucionCalificacion> distribucionCalificaciones = [];
+    protected override async Task OnInitializedAsync() { if(UsuarioService.EsAdministrador()) await Cargar(); }
+    private async Task Cargar() {
+        try {
+            var page = await UsuarioService.ConsultarResenasAsync(consulta,true); calificacionesFiltradas = page.Items; totalItems = page.Total;
+            calificacionesDestacadas = page.Items.Where(x=>x.Destacada).ToHashSet();
+            estadisticas = await Api.Get<EstadisticasResenas>("api/resenas/estadisticas");
+            distribucionCalificaciones = Enumerable.Range(1,5).Select(n => { var total = estadisticas.Distribucion.FirstOrDefault(x=>x.Id==n)?.Uso ?? 0; return new DistribucionCalificacion { Key = n, Count = total, Porcentaje = estadisticas.Total == 0 ? 0 : total * 100d / estadisticas.Total }; }).ToList();
+        } catch(Exception ex) { statusMessage = ex.Message; isError = true; }
+    }
+    private async Task ConsultarGrid(ConsultaPagina pagina) { consulta.Pagina = pagina.Pagina; consulta.Campo = pagina.Campo; consulta.Orden = pagina.Orden; consulta.Destacadas = pagina.Destacadas; await Cargar(); }
+    private async Task AplicarFiltros(FiltroCalificacion f) {
+        consulta.Pagina = 1; consulta.Buscar = f.EmailUsuario; consulta.Pelicula = int.TryParse(f.PeliculaId,out var id) ? id : null;
+        consulta.Minimo = f.CalificacionMinima; consulta.Maximo = f.CalificacionMaxima;
+        consulta.Desde = f.FechaInicio.HasValue ? DateOnly.FromDateTime(f.FechaInicio.Value) : null;
+        consulta.Hasta = f.FechaFin.HasValue ? DateOnly.FromDateTime(f.FechaFin.Value) : null; await Cargar();
+    }
+    private async Task EliminarCalificacion(CalificacionPelicula c) { try { await UsuarioService.EliminarCalificacion(c.EmailUsuario,c.PeliculaId); statusMessage = "Reseña eliminada."; isError = false; await Cargar(); } catch(Exception ex) { statusMessage = ex.Message; isError = true; } }
+    private async Task DestacarCalificacion(CalificacionPelicula c) { try { await Api.Put<object>($"api/resenas/{c.PeliculaId}/destacada?email="+Uri.EscapeDataString(c.EmailUsuario),new CambiarEstado(c.Destacada)); await Cargar(); } catch(Exception ex) { statusMessage = ex.Message; isError = true; } }
+    private async Task ExportarReseñas() { try { var bytes = await Http.GetByteArrayAsync("api/resenas/exportar"); await JS.InvokeVoidAsync("downloadFileFromBase64",Convert.ToBase64String(bytes),"Reseñas_CineSpace.xlsx"); } catch(Exception ex) { statusMessage = ex.Message; isError = true; } }
+    private void VolverADashboard() => NavigationManager.NavigateTo("/Dashboard");
+    public sealed class FiltroCalificacion {
+        public string PeliculaId { get; set; } = "";
+        public string EmailUsuario { get; set; } = "";
+        public int CalificacionMinima { get; set; }
+        public int CalificacionMaxima { get; set; }
+        public DateTime? FechaInicio { get; set; }
+        public DateTime? FechaFin { get; set; }
+    }
+    private sealed class DistribucionCalificacion { public int Key { get; set; } public int Count { get; set; } public double Porcentaje { get; set; } }
+}

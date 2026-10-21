@@ -1,0 +1,23 @@
+{
+  "passed": [
+    "salted seed password: admin@admin.com",
+    "salted seed password: cliente@cliente.com",
+    "salted seed password: trabajador@trabajador.com",
+    "FIFO discards oldest",
+    "FIFO keeps order",
+    "selected seat toggles off",
+    "read cached",
+    "mutation invalidates version",
+    "occupancy always live",
+    "order verification always live",
+    "auth never cached",
+    "correct environment link: https://localhost:7043",
+    "single functional email action: https://localhost:7043",
+    "cinema branding: https://localhost:7043",
+    "correct environment link: https://cine.example.com",
+    "single functional email action: https://cine.example.com",
+    "cinema branding: https://cine.example.com"
+  ],
+  "failed": [],
+  "mailDelivery": "HTTP stub; no email sent"
+}

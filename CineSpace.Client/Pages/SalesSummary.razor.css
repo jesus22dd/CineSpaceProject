@@ -1,0 +1,8 @@
+.sales-summary-panel { padding: 24px; background: var(--cinema-surface); border-radius: 12px; }
+.sales-table-scroll { margin-top: 28px; }
+.sales-table-scroll table { min-width: 1000px; margin-bottom: 0; font-size: 13px; }
+.sales-table-scroll th, .sales-table-scroll td { padding: 14px 12px; }
+.sales-table-scroll thead th { font-size: 12px; font-weight: 600; }
+.sales-table-scroll tfoot { font-weight: 600; font-variant-numeric: tabular-nums; }
+.sales-summary-empty { padding: 36px 0 16px; color: var(--cinema-muted); font-size: 14px; }
+@media (max-width: 600px) { .sales-summary-panel { padding: 20px 16px; } }

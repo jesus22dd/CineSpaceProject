@@ -1,0 +1,97 @@
+@using CineSpace.Shared.Models
+@using CineSpace.Client.Services
+@inject UsuarioService UsuarioService
+@inject TrabajadorService TrabajadorService
+@inject NavigationManager NavigationManager
+@inject SessionTransitionService Transicion
+
+<div class="auth-form-content">
+    <h2 id="auth-title">Iniciar sesión</h2>
+    <p class="form-intro" id="auth-intro">@(Contexto ?? "Reserva tus entradas y consulta tus boletos.")</p>
+    <form @onsubmit="IniciarSesion" @onsubmit:preventDefault aria-busy="@(iniciandoSesion ? "true" : "false")">
+        <fieldset class="auth-fields" disabled="@iniciandoSesion">
+        <div class="mb-4">
+            <label for="loginEmail" class="form-label">Correo electrónico</label>
+            <input type="email" class="form-control" id="loginEmail" @bind="loginEmail" @bind:event="oninput" @bind:after="GuardarBorrador" autocomplete="username" placeholder="tu@correo.com" required />
+        </div>
+        <div class="mb-3">
+            <label for="loginPassword" class="form-label">Contraseña</label>
+            <input type="password" class="form-control" id="loginPassword" @bind="loginPassword" @bind:event="oninput" @bind:after="GuardarBorrador" autocomplete="current-password" placeholder="Ingresa tu contraseña" required />
+        </div>
+        <p><a href="/recuperar-clave">Olvidé mi contraseña</a></p>
+        <GoogleAccess />
+        <button type="submit" class="btn btn-primary w-100">Iniciar sesión</button>
+        </fieldset>
+    </form>
+</div>
+
+@code {
+    [Parameter]
+    public int? PeliculaParaReservar { get; set; }
+    [Parameter]
+    public string? LoginEmail { get; set; }
+    [Parameter]
+    public EventCallback<string?> LoginEmailChanged { get; set; }
+    [Parameter]
+    public string? LoginPassword { get; set; }
+    [Parameter]
+    public EventCallback<string?> LoginPasswordChanged { get; set; }
+    [Parameter]
+    public bool RememberMe { get; set; }
+    [Parameter]
+    public EventCallback<bool> RememberMeChanged { get; set; }
+    [Parameter]
+    public EventCallback<(string mensaje, bool esError)> OnLoginResult { get; set; }
+    [Parameter]
+    public EventCallback OnSwitchToRegister { get; set; }
+    [Parameter] public EventCallback OnAutenticado { get; set; }
+    [Parameter] public string? Contexto { get; set; }
+
+    private string? loginEmail;
+    private string? loginPassword;
+    private bool rememberMe;
+    private bool iniciandoSesion;
+    private async Task GuardarBorrador()
+    {
+        await LoginEmailChanged.InvokeAsync(loginEmail);
+        await LoginPasswordChanged.InvokeAsync(loginPassword);
+        await RememberMeChanged.InvokeAsync(rememberMe);
+    }
+
+    protected override void OnInitialized()
+    {
+        loginEmail = LoginEmail;
+        loginPassword = LoginPassword;
+        rememberMe = RememberMe;
+    }
+
+    private async Task IniciarSesion()
+    {
+        if (iniciandoSesion || Transicion.Activa) return;
+        if (string.IsNullOrEmpty(loginEmail) || string.IsNullOrEmpty(loginPassword))
+        {
+            await OnLoginResult.InvokeAsync(("Por favor completa todos los campos.", true));
+            return;
+        }
+
+        iniciandoSesion = true;
+        try
+        {
+        await LoginEmailChanged.InvokeAsync(loginEmail);
+        await LoginPasswordChanged.InvokeAsync(loginPassword);
+        await RememberMeChanged.InvokeAsync(rememberMe);
+        if (!await Transicion.ComenzarAsync("Iniciando sesión…")) return;
+
+        var resultado = await UsuarioService.AutenticarUsuario(loginEmail, loginPassword);
+        await OnLoginResult.InvokeAsync((resultado.mensaje, !resultado.exito));
+        if (!resultado.exito) return;
+        if (PeliculaParaReservar.HasValue && OnAutenticado.HasDelegate) await OnAutenticado.InvokeAsync();
+        else if (resultado.usuario?.Rol == RolUsuario.Administrador) NavigationManager.NavigateTo("/PanelAdministracion");
+        else if (resultado.usuario?.Rol == RolUsuario.Trabajador) NavigationManager.NavigateTo("/PanelTrabajador");
+        else if (OnAutenticado.HasDelegate) await OnAutenticado.InvokeAsync();
+        else NavigationManager.NavigateTo("/cine");
+
+        }
+        finally { iniciandoSesion = false; await Transicion.TerminarAsync(); }
+    }
+}

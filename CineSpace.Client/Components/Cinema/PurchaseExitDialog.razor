@@ -1,0 +1,60 @@
+@namespace CineSpace.Client.Components.Cinema
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<dialog class="purchase-exit-dialog" aria-labelledby="purchase-exit-title" aria-describedby="purchase-exit-description" @ref="element">
+    <div class="purchase-exit-heading">
+        <span class="purchase-exit-symbol"><i class="fas fa-ticket-alt" aria-hidden="true"></i></span>
+        <button type="button" class="purchase-exit-close" aria-label="Cerrar confirmación" @onclick="CerrarDialogo"><i class="fas fa-times" aria-hidden="true"></i></button>
+    </div>
+    <h2 id="purchase-exit-title">¿Abandonar la compra?</h2>
+    <p id="purchase-exit-description">Si vuelves a la cartelera, se perderán el horario, los asientos y los datos que hayas elegido.</p>
+    <div class="purchase-exit-actions">
+        <button type="button" class="btn btn-primary" data-dialog-autofocus @onclick="CerrarDialogo">Seguir comprando</button>
+        <button type="button" class="btn btn-secondary" @onclick="Abandonar">Abandonar compra</button>
+    </div>
+</dialog>
+
+@code {
+    [Parameter] public EventCallback OnContinuar { get; set; }
+    [Parameter] public EventCallback OnAbandonar { get; set; }
+    private ElementReference element;
+    private IJSObjectReference? module;
+    private DotNetObjectReference<PurchaseExitDialog>? reference;
+    private int? dialogId;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/auth-dialog.js");
+        reference = DotNetObjectReference.Create(this);
+        dialogId = await module.InvokeAsync<int>("openAuthDialog", element, reference);
+    }
+
+    [JSInvokable] public async Task CerrarDialogo()
+    {
+        await CerrarElemento();
+        await OnContinuar.InvokeAsync();
+    }
+
+    private async Task Abandonar()
+    {
+        await CerrarElemento();
+        await OnAbandonar.InvokeAsync();
+    }
+
+    private async Task CerrarElemento()
+    {
+        if (module != null && dialogId.HasValue) await module.InvokeVoidAsync("closeAuthDialog", dialogId.Value);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (module != null)
+        {
+            try { await CerrarElemento(); await module.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+        reference?.Dispose();
+    }
+}

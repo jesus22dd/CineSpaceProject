@@ -1,0 +1,53 @@
+@using CineSpace.Shared.Models
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<article class="account-rating @(expandida ? "is-expanded" : "")" @ref="elemento">
+    <div class="account-rating-heading" id="@tituloId">
+        <h2>@Calificacion.NombrePelicula</h2>
+        <time datetime="@Calificacion.FechaCalificacion.ToString("yyyy-MM-dd")">@Calificacion.FechaCalificacion.ToString("dd/MM/yyyy")</time>
+    </div>
+    <div class="account-rating-score" aria-label="@Calificacion.Calificacion de 5 estrellas">
+        <span class="account-rating-stars" aria-hidden="true">
+            @for (int i = 1; i <= 5; i++)
+            {
+                <i class="@(i <= Calificacion.Calificacion ? "fas" : "far") fa-star"></i>
+            }
+        </span>
+        <span>@Calificacion.Calificacion/5</span>
+    </div>
+    <p class="account-rating-comment" id="@comentarioId">@(string.IsNullOrWhiteSpace(Calificacion.Comentario) ? "Sin comentario." : Calificacion.Comentario)</p>
+    <div class="account-rating-footer">
+        <button type="button" class="account-rating-expand" aria-expanded="@(expandida ? "true" : "false")" aria-controls="@($"{tituloId} {comentarioId}")" aria-label="@(expandida ? $"Ver menos de {Calificacion.NombrePelicula}" : $"Ver más de {Calificacion.NombrePelicula}")" @onclick="() => expandida = !expandida">
+            @(expandida ? "Ver menos" : "Ver más")<i class="fas @(expandida ? "fa-chevron-up" : "fa-chevron-down")" aria-hidden="true"></i>
+        </button>
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public CalificacionPelicula Calificacion { get; set; } = new();
+    private readonly string tituloId = $"rating-title-{Guid.NewGuid():N}";
+    private readonly string comentarioId = $"rating-comment-{Guid.NewGuid():N}";
+    private ElementReference elemento;
+    private bool expandida, disposed;
+    private IJSObjectReference? modulo, observador;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || disposed) return;
+        var cargado = await JS.InvokeAsync<IJSObjectReference>("import", "./js/account-rating.js");
+        if (disposed) { await cargado.DisposeAsync(); return; }
+        modulo = cargado;
+        var conectado = await modulo.InvokeAsync<IJSObjectReference>("observeRating", elemento);
+        if (disposed) { await conectado.InvokeVoidAsync("dispose"); await conectado.DisposeAsync(); return; }
+        observador = conectado;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+        if (observador != null) { await observador.InvokeVoidAsync("dispose"); await observador.DisposeAsync(); }
+        if (modulo != null) await modulo.DisposeAsync();
+    }
+}

@@ -1,0 +1,112 @@
+@namespace CineSpace.Client.Components.Worker
+@using TMDBMovie = CineSpace.Shared.Models.TMDBMovie
+@using CineSpace.Client.Components.Admin
+@using CineSpace.Client.Components.Cinema
+@using CineSpace.Client.Components.Shared
+@implements IDisposable
+@inject PeliculaService PeliculaService
+
+<section class="movie-management" aria-label="Añadir películas">
+    <div class="management-result-heading"><h2>@Titulo</h2><button type="button" class="btn btn-secondary" @onclick="OnCancelar"><i class="fas fa-arrow-left" aria-hidden="true"></i>@TextoVolver</button></div>
+    <form class="movie-management-toolbar" @onsubmit="BuscarPeliculas" @onsubmit:preventDefault>
+        <div class="library-search-fields">
+            <div class="library-search-control">
+                <div class="library-field-copy"><label for="library-title">Título de la película</label><input id="library-title" type="search" class="form-control" placeholder="Buscar por título…" @bind="consulta" @bind:event="oninput" @ref="campoTitulo" /></div>
+                @if (HayFiltros)
+                {
+                    <button type="button" class="library-clear" aria-label="Limpiar búsqueda y filtros" title="Limpiar búsqueda y filtros" @onclick="Limpiar"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+                }
+                <button type="submit" class="library-submit" disabled="@(string.IsNullOrWhiteSpace(consulta) || estaCargando)" aria-label="Buscar películas" title="Buscar películas"><i class="fas @(estaCargando ? "fa-circle-notch fa-spin" : "fa-search")" aria-hidden="true"></i></button>
+            </div>
+            <div class="library-year-control"><label for="library-year">Año (opcional)</label><input id="library-year" type="number" class="form-control" placeholder="Todos" @bind="año" @bind:event="oninput" min="1900" max="@(DateTime.Today.Year + 5)" /></div>
+            <ViewToggle Etiqueta="Vista de resultados" Valor="@vista" ValorChanged="valor => vista = valor" />
+        </div>
+    </form>
+    @if (estaCargando)
+    {
+        <p class="library-loading" role="status"><i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>Buscando películas…</p>
+    }
+    else if (!string.IsNullOrEmpty(mensajeError))
+    {
+        <div class="management-empty" role="status"><i class="fas fa-circle-info" aria-hidden="true"></i><div><strong>@mensajeError</strong><p>Prueba otro título o limpia los filtros.</p></div></div>
+    }
+    else if (resultados.Count > 0)
+    {
+        <div class="management-result-heading"><h2>Resultados</h2><span role="status">@total películas encontradas</span></div>
+        @if (vista == "Tarjetas")
+        {
+            <div class="managed-movie-grid">
+                @foreach (var pelicula in Paginadas)
+                {
+                    <article class="managed-movie" @key="pelicula.id">
+                        @if (!string.IsNullOrWhiteSpace(pelicula.poster_path)) { <img class="managed-movie-poster" src="@Poster(pelicula)" alt="@pelicula.title" loading="lazy" /> }
+                        else { <div class="managed-movie-placeholder"><i class="fas fa-film" aria-hidden="true"></i><span>Sin imagen</span></div> }
+                        <div class="managed-movie-body"><span class="managed-genre">@Año(pelicula)</span><h3 title="@pelicula.title">@pelicula.title</h3></div>
+                        <div class="managed-actions"><button type="button" class="btn btn-primary" aria-label="Añadir @pelicula.title" @onclick="() => OnPeliculaSeleccionada.InvokeAsync(pelicula)"><i class="fas fa-plus" aria-hidden="true"></i>Añadir</button></div>
+                    </article>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="managed-table-scroll"><table class="managed-movie-table library-results"><thead><tr><th scope="col">Película</th><th scope="col">Año</th><th scope="col">Acción</th></tr></thead><tbody>
+                @foreach (var pelicula in Paginadas)
+                {
+                    <tr @key="pelicula.id"><td><div class="managed-table-film">@if (!string.IsNullOrWhiteSpace(pelicula.poster_path)) { <img src="@Poster(pelicula)" alt="" loading="lazy" /> }<strong>@pelicula.title</strong></div></td><td>@Año(pelicula)</td><td><button type="button" class="btn btn-primary" aria-label="Añadir @pelicula.title" @onclick="() => OnPeliculaSeleccionada.InvokeAsync(pelicula)"><i class="fas fa-plus" aria-hidden="true"></i>Añadir</button></td></tr>
+                }
+            </tbody></table></div>
+        }
+        <Pagination CurrentPage="pagina" TotalPages="TotalPaginas" TotalItems="total" PageSize="PorPagina" ShowPageSizeSelector="false" Label="Paginación de resultados" OnPageChanged="CambiarPagina" />
+    }
+</section>
+
+@code {
+    [Parameter] public string Titulo { get; set; } = "Buscar película";
+    [Parameter] public string TextoVolver { get; set; } = "Volver a cartelera";
+    [Parameter] public EventCallback<TMDBMovie> OnPeliculaSeleccionada { get; set; }
+    [Parameter] public EventCallback OnCancelar { get; set; }
+    private const int PorPagina = 20;
+    private int pagina = 1, version, total;
+    private string consulta = "", mensajeError = "", vista = "Tarjetas";
+    private int? año;
+    private bool estaCargando, realizoBusqueda, disposed;
+    private List<TMDBMovie> resultados = new();
+    private readonly string[] vistas = { "Tarjetas", "Tabla" };
+    private CancellationTokenSource? cts;
+    private ElementReference campoTitulo;
+    private bool HayFiltros => !string.IsNullOrEmpty(consulta) || año.HasValue || realizoBusqueda;
+    private int TotalPaginas => Math.Max(1, (int)Math.Ceiling(total / (double)PorPagina));
+    private IEnumerable<TMDBMovie> Paginadas => resultados;
+    private async Task CambiarPagina(int valor) { pagina = Math.Clamp(valor, 1, TotalPaginas); await CargarPagina(); }
+    private static string Poster(TMDBMovie pelicula) => CineSpace.Client.Services.PeliculaService.UrlImagen(pelicula.poster_path,"w342");
+    private static string Año(TMDBMovie pelicula) => pelicula.release_date?.Length >= 4 ? pelicula.release_date[..4] : "Fecha por confirmar";
+    private async Task BuscarPeliculas()
+    {
+        pagina = 1;
+        await CargarPagina();
+    }
+    private async Task CargarPagina()
+    {
+        if (estaCargando || string.IsNullOrWhiteSpace(consulta)) return;
+        cts?.Cancel(); cts?.Dispose(); cts = new CancellationTokenSource();
+        var request = ++version;
+        estaCargando = true; realizoBusqueda = true; mensajeError = ""; resultados = new();
+        try
+        {
+            await Task.Delay(200, cts.Token);
+            var encontrados = await PeliculaService.BuscarPeliculasEnTMDB(consulta.Trim(), año, pagina);
+            if (disposed || request != version) return;
+            resultados = encontrados.Items; total = encontrados.Total;
+            if (resultados.Count == 0) mensajeError = "No encontramos películas para esta búsqueda.";
+        }
+        catch (OperationCanceledException) { }
+        catch { if (!disposed && request == version) mensajeError = "No pudimos cargar las películas. Inténtalo de nuevo."; }
+        finally { if (!disposed && request == version) estaCargando = false; }
+    }
+    private async Task Limpiar()
+    {
+        version++; cts?.Cancel(); consulta = ""; año = null; resultados = new(); total = 0; mensajeError = ""; pagina = 1; realizoBusqueda = estaCargando = false;
+        await campoTitulo.FocusAsync(preventScroll: true);
+    }
+    public void Dispose() { disposed = true; version++; cts?.Cancel(); cts?.Dispose(); }
+}

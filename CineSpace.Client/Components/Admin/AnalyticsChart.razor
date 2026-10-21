@@ -1,0 +1,193 @@
+@using System.Globalization
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="analytics-chart" @ref="raiz" data-chart-kind="@Tipo">
+    @if (Maximo <= 0)
+    {
+        <div class="analytics-empty" role="status"><i class="fas fa-chart-simple" aria-hidden="true"></i><p>@Vacio</p><span>Las ventas registradas se mostrarán aquí.</span></div>
+    }
+    else
+    {
+        <div class="chart-plot @(Tipo == "line" ? "line-scroll" : "")">
+        <svg class="analytics-svg" viewBox="@($"0 0 {ancho} {Alto}")" role="group" aria-label="@Titulo">
+            <desc>Consulta cada elemento para ver su importe o cantidad. También puedes abrir la tabla de datos.</desc>
+            @if (Tipo is "pie" or "donut")
+            {
+                var total = Datos.Sum(x => x.Valor);
+                var angulo = -90d;
+                @foreach (var item in Datos.Where(x => x.Valor > 0).Select((dato, i) => (dato, i)))
+                {
+                    var fin = angulo + (double)(item.dato.Valor / total) * 360;
+                    <g class="chart-mark" tabindex="0" role="button" aria-label="@Descripcion(item.dato)" data-tooltip-title="@item.dato.Nombre" data-tooltip-value="@Valor(item.dato.Valor)" data-tooltip-detail="@Detalle(item.dato, total)" style="@Color(item.i)">
+                        @if (fin - angulo >= 359.99) { <circle cx="@(ancho / 2)" cy="@CentroCircular" r="@RadioCircular" class="chart-slice" /> }
+                        else { <path d="@Sector(angulo, fin)" class="chart-slice" /> }
+                    </g>
+                    angulo = fin;
+                }
+                @if (Tipo == "donut") { <circle cx="@(ancho / 2)" cy="@CentroCircular" r="58" class="chart-hole" /> }
+            }
+            else
+            {
+                <g class="chart-grid">
+                    @foreach (var tick in Ticks)
+                    {
+                        @if (Tipo == "horizontal")
+                        {
+                            var x = Izquierda + (double)(tick / Techo) * AnchoDibujo;
+                            <g><line x1="@N(x)" y1="16" x2="@N(x)" y2="@BaseDibujo" /><text x="@N(x)" y="210" text-anchor="middle">@Abreviar(tick)</text></g>
+                        }
+                        else
+                        {
+                            var y = Y(tick);
+                            <g><line x1="@Izquierda" y1="@N(y)" x2="@(ancho - 12)" y2="@N(y)" /><text x="@(Izquierda - 10)" y="@N(y + 4)" text-anchor="end">@Abreviar(tick)</text></g>
+                        }
+                    }
+                </g>
+                @if (Tipo == "horizontal")
+                {
+                    @foreach (var item in Datos.Select((dato, i) => (dato, i)))
+                    {
+                        var y = 22 + item.i * 34;
+                        <g class="chart-mark" tabindex="0" role="button" aria-label="@Descripcion(item.dato)" data-tooltip-title="@item.dato.Nombre" data-tooltip-value="@Valor(item.dato.Valor)" data-tooltip-detail="@Detalle(item.dato)" style="@Color(item.i)">
+                            <rect x="0" y="@(y - 4)" width="@ancho" height="32" class="chart-hit" />
+                            <text x="0" y="@(y + 16)" class="chart-label">@Cortar(item.dato.Nombre, ancho < 380 ? 13 : 20)</text>
+                            <rect x="@Izquierda" y="@y" width="@N((double)(item.dato.Valor / Techo) * AnchoDibujo)" height="22" rx="2" class="chart-bar" />
+                        </g>
+                    }
+                }
+                else if (Tipo == "vertical")
+                {
+                    var paso = AnchoDibujo / Datos.Count;
+                    @foreach (var item in Datos.Select((dato, i) => (dato, i)))
+                    {
+                        var x = Izquierda + paso * item.i + paso * .22;
+                        <g class="chart-mark" tabindex="0" role="button" aria-label="@Descripcion(item.dato)" data-tooltip-title="@item.dato.Nombre" data-tooltip-value="@Valor(item.dato.Valor)" data-tooltip-detail="@Detalle(item.dato)" style="@Color(item.i)">
+                            <rect x="@N(x - paso * .15)" y="16" width="@N(paso * .86)" height="204" class="chart-hit" />
+                            <rect x="@N(x)" y="@N(Y(item.dato.Valor))" width="@N(paso * .56)" height="@N(BaseDibujo - Y(item.dato.Valor))" rx="2" class="chart-bar" />
+                            <text x="@N(x + paso * .28)" y="210" text-anchor="middle" class="chart-label">@(ancho < 380 ? (item.i + 1).ToString() : Cortar(item.dato.Nombre, 14))</text>
+                        </g>
+                    }
+                }
+                else if (Tipo == "grouped")
+                {
+                    var paso = AnchoDibujo / Etiquetas.Count;
+                    @for (var i = 0; i < Etiquetas.Count; i++)
+                    {
+                        var indice = i;
+                        var x = Izquierda + paso * i;
+                        <g><text x="@N(x + paso / 2)" y="210" text-anchor="middle" class="chart-label">@Etiquetas[i]</text></g>
+                        @foreach (var item in Series.Select((serie, j) => (serie, j)))
+                        {
+                            var valor = item.serie.Valores[indice];
+                            var barX = x + paso * .15 + item.j * paso * .35;
+                            <g class="chart-mark" tabindex="0" role="button" aria-label="@($"{Etiquetas[indice]}, {item.serie.Nombre}: {Valor(valor)}")" data-tooltip-title="@($"{Etiquetas[indice]} · {item.serie.Nombre}")" data-tooltip-value="@Valor(valor)" style="@Color(item.j)">
+                                <rect x="@N(barX)" y="16" width="@N(paso * .32)" height="176" class="chart-hit" />
+                                <rect x="@N(barX)" y="@N(Y(valor))" width="@N(paso * .32)" height="@N(BaseDibujo - Y(valor))" rx="2" class="chart-bar" />
+                            </g>
+                        }
+                    }
+                }
+                else if (Tipo == "line")
+                {
+                    @foreach (var item in Series.Select((serie, j) => (serie, j)))
+                    {
+                        <polyline points="@Linea(item.serie)" class="chart-line @(item.serie.Nombre == "Total" ? "is-total" : "")" style="@Color(item.j)" />
+                        @for (var i = 0; i < Etiquetas.Count; i++)
+                        {
+                            var valor = item.serie.Valores[i];
+                            <g class="chart-mark" tabindex="0" role="button" aria-label="@($"{Etiquetas[i]}, {item.serie.Nombre}: {Valor(valor)}")" data-tooltip-title="@($"{Etiquetas[i]} · {item.serie.Nombre}")" data-tooltip-value="@Valor(valor)" style="@Color(item.j)">
+                                <circle cx="@N(X(i))" cy="@N(Y(valor))" r="10" class="chart-hit" />
+                                <circle cx="@N(X(i))" cy="@N(Y(valor))" r="3" class="chart-dot" />
+                            </g>
+                        }
+                    }
+                    @for (var i = 0; i < Etiquetas.Count; i++)
+                    {
+                        @if (i == 0 || i == Etiquetas.Count - 1 || i % (ancho < 480 ? 10 : 5) == 0)
+                        { <g><text x="@N(X(i))" y="210" text-anchor="@(i == 0 ? "start" : i == Etiquetas.Count - 1 ? "end" : "middle")" class="chart-label">@Etiquetas[i]</text></g> }
+                    }
+                }
+            }
+        </svg>
+        </div>
+        @if (Tipo == "line") { <p class="chart-scroll-hint">Desliza el gráfico para recorrer los 30 días.</p> }
+        @if (Tipo is "pie" or "donut" || Tipo == "vertical" && ancho < 380)
+        {
+            <div class="chart-legend">@foreach (var item in Datos.Select((dato, i) => (dato, i))) { <span style="@Color(item.i)"><i aria-hidden="true"></i>@(Tipo == "vertical" ? $"{item.i + 1}. {item.dato.Nombre}" : item.dato.Nombre)</span> }</div>
+        }
+        else if (Series.Count > 0)
+        {
+            <div class="chart-legend">@foreach (var item in Series.Select((serie, i) => (serie, i))) { <span style="@Color(item.i)"><i class="@(item.serie.Nombre == "Total" ? "legend-total" : "")" aria-hidden="true"></i>@item.serie.Nombre</span> }</div>
+        }
+        <details class="chart-data"><summary>Ver datos</summary><div class="chart-data-scroll"><table><thead><tr><th scope="col">@(Series.Count > 0 ? "Fecha" : "Categoría")</th>@if (Series.Count > 0) { @foreach (var serie in Series) { <th scope="col">@serie.Nombre</th> } } else { <th scope="col">@Unidad</th>@if (MostrarDetalle) { <th scope="col">Ventas</th><th scope="col">Tickets</th> } }</tr></thead><tbody>
+        @if (Series.Count > 0) { @for (var i = 0; i < Etiquetas.Count; i++) { <tr><th scope="row">@Etiquetas[i]</th>@foreach (var serie in Series) { <td>@Valor(serie.Valores[i])</td> }</tr> } }
+        else { @foreach (var dato in Datos) { <tr><th scope="row">@dato.Nombre</th><td>@Valor(dato.Valor)</td>@if (MostrarDetalle) { <td>@dato.Ventas</td><td>@dato.Tickets</td> }</tr> } }
+        </tbody></table></div></details>
+    }
+    <div id="@tooltipId" class="analytics-tooltip" role="tooltip" popover="manual" @ref="tooltip"><strong data-tooltip-heading></strong><span data-tooltip-number></span><small data-tooltip-description></small></div>
+</div>
+
+@code {
+    [Parameter] public string Tipo { get; set; } = "vertical";
+    [Parameter] public string Titulo { get; set; } = "Gráfico de ventas";
+    [Parameter] public string Unidad { get; set; } = "tickets";
+    [Parameter] public string Vacio { get; set; } = "Aún no hay ventas registradas.";
+    [Parameter] public bool MostrarDetalle { get; set; }
+    [Parameter] public IReadOnlyList<DatoGrafico> Datos { get; set; } = Array.Empty<DatoGrafico>();
+    [Parameter] public IReadOnlyList<SerieGrafico> Series { get; set; } = Array.Empty<SerieGrafico>();
+    [Parameter] public IReadOnlyList<string> Etiquetas { get; set; } = Array.Empty<string>();
+    private readonly string tooltipId = "chart-tooltip-" + Guid.NewGuid().ToString("N");
+    private ElementReference raiz, tooltip;
+    private IJSObjectReference? modulo;
+    private DotNetObjectReference<AnalyticsChart>? referencia;
+    private int ancho = 480;
+    private const int BaseDibujo = 188, CentroCircular = 104, RadioCircular = 92;
+    private int Alto => Tipo is "pie" or "donut" ? 208 : 232;
+    private bool disposed;
+    private decimal Maximo => Series.Count > 0 ? Series.SelectMany(s => s.Valores).DefaultIfEmpty().Max() : Datos.Select(x => x.Valor).DefaultIfEmpty().Max();
+    private decimal Paso
+    {
+        get {
+            if (Maximo <= 0) return 1;
+            var bruto = (double)Maximo / 4;
+            var potencia = Math.Pow(10, Math.Floor(Math.Log10(bruto)));
+            var factor = bruto / potencia;
+            return Math.Max(Unidad == "Bs" ? .01m : 1m, (decimal)((factor <= 1 ? 1 : factor <= 2 ? 2 : factor <= 5 ? 5 : 10) * potencia));
+        }
+    }
+    private decimal Techo => Math.Max(Paso, Math.Ceiling(Maximo / Paso) * Paso);
+    private IEnumerable<decimal> Ticks => Enumerable.Range(0, (int)(Techo / Paso) + 1).Select(i => i * Paso);
+    private int Izquierda => Tipo == "horizontal" ? (ancho < 380 ? 102 : 140) : 48;
+    private double AnchoDibujo => ancho - Izquierda - 12;
+    private double Y(decimal valor) => BaseDibujo - (double)(valor / Techo) * (BaseDibujo - 20);
+    private double X(int i) => Izquierda + (Etiquetas.Count <= 1 ? AnchoDibujo / 2 : i * AnchoDibujo / (Etiquetas.Count - 1));
+    private static string N(double numero) => numero.ToString("0.###", CultureInfo.InvariantCulture);
+    private static string Color(int i) => $"--series-color: var(--chart-{i % 5 + 1})";
+    private string Valor(decimal valor) => Unidad == "Bs" ? $"{valor:N2} Bs" : $"{valor:N0} {Unidad}";
+    private static string Cortar(string valor, int maximo) => valor.Length > maximo ? valor[..(maximo - 1)] + "…" : valor;
+    private static string Abreviar(decimal valor) => valor >= 1_000_000 ? $"{valor / 1_000_000:0.#} M" : valor >= 1000 ? $"{valor / 1000:0.#} mil" : $"{valor:0.##}";
+    private string Descripcion(DatoGrafico dato) => $"{dato.Nombre}: {Valor(dato.Valor)}. {Detalle(dato)}";
+    private string Detalle(DatoGrafico dato, decimal total = 0) => total > 0 ? $"{dato.Valor / total:P1} del total" + (dato.Ventas > 0 ? $" · {dato.Ventas:N0} ventas" : "") : MostrarDetalle ? $"{dato.Ventas:N0} ventas · {dato.Tickets:N0} tickets" : dato.Ventas > 0 ? $"{dato.Ventas:N0} ventas" : "";
+    private string Sector(double inicio, double fin)
+    {
+        var cx = ancho / 2d; var a = inicio * Math.PI / 180; var b = fin * Math.PI / 180;
+        return $"M {N(cx)} {CentroCircular} L {N(cx + RadioCircular * Math.Cos(a))} {N(CentroCircular + RadioCircular * Math.Sin(a))} A {RadioCircular} {RadioCircular} 0 {(fin - inicio > 180 ? 1 : 0)} 1 {N(cx + RadioCircular * Math.Cos(b))} {N(CentroCircular + RadioCircular * Math.Sin(b))} Z";
+    }
+    private string Linea(SerieGrafico serie) => string.Join(" ", serie.Valores.Select((v, i) => $"{N(X(i))},{N(Y(v))}"));
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/analytics-charts.js");
+        if (disposed) { await modulo.DisposeAsync(); return; }
+        referencia = DotNetObjectReference.Create(this);
+        await modulo.InvokeVoidAsync("connectChart", raiz, tooltip, referencia);
+    }
+    [JSInvokable] public void AjustarAncho(int valor) { var nuevo = Math.Max(Tipo == "line" ? 640 : 200, valor); if (disposed || nuevo == ancho) return; ancho = nuevo; StateHasChanged(); }
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+        if (modulo != null) { try { await modulo.InvokeVoidAsync("disconnectChart", raiz); await modulo.DisposeAsync(); } catch (JSDisconnectedException) { } }
+        referencia?.Dispose();
+    }
+}

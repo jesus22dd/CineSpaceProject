@@ -1,0 +1,28 @@
+@namespace CineSpace.Client.Components.Cinema
+@using CineSpace.Client.Components.Shared
+
+<AppDialog Title="¿Vaciar las butacas?" OnClose="OnClose" @ref="dialogo">
+    <ChildContent>
+        <p>Vas a quitar <strong>@Cantidad @(Cantidad == 1 ? "butaca" : "butacas")</strong> de tu selección. Puedes volver a elegir tus butacas en el mapa de la sala.</p>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="btn btn-secondary" data-dialog-autofocus @onclick="Cerrar">Cancelar</button>
+        <button type="button" class="btn btn-danger" @onclick="Confirmar">Vaciar butacas</button>
+    </Footer>
+</AppDialog>
+
+@code {
+    [Parameter] public int Cantidad { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    private AppDialog? dialogo;
+    private bool confirmando;
+    private Task Cerrar() => dialogo?.CerrarDialogo() ?? Task.CompletedTask;
+    private async Task Confirmar()
+    {
+        if (confirmando) return;
+        confirmando = true;
+        await Cerrar();
+        await OnConfirm.InvokeAsync();
+    }
+}

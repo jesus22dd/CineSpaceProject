@@ -1,0 +1,74 @@
+@namespace CineSpace.Client.Components.Worker
+@using CineSpace.Shared.Models
+@using CineSpace.Client.Components.Cinema
+@inject PeliculaService PeliculaService
+@inject CatalogosService Catalogos
+
+<section class="card mb-4" aria-labelledby="movie-form-title">
+    <div class="card-header"><h2 id="movie-form-title">@(ModoEdicion ? "Editar película" : "Nueva película")</h2></div>
+    <div class="card-body">
+        <form @onsubmit="Guardar" @onsubmit:preventDefault>
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="mb-3"><label for="titulo" class="form-label">Título</label><input id="titulo" class="form-control" required @bind="pelicula.Titulo" /></div>
+                    <div class="row">
+                        <div class="col-sm-6 mb-3"><MovieGenrePicker @ref="selectorGeneros" Valor="pelicula.ListaGeneros" ValorChanged="CambiarGeneros" /></div>
+                        <div class="col-sm-6 mb-3"><label for="movie-duration" class="form-label">Duración en minutos</label><input id="movie-duration" class="form-control" type="number" min="1" max="720" required @bind="pelicula.DuracionMinutos" /></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-6 mb-3"><label class="form-label" for="movie-distributor">Distribuidora</label><select id="movie-distributor" class="form-select" @bind="pelicula.DistribuidoraId"><option value="">Sin asignar</option>@foreach(var d in Catalogos.Distribuidoras.OrderBy(d => d.Nombre)) { <option value="@d.Id">@d.Nombre</option> }</select>@if(Catalogos.Distribuidoras.Count == 0){<small class="text-muted">Añade distribuidoras desde Usuarios → Distribuidoras.</small>}</div>
+                        <div class="col-sm-6 mb-3"><label class="form-label" for="movie-release-date">Fecha de estreno</label><input id="movie-release-date" class="form-control" type="date" @bind="pelicula.FechaEstreno" /></div>
+                    </div>
+                    <div class="mb-3"><label for="movie-synopsis" class="form-label">Sinopsis</label><textarea id="movie-synopsis" class="form-control" rows="4" @bind="pelicula.Sinopsis"></textarea></div>
+                    <div class="mb-3"><label for="movie-trailer" class="form-label">URL del tráiler</label><input id="movie-trailer" type="url" class="form-control" placeholder="https://www.youtube.com/watch?v=…" @bind="pelicula.TrailerUrl" /></div>
+                    <div class="mb-3"><label for="movie-image-source" class="form-label">Imágenes</label><select id="movie-image-source" class="form-select" @bind="fuente"><option value="auto" disabled="@(TmdbId==null)">Automático desde TMDB</option><option value="manual">Subir imágenes propias</option></select></div>
+                    @if(fuente == "manual") { <div class="row"><div class="col-sm-6 mb-3"><label for="movie-poster-file" class="form-label">Subir póster</label><InputFile id="movie-poster-file" OnChange="e => CargarImagen(e,false)" accept="image/jpeg,image/png,image/webp" class="form-control" /></div><div class="col-sm-6 mb-3"><label for="movie-backdrop-file" class="form-label">Subir panorámica</label><InputFile id="movie-backdrop-file" OnChange="e => CargarImagen(e,true)" accept="image/jpeg,image/png,image/webp" class="form-control" /></div></div> }
+                    <div class="mb-3"><label for="movie-poster-url" class="form-label">URL del póster</label><input id="movie-poster-url" class="form-control" readonly="true" placeholder="https://…" @bind="pelicula.ImagenUrl" /></div>
+                    <div class="mb-3"><label for="movie-backdrop-url" class="form-label">URL de imagen panorámica</label><input id="movie-backdrop-url" class="form-control" readonly="true" placeholder="https://…" @bind="pelicula.ImagenPanoramicaUrl" /></div>
+                    <p class="text-muted">Programa después sus salas, experiencias, fechas y horarios desde Funciones.</p>
+                </div>
+                <div class="col-lg-4 movie-image-preview">
+                    <section class="movie-poster-preview" aria-labelledby="movie-poster-preview-title">
+                        <h3 id="movie-poster-preview-title">Vista previa del póster</h3>
+                        <img class="movie-metadata-poster" src="@CineSpace.Client.Services.PeliculaService.UrlImagen(pelicula.ImagenUrl)" alt="Vista previa del póster" onerror="this.onerror=null;this.src='images/poster-placeholder.svg';" />
+                    </section>
+                    @if(!string.IsNullOrWhiteSpace(pelicula.ImagenPanoramicaUrl))
+                    {
+                        <section class="movie-home-preview banner-preview" aria-labelledby="movie-home-preview-title">
+                            <h3 id="movie-home-preview-title">Vista previa del banner</h3>
+                            <div class="carousel-stage"><BannerVisual Pelicula="pelicula" Banner="BannerVistaPrevia" Preview="true" /></div>
+                            <div class="movie-framing-control"><label for="movie-backdrop-focus">Encuadre del banner <output for="movie-backdrop-focus">@pelicula.FocoPanoramicaVertical%</output></label><input id="movie-backdrop-focus" class="form-range" type="range" min="0" max="100" step="1" @bind="pelicula.FocoPanoramicaVertical" @bind:event="oninput" /><div><span>Parte superior</span><span>Parte inferior</span></div></div>
+                        </section>
+                    }
+                </div>
+            </div>
+            @if(TmdbId.HasValue){<MovieArtworkPicker @key="TmdbId.Value" TmdbId="TmdbId.Value" PosterUrl="@pelicula.ImagenUrl" PanoramicaUrl="@pelicula.ImagenPanoramicaUrl" OnPoster="ElegirPoster" OnPanoramica="ElegirPanoramica" />}
+            <div class="movie-form-actions mt-4"><button type="button" class="btn btn-secondary" @onclick="OnCancelar">Cancelar</button><button type="submit" class="btn btn-primary">@(ModoEdicion ? "Actualizar película" : "Guardar película")</button></div>
+        </form>
+    </div>
+</section>
+@code {
+    private async Task CargarImagen(InputFileChangeEventArgs e, bool panoramica) {
+        var file = await e.File.RequestImageFileAsync("image/webp",panoramica ? 2400 : 1200,panoramica ? 2400 : 1200);
+        using var stream = file.OpenReadStream(10 * 1024 * 1024); using var memory = new MemoryStream(); await stream.CopyToAsync(memory);
+        var imagen = "data:image/webp;base64," + Convert.ToBase64String(memory.ToArray());
+        if(panoramica) pelicula.ImagenPanoramicaUrl = imagen; else pelicula.ImagenUrl = imagen;
+    }
+
+    [Parameter] public Pelicula Pelicula {get;set;}=new();
+    [Parameter] public bool ModoEdicion {get;set;}
+    [Parameter] public EventCallback<Pelicula> OnGuardar {get;set;}
+    [Parameter] public EventCallback OnCancelar {get;set;}
+    private Pelicula pelicula=new();
+    private Pelicula? origen;
+    private MovieGenrePicker? selectorGeneros;
+    private string fuente="manual";
+    private int? TmdbId=>pelicula.TmdbId;
+    protected override void OnParametersSet() { if(ReferenceEquals(origen,Pelicula))return; origen=Pelicula;pelicula=Pelicula.Copiar();NormalizarUrls();fuente=pelicula.ImagenManual||TmdbId==null?"manual":"auto"; }
+    private BannerInicio BannerVistaPrevia=>new(){PeliculaId=pelicula.Id,Imagen=CineSpace.Client.Services.PeliculaService.UrlImagen(pelicula.ImagenPanoramicaUrl,"w1280"),FocoVertical=pelicula.FocoPanoramicaVertical};
+    private void ElegirPoster(string url) { if(pelicula.ImagenUrl!=url)pelicula.FocoPosterVertical=50;pelicula.ImagenUrl=url;fuente="auto"; }
+    private void ElegirPanoramica(string url) { if(pelicula.ImagenPanoramicaUrl!=url)pelicula.FocoPanoramicaVertical=35;pelicula.ImagenPanoramicaUrl=url;fuente="auto"; }
+    private void NormalizarUrls() { if(!string.IsNullOrWhiteSpace(pelicula.ImagenUrl))pelicula.ImagenUrl=CineSpace.Client.Services.PeliculaService.UrlImagen(pelicula.ImagenUrl);if(!string.IsNullOrWhiteSpace(pelicula.ImagenPanoramicaUrl))pelicula.ImagenPanoramicaUrl=CineSpace.Client.Services.PeliculaService.UrlImagen(pelicula.ImagenPanoramicaUrl,"w1280"); }
+    private void CambiarGeneros(List<string> generos) { pelicula.Generos = generos; pelicula.Genero = generos.FirstOrDefault() ?? ""; }
+    private async Task Guardar() { if(selectorGeneros?.Validar()!=true)return;pelicula.ImagenManual=fuente=="manual";await OnGuardar.InvokeAsync(pelicula); }
+}

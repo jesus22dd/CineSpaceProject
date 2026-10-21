@@ -1,0 +1,6 @@
+.google-access-button { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 44px; padding: 10px 14px; background: var(--cinema-control); color: var(--cinema-ink); border: 1px solid var(--cinema-control-border); border-radius: 6px; font-size: 14px; font-weight: 600; }
+.google-access { margin-bottom: 12px; }
+.google-access-icon { width: 20px; height: 20px; flex-shrink: 0; }
+.google-access-button:hover { background: var(--cinema-input); border-color: var(--cinema-muted); }
+.google-example-note { margin: 8px 0 0; color: var(--cinema-muted); font-size: 12px; line-height: 1.4; }
+@media (max-width: 600px) { .google-access { margin-bottom: 8px; } .google-example-note { margin-top: 4px; line-height: 1.3; } }

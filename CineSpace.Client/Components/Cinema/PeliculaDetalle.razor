@@ -1,0 +1,92 @@
+@namespace CineSpace.Client.Components.Cinema
+@using CineSpace.Shared.Models
+
+<div class="pelicula-detalle-overlay @(EstaActivo ? "activo" : "")">
+    <div class="pelicula-detalle-card">
+        <div class="pelicula-detalle-header">
+            <h4>@Pelicula?.Titulo</h4>
+            <button type="button" class="pelicula-detalle-close" @onclick="CerrarDetalle">&times;</button>
+        </div>
+        <div class="pelicula-detalle-body">
+            <div class="pelicula-detalle-trailer">
+                @if (!string.IsNullOrEmpty(Pelicula?.TrailerUrl))
+                {
+                    <!-- Iframe para YouTube con URL transformada para embebido -->
+                    <iframe src="@ObtenerUrlEmbebidaYoutube(Pelicula.TrailerUrl)"
+                            frameborder="0" allowfullscreen></iframe>
+                }
+                else
+                {
+                    <div class="no-trailer-message">
+                        <p>No hay tráiler disponible para esta película</p>
+                    </div>
+                }
+            </div>
+            <div class="pelicula-detalle-sinopsis">
+                <p>@(string.IsNullOrEmpty(Pelicula?.Sinopsis) ? "No hay sinopsis disponible para esta película." : Pelicula.Sinopsis)</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Pelicula Pelicula { get; set; } = new();
+
+    [Parameter]
+    public bool EstaActivo { get; set; }
+
+    [Parameter]
+    public EventCallback OnCerrar { get; set; }
+
+    private async Task CerrarDetalle()
+    {
+        await OnCerrar.InvokeAsync();
+    }
+
+    private string ObtenerUrlEmbebidaYoutube(string url)
+    {
+        if (string.IsNullOrEmpty(url))
+            return string.Empty;
+
+        // Si ya es una URL embedida, devolverla directamente
+        if (url.Contains("embed"))
+            return url;
+
+        string videoId = string.Empty;
+
+        // Extraer ID de video de YouTube desde varias posibles estructuras de URL
+        if (url.Contains("youtu.be/"))
+        {
+            // URL corta: https://youtu.be/XXXXXXXXXXX
+            videoId = url.Split(new[] { "youtu.be/" }, StringSplitOptions.None)[1];
+        }
+        else if (url.Contains("youtube.com/watch?v="))
+        {
+            // URL estándar: https://www.youtube.com/watch?v=XXXXXXXXXXX
+            var queryString = url.Split('?')[1];
+            var parameters = queryString.Split('&');
+            foreach (var param in parameters)
+            {
+                if (param.StartsWith("v="))
+                {
+                    videoId = param.Substring(2);
+                    break;
+                }
+            }
+        }
+        else
+        {
+            // Si no podemos procesar la URL, devolver la original
+            return url;
+        }
+
+        // Limpiar cualquier parámetro adicional en el ID
+        if (videoId.Contains("&"))
+        {
+            videoId = videoId.Split('&')[0];
+        }
+
+        return $"https://www.youtube.com/embed/{videoId}?autoplay=0&rel=0";
+    }
+}

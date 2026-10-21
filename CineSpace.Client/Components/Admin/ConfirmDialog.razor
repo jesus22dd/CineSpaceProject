@@ -1,0 +1,51 @@
+@using System.Threading.Tasks
+
+<div class="card mb-4">
+    <div class="card-header @HeaderClass">
+        <h5>@Title</h5>
+    </div>
+    <div class="card-body">
+        <p>@Message</p>
+        @if (!string.IsNullOrEmpty(DetailMessage))
+        {
+            <p>@DetailMessage</p>
+        }
+        <div class="d-flex justify-content-between mt-4">
+            <button type="button" class="btn btn-secondary" @onclick="OnCancel">
+                @CancelText
+            </button>
+            <button type="button" class="btn @ConfirmButtonClass" @onclick="OnConfirm">
+                @ConfirmText
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = "Confirmar Acción";
+
+    [Parameter]
+    public string Message { get; set; } = "¿Está seguro que desea realizar esta acción?";
+
+    [Parameter]
+    public string DetailMessage { get; set; } = "";
+
+    [Parameter]
+    public string ConfirmText { get; set; } = "Confirmar";
+
+    [Parameter]
+    public string CancelText { get; set; } = "Cancelar";
+
+    [Parameter]
+    public string HeaderClass { get; set; } = "bg-warning text-white";
+
+    [Parameter]
+    public string ConfirmButtonClass { get; set; } = "btn-warning";
+
+    [Parameter]
+    public EventCallback OnConfirm { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+}

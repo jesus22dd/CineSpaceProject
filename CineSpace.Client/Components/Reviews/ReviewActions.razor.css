@@ -1,0 +1,10 @@
+.review-actions { display: flex; gap: 6px; }
+.review-action { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid transparent; border-radius: 4px; font-size: 13px; }
+.review-feature { background: var(--cinema-accent-soft); color: var(--cinema-heading); }
+.review-feature:hover { background: var(--cinema-raised); }
+.review-feature.is-featured { background: var(--cinema-accent); color: var(--cinema-on-action); }
+.review-feature.is-featured:hover { background: var(--cinema-accent-hover); }
+.review-view { background: var(--cinema-control); color: var(--cinema-heading); border-color: var(--cinema-line); }
+.review-view:hover { background: var(--cinema-canvas); }
+.review-delete { background: var(--cinema-danger-soft); color: var(--cinema-danger); }
+.review-delete:hover { background: var(--cinema-accent-soft); }

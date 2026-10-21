@@ -1,0 +1,2 @@
+.compact-order { width: 190px; max-width: 100%; min-width: 0; }
+@media (max-width: 600px) { .compact-order { width: 100%; } }

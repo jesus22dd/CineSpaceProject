@@ -1,0 +1,20 @@
+.confection-categories { margin: 32px 0; }
+.confection-category-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.confection-category-heading h2 { margin: 0; font-size: 23px; }
+.category-controls { display: flex; gap: 8px; }
+.category-controls button { width: 44px; height: 44px; border: 1px solid var(--cinema-line); border-radius: 50%; background: transparent; color: var(--cinema-heading); }
+.category-controls button:disabled { opacity: .35; cursor: default; }
+.category-controls button:hover:enabled { background: var(--cinema-accent-soft); }
+.confection-category-track { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 80px)/6); gap: 16px; padding: 4px 0; margin: 0; list-style: none; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
+.confection-category-track::-webkit-scrollbar { display: none; }
+.confection-category-track li { scroll-snap-align: start; min-width: 0; }
+.genre-category { display: flex; width: 100%; min-height: 118px; height: 100%; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 16px 12px; border: 0; border-radius: 8px; background: var(--cinema-raised); color: var(--cinema-heading); transition: background-color 160ms, color 160ms; }
+.genre-category i { font-size: 26px; }
+.genre-category span { font: 500 18px/1.25 'Outfit',sans-serif; overflow-wrap: anywhere; }
+.genre-category:hover { background: var(--cinema-gold-surface); }
+.genre-category.is-selected { background: var(--cinema-wine); color: var(--cinema-paper); }
+.genre-category.is-selected i { color: var(--cinema-gold); }
+button:focus-visible { outline: 2px solid var(--cinema-focus); outline-offset: -4px; }
+@media(max-width: 800px) { .confection-category-track { grid-auto-columns: calc((100% - 36px)/4); gap: 12px; } }
+@media(max-width: 500px) { .confection-categories { margin: 24px 0; } .confection-category-track { grid-auto-columns: calc((100% - 24px)/3); } .genre-category { min-height: 108px; padding: 14px 8px; gap: 12px; } .genre-category span { font-size: 16px; } .genre-category i { font-size: 23px; } }
+@media(prefers-reduced-motion: reduce) { .genre-category { transition: none; } }

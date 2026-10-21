@@ -1,0 +1,27 @@
+@inject IJSRuntime JS
+@implements IDisposable
+
+<button type="button" class="theme-toggle" aria-label="@(oscuro ? "Activar modo claro" : "Activar modo oscuro")" title="@(oscuro ? "Cambiar a modo claro" : "Cambiar a modo oscuro")" aria-pressed="@(oscuro ? "true" : "false")" @onclick="CambiarTema">
+    <i class="fas @(oscuro ? "fa-sun" : "fa-moon")" aria-hidden="true"></i>
+</button>
+
+@code {
+    private bool oscuro;
+    private int? connection;
+    private DotNetObjectReference<ThemeToggle>? reference;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        reference = DotNetObjectReference.Create(this);
+        var state = await JS.InvokeAsync<int[]>("cineTheme.connect", reference);
+        connection = state[0];
+        await ThemeChanged(state[1] == 1);
+    }
+    private Task CambiarTema() => JS.InvokeVoidAsync("cineTheme.toggle").AsTask();
+    [JSInvokable] public Task ThemeChanged(bool isDark) => InvokeAsync(() => { oscuro = isDark; StateHasChanged(); });
+    public void Dispose()
+    {
+        if (connection.HasValue) _ = JS.InvokeVoidAsync("cineTheme.disconnect", connection.Value);
+        reference?.Dispose();
+    }
+}

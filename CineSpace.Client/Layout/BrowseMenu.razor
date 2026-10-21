@@ -1,0 +1,11 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+<button type="button" class="browse-trigger" popovertarget="public-browse-menu" aria-label="Explorar CineSpace" aria-haspopup="menu" aria-expanded="false" aria-controls="public-browse-menu" @ref="trigger"><i class="fas fa-film" aria-hidden="true"></i><span>Explorar</span><i class="fas fa-chevron-down" aria-hidden="true"></i></button>
+<div id="public-browse-menu" class="browse-menu" popover="auto" role="menu" aria-label="Explorar CineSpace" @ref="panel"><NavLink href="/" Match="NavLinkMatch.All" role="menuitem" @onclick="Cerrar"><i class="fas fa-film" aria-hidden="true"></i>Cartelera</NavLink><NavLink href="/confiteria" role="menuitem" @onclick="Cerrar"><i class="fas fa-cookie-bite" aria-hidden="true"></i>Confitería</NavLink></div>
+@code {
+    private ElementReference trigger, panel;
+    private IJSObjectReference? modulo;
+    protected override async Task OnAfterRenderAsync(bool firstRender) { if (!firstRender) return; modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/navigation.js"); await modulo.InvokeVoidAsync("connectAccountMenu", trigger, panel); }
+    private async Task Cerrar() { if (modulo != null) await modulo.InvokeVoidAsync("closeAccountMenu", panel); }
+    public async ValueTask DisposeAsync() { if (modulo == null) return; try { await modulo.InvokeVoidAsync("disconnectAccountMenu", panel); await modulo.DisposeAsync(); } catch (JSDisconnectedException) { } }
+}

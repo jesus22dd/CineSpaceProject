@@ -1,0 +1,48 @@
+@inject UsuarioService Usuarios
+@inject TrabajadorService Trabajadores
+@inject LogoutDialogService Logout
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<button type="button" class="account-trigger" popovertarget="account-panel" aria-label="Abrir menú de cuenta" aria-controls="account-panel" @ref="trigger">
+    <span class="account-symbol"><i class="far fa-user" aria-hidden="true"></i></span>
+    <span class="account-name">@Nombre</span>
+    <i class="fas fa-chevron-down account-chevron" aria-hidden="true"></i>
+</button>
+<div id="account-panel" class="account-panel" popover="auto" @ref="panel">
+    <div class="account-identity"><strong>@NombreCompleto</strong><span>@Correo</span><small>@Rol</small></div>
+    <nav aria-label="Opciones de tu cuenta">
+        <a href="/perfil" @onclick="Cerrar"><i class="far fa-user" aria-hidden="true"></i>Mi cuenta</a>
+        <a href="/perfil/seguridad" @onclick="Cerrar"><i class="fas fa-shield-alt" aria-hidden="true"></i>Seguridad</a>
+        <a href="/perfil/compras" @onclick="Cerrar"><i class="fas fa-ticket-alt" aria-hidden="true"></i>Historial de compras</a>
+        <a href="/confiteria/pedidos" @onclick="Cerrar"><i class="fas fa-bag-shopping" aria-hidden="true"></i>Mis pedidos de confitería</a>
+        @if (Usuarios.ObtenerUsuarioActual() != null)
+        {
+            <a href="/perfil/calificaciones" @onclick="Cerrar"><i class="far fa-star" aria-hidden="true"></i>Mis calificaciones</a>
+        }
+        <button type="button" class="account-exit" @onclick="SolicitarSalida"><i class="fas fa-sign-out-alt" aria-hidden="true"></i>Salir</button>
+    </nav>
+</div>
+
+@code {
+    private ElementReference trigger, panel;
+    private IJSObjectReference? module;
+    private string Nombre => NombreCompleto.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "Mi cuenta";
+    private string NombreCompleto => System.Globalization.CultureInfo.GetCultureInfo("es").TextInfo.ToTitleCase((Usuarios.ObtenerUsuarioActual() is { } u ? $"{u.Nombre} {u.Apellido}" : Trabajadores.ObtenerTrabajadorActual()?.ObtenerNombreCompleto() ?? "Mi cuenta").ToLowerInvariant());
+    private string Correo => Usuarios.ObtenerUsuarioActual()?.Email ?? Trabajadores.ObtenerTrabajadorActual()?.Email ?? "";
+    private string Rol => Usuarios.EsAdministrador() ? "Administración" : Trabajadores.ObtenerTrabajadorActual()?.CargoTrabajador.ToString() ?? "Cuenta de cliente";
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/navigation.js");
+        await module.InvokeVoidAsync("connectAccountMenu", trigger, panel);
+    }
+    private async Task Cerrar() { if (module != null) await module.InvokeVoidAsync("closeAccountMenu", panel); }
+    private async Task SolicitarSalida() { await Cerrar(); Logout.Solicitar(); }
+    public async ValueTask DisposeAsync()
+    {
+        if (module == null) return;
+        try { await module.InvokeVoidAsync("disconnectAccountMenu", panel); await module.DisposeAsync(); }
+        catch (JSDisconnectedException) { }
+    }
+}

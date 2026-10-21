@@ -1,0 +1,78 @@
+@page "/PanelAdministracion"
+@using CineSpace.Client.Services
+@using CineSpace.Shared.Models
+@using CineSpace.Client.Components.Admin
+@inject UsuarioService UsuarioService
+@inject TrabajadorService TrabajadorService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Panel de Administración - Cine Space</PageTitle>
+
+@if (UsuarioService.EsAdministrador())
+{
+    <div class="people-page">
+        <div class="management-heading"><div><h1>Usuarios y equipo</h1><p>Administra las cuentas y las personas que hacen funcionar el cine.</p></div></div>
+
+        <div class="people-tabs-panel">
+            <div class="people-tabs">
+                <ul class="nav nav-tabs">
+                    <li class="nav-item">
+                        <button class="nav-link @(pestañaActiva == "usuarios" ? "active" : "")"
+                                @onclick="@(() => CambiarPestaña("usuarios"))">
+                            <i class="fas fa-users me-2"></i>Gestión de Usuarios
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link @(pestañaActiva == "trabajadores" ? "active" : "")"
+                                @onclick="@(() => CambiarPestaña("trabajadores"))">
+                            <i class="fas fa-id-card me-2"></i>Gestión de Trabajadores
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="people-content">
+                @if (pestañaActiva == "usuarios")
+                {
+                    <UserManagement />
+                }
+                else if (pestañaActiva == "trabajadores")
+                {
+                    <WorkerManagement />
+                }
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container mt-5">
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">Acceso Denegado</h4>
+            <p>No tiene permisos para acceder a esta sección. Esta área está reservada para administradores.</p>
+            <hr>
+            <p class="mb-0">
+                <button class="btn btn-primary" @onclick="@(() => NavigationManager.NavigateTo("/"))">
+                    Volver a Inicio
+                </button>
+            </p>
+        </div>
+    </div>
+}
+
+@code {
+    private string pestañaActiva = "usuarios";
+
+    protected override void OnInitialized()
+    {
+        // Verificar si hay un usuario autenticado
+        if (UsuarioService.ObtenerUsuarioActual() == null)
+        {
+            NavigationManager.NavigateTo("/");
+        }
+    }
+
+    private void CambiarPestaña(string pestaña)
+    {
+        pestañaActiva = pestaña;
+    }
+}

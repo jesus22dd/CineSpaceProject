@@ -1,0 +1,54 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="search-select" @ref="elemento">
+    <label id="@(Id+"-label")" class="form-label @(OcultarEtiqueta ? "visually-hidden" : "")" for="@Id">@Etiqueta</label>
+    <div class="search-select-control @(AccionFinal != null ? "has-action" : "")">
+    <div class="catalogue-search search-select-search @(consulta.Length>0 ? "has-query":"")">
+        <input id="@Id" class="form-control" type="search" role="combobox" aria-labelledby="@(Id+"-label")" aria-describedby="@DescripcionId" aria-controls="@(Id+"-results")" aria-expanded="@(abierto ? "true":"false")" aria-autocomplete="list" autocomplete="off" placeholder="@($"Buscar {Etiqueta.ToLowerInvariant()}…")" value="@consulta" @oninput="Escribir" @onkeydown="Tecla" />
+        @if(consulta.Length>0){<button type="button" class="catalogue-clear" aria-label="@($"Limpiar {Etiqueta.ToLowerInvariant()}")" @onclick="Limpiar"><i class="fas fa-times" aria-hidden="true"></i></button>}
+        <button type="button" class="btn btn-primary" aria-label="@($"Buscar {Etiqueta.ToLowerInvariant()}")" @onclick="Buscar"><i class="fas fa-search" aria-hidden="true"></i></button>
+    </div>
+    @AccionFinal
+    </div>
+    @if(abierto)
+    {
+        <div class="search-select-panel">
+            <p class="search-select-help" role="status">@(!buscado ? "Pulsa Buscar para ver los cinco más recientes o escribe un nombre." : resultados.Count==0 ? "No hay coincidencias. Prueba otro nombre." : $"{resultados.Count} resultados{(aplicada.Length==0 ? " más recientes" : " para «"+aplicada+"»")}")</p>
+            <div id="@(Id+"-results")" role="listbox" aria-label="@($"Resultados de {Etiqueta.ToLowerInvariant()}")">
+            @foreach(var opcion in resultados)
+            {
+                <button type="button" class="search-select-option" role="option" aria-selected="@(opcion.Valor==Valor ? "true":"false")" tabindex="-1" @onclick="()=>Elegir(opcion.Valor)"><span class="search-select-copy"><span>@opcion.Texto</span>@if(opcion.Detalle.Length>0){<small>@opcion.Detalle</small>}</span>@if(opcion.Valor==Valor){<i class="fas fa-check" aria-hidden="true"></i>}</button>
+            }
+            </div>
+        </div>
+    }
+</div>
+@code {
+    [Parameter,EditorRequired] public string Id {get;set;}="";
+    [Parameter] public string Etiqueta {get;set;}="";
+    [Parameter] public string Placeholder {get;set;}="Selecciona una opción";
+    [Parameter] public string Valor {get;set;}="";
+    [Parameter] public IReadOnlyList<SearchSelectOption> Opciones {get;set;}=Array.Empty<SearchSelectOption>();
+    [Parameter] public EventCallback<string> ValorChanged {get;set;}
+    [Parameter] public bool OcultarEtiqueta {get;set;}
+    [Parameter] public string? DescripcionId {get;set;}
+    [Parameter] public RenderFragment? AccionFinal {get;set;}
+    private ElementReference elemento;
+    private IJSObjectReference? modulo,control;
+    private DotNetObjectReference<SearchSelect>? referencia;
+    private string consulta="",aplicada="";
+    private List<SearchSelectOption> resultados=new();
+    private bool abierto,buscado,conservarConsulta,enfoquePendiente;
+    private string? ultimoValor;
+    protected override void OnParametersSet() { if(ultimoValor==Valor)return;ultimoValor=Valor;if(conservarConsulta){conservarConsulta=false;return;}consulta=Opciones.FirstOrDefault(o=>o.Valor==Valor)?.Texto??""; }
+    private async Task Escribir(ChangeEventArgs e) { consulta=e.Value?.ToString()??"";abierto=false;buscado=false;resultados.Clear();if(Valor!="0"&&Valor.Length>0){conservarConsulta=true;await ValorChanged.InvokeAsync("0");} }
+    private async Task Limpiar() { consulta=aplicada="";abierto=buscado=false;resultados.Clear();conservarConsulta=true;await ValorChanged.InvokeAsync("0");if(control!=null)await control.InvokeVoidAsync("focusSearch"); }
+    public async Task EnfocarAsync() { if(control!=null)await control.InvokeVoidAsync("focusSearch");else enfoquePendiente=true; }
+    private void Buscar() { abierto=true;aplicada=consulta.Trim();buscado=true;resultados=Opciones.Select((o,i)=>new {Opcion=o,Indice=i,Rango=Math.Min(BusquedaCatalogo.Relevancia(o.Texto,aplicada),string.IsNullOrWhiteSpace(o.Alias) ? int.MaxValue : BusquedaCatalogo.Relevancia(o.Alias,aplicada))}).Where(o=>o.Rango<int.MaxValue).OrderBy(o=>o.Rango).ThenBy(o=>o.Indice).Take(5).Select(o=>o.Opcion).ToList(); }
+    private void Tecla(KeyboardEventArgs e) { if(e.Key=="Enter")Buscar(); }
+    private async Task Elegir(string valor) { abierto=false;conservarConsulta=false;consulta=Opciones.FirstOrDefault(o=>o.Valor==valor)?.Texto??"";await ValorChanged.InvokeAsync(valor);if(control!=null)await control.InvokeVoidAsync("focusTrigger"); }
+    [JSInvokable] public Task Cerrar() { if(!abierto)return Task.CompletedTask;abierto=false;return InvokeAsync(StateHasChanged); }
+    protected override async Task OnAfterRenderAsync(bool firstRender) { if(firstRender){modulo=await JS.InvokeAsync<IJSObjectReference>("import","./js/search-select.js");referencia=DotNetObjectReference.Create(this);control=await modulo.InvokeAsync<IJSObjectReference>("connect",elemento,referencia);if(enfoquePendiente){enfoquePendiente=false;await control.InvokeVoidAsync("focusSearch");}} }
+    public async ValueTask DisposeAsync() { if(control!=null){try{await control.InvokeVoidAsync("dispose");await control.DisposeAsync();}catch(JSDisconnectedException){}}referencia?.Dispose();if(modulo!=null)await modulo.DisposeAsync(); }
+}

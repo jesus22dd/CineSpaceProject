@@ -1,0 +1,43 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<dialog class="app-dialog @Class" aria-labelledby="@titleId" @ref="element">
+    <div class="app-dialog-heading"><h2 id="@titleId">@Title</h2><button type="button" class="app-dialog-close" aria-label="@CloseLabel" @onclick="CerrarDialogo"><i class="fas fa-times" aria-hidden="true"></i></button></div>
+    <div class="app-dialog-content">@ChildContent</div>
+    @if (Footer != null) { <div class="app-dialog-footer">@Footer</div> }
+</dialog>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public string CloseLabel { get; set; } = "Cerrar diálogo";
+    [Parameter] public string Class { get; set; } = "";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    private readonly string titleId = "dialog-title-" + Guid.NewGuid().ToString("N");
+    private ElementReference element;
+    private IJSObjectReference? module;
+    private DotNetObjectReference<AppDialog>? reference;
+    private int? dialogId;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/auth-dialog.js");
+        reference = DotNetObjectReference.Create(this);
+        dialogId = await module.InvokeAsync<int>("openAuthDialog", element, reference);
+    }
+    [JSInvokable] public async Task CerrarDialogo()
+    {
+        if (module != null && dialogId.HasValue) await module.InvokeVoidAsync("closeAuthDialog", dialogId.Value);
+        await OnClose.InvokeAsync();
+    }
+    public async ValueTask DisposeAsync()
+    {
+        if (module != null)
+        {
+            try { if (dialogId.HasValue) await module.InvokeVoidAsync("closeAuthDialog", dialogId.Value); await module.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+        reference?.Dispose();
+    }
+}

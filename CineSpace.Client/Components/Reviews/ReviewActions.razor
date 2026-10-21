@@ -1,0 +1,12 @@
+<div class="review-actions" role="group" aria-label="Acciones de la reseña de @Resena.NombrePelicula">
+    <button type="button" class="review-action review-feature @(Destacada ? "is-featured" : "")" aria-label="@(Destacada ? $"Quitar destacado de {Resena.NombrePelicula}" : $"Destacar reseña de {Resena.NombrePelicula}")" title="@(Destacada ? "Quitar destacado" : "Destacar reseña")" aria-pressed="@(Destacada ? "true" : "false")" @onclick="() => OnDestacar.InvokeAsync(Resena)"><i class="fas fa-star" aria-hidden="true"></i></button>
+    <button type="button" class="review-action review-view" aria-label="Ver detalles de @Resena.NombrePelicula" title="Ver detalles" @onclick="() => OnDetalles.InvokeAsync(Resena)"><i class="fas fa-eye" aria-hidden="true"></i></button>
+    <button type="button" class="review-action review-delete" aria-label="Eliminar reseña de @Resena.NombrePelicula" title="Eliminar reseña" @onclick="() => OnEliminar.InvokeAsync(Resena)"><i class="fas fa-trash" aria-hidden="true"></i></button>
+</div>
+@code {
+    [Parameter, EditorRequired] public CalificacionPelicula Resena { get; set; } = new();
+    [Parameter] public bool Destacada { get; set; }
+    [Parameter] public EventCallback<CalificacionPelicula> OnDestacar { get; set; }
+    [Parameter] public EventCallback<CalificacionPelicula> OnDetalles { get; set; }
+    [Parameter] public EventCallback<CalificacionPelicula> OnEliminar { get; set; }
+}

@@ -1,0 +1,27 @@
+.review-statistics-summary .card-header { background: transparent; border-bottom: 1px solid var(--cinema-line); }
+.review-statistics-summary .card-header h4 { font-size: 22px; }
+.review-statistics-summary .review-statistics { margin: 0; }
+.review-statistics-summary .review-statistics > div { padding: 0; }
+.review-statistics-summary .stat-box { height: 100%; padding: 16px 12px; border-right: 1px solid var(--cinema-line); }
+.review-statistics-summary .review-statistics > div:last-child .stat-box { border-right: 0; }
+.review-statistics-summary .stat-box h3 { margin: 0 0 8px; color: var(--cinema-heading); font-size: 32px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.review-statistics-summary .stat-box p { margin: 0; color: var(--cinema-muted); font-size: 13px; }
+.review-rating-distribution { margin-top: 28px; }
+.review-rating-distribution h5 { margin: 0 0 16px; color: var(--cinema-heading); font-size: 17px; }
+.review-rating-bar { display: flex; width: 100%; height: 14px; border-radius: 4px; overflow: hidden; background: var(--cinema-raised); }
+.review-rating-fill { display: block; height: 100%; flex: 0 0 auto; }
+.rating-1 { background: #b35c70; }
+.rating-2 { background: #bf9260; }
+.rating-3 { background: #7e94aa; }
+.rating-4 { background: #9c8bb0; }
+.rating-5 { background: #6d9c91; }
+.review-rating-legend { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 12px; margin: 16px 0 0; padding: 0; list-style: none; }
+.review-rating-legend li { display: grid; grid-template-columns: auto 1fr; align-items: baseline; column-gap: 10px; row-gap: 4px; min-width: 0; }
+.review-rating-label { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; color: var(--cinema-muted); font-size: 12px; }
+.review-rating-label > i { font-size: 10px; }
+.review-rating-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.review-rating-legend strong { color: var(--cinema-heading); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.review-rating-percent { color: var(--cinema-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.review-statistics-empty { margin: 0; color: var(--cinema-muted); font-size: 13px; }
+@media(max-width: 767px) { .review-statistics-summary .review-statistics > div:nth-child(2) .stat-box { border-right: 0; } .review-statistics-summary .review-statistics > div:nth-child(-n+2) .stat-box { border-bottom: 1px solid var(--cinema-line); } .review-statistics-summary .stat-box { padding: 16px 8px; } }
+@media(max-width: 480px) { .review-rating-legend { gap: 8px; } .review-rating-legend li { display: flex; flex-direction: column; gap: 4px; } .review-rating-label { gap: 4px; } .review-rating-percent { font-size: 11px; } .review-statistics-summary .card-body { padding: 20px 16px; } }

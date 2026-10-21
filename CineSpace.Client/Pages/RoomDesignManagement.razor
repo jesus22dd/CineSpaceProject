@@ -1,0 +1,55 @@
+@page "/admin/disenos-sala"
+@using CineSpace.Client.Components.Admin
+@using CineSpace.Client.Components.Shared
+@inject SalaService Salas
+@inject UsuarioService Usuarios
+@inject PeliculaService Peliculas
+<PageTitle>Diseños de sala - CineSpace</PageTitle>
+@if (!Usuarios.EsAdministrador()) { <div class="alert alert-danger" role="alert">Esta sección está disponible para administradores.</div> }
+else
+{
+    <div class="management-heading"><div><h1>@(editor == null ? "Diseños de sala" : editor.Numero == 0 ? "Crear diseño de sala" : "Editar diseño de sala")</h1><p>Dibuja las butacas y los pasillos una vez. Usa el mismo diseño en varias salas.</p></div>@if (editor == null) { <button type="button" class="btn btn-primary" @onclick="Crear"><i class="fas fa-plus" aria-hidden="true"></i>Crear diseño</button> }</div>
+    @if (!string.IsNullOrEmpty(aviso)) { <div class="alert alert-success" role="status">@aviso</div> }
+    @if (!string.IsNullOrEmpty(error)) { <div class="alert alert-danger" role="alert">@error</div> }
+    @if (editor != null) { <RoomEditor @key="version" Plano="editor" Bloqueada="@Salas.DisenoEnUso(editor.Numero)" OnGuardar="Guardado" OnCancelar="() => editor = null" /> }
+    else
+    {
+        <div class="catalogue-toolbar"><form class="catalogue-search" role="search" @onsubmit="Buscar" @onsubmit:preventDefault><label class="visually-hidden" for="design-search">Buscar diseño</label><input id="design-search" class="form-control" type="search" placeholder="Buscar diseño…" @bind="busqueda" @bind:event="oninput" /><button type="submit" class="btn btn-primary" aria-label="Buscar diseños"><i class="fas fa-search" aria-hidden="true"></i></button></form><div class="catalogue-secondary-filters"><CompactOrder Id="design-order" Valor="@orden" ValorChanged="CambiarOrden" /><ClearFiltersButton Activo="@(!string.IsNullOrEmpty(filtro))" OnClear="Limpiar" /></div></div>
+        @if (Filtradas.Count == 0) { <div class="catalogue-empty" role="status"><h2>No hay diseños que mostrar</h2><p>Crea un diseño o prueba otra búsqueda.</p></div> }
+        <ul class="design-directory">@foreach (var d in Filtradas) { <li data-design="@d.Id"><div class="design-directory-identity"><RoomPlanPreview Plano="d.Plano" /><div><h2>@d.Plano.Nombre</h2><p>@d.Plano.Filas filas · @d.Plano.Columnas columnas · @d.Plano.Asientos.Count butacas</p><p>Usado en @Uso(d.Id) @(Uso(d.Id) == 1 ? "sala" : "salas")</p></div></div><div class="catalogue-row-actions"><button type="button" class="btn btn-secondary" aria-label="Editar @d.Plano.Nombre" @onclick="() => Editar(d)"><i class="fas fa-pen" aria-hidden="true"></i>Editar</button><button type="button" class="btn btn-secondary" aria-label="Duplicar @d.Plano.Nombre" @onclick="() => Duplicar(d)"><i class="far fa-copy" aria-hidden="true"></i>Duplicar</button><button type="button" class="btn btn-danger" aria-label="Eliminar @d.Plano.Nombre" disabled="@(Uso(d.Id) > 0)" @onclick="() => eliminar = d"><i class="fas fa-trash" aria-hidden="true"></i></button></div></li> }</ul>
+        @if (Filtradas.Count > 0) { <Pagination CurrentPage="pagina" TotalPages="TotalPaginas" TotalItems="totalItems" PageSize="PorPagina" ShowPageSizeSelector="false" Label="Paginación de diseños" OnPageChanged="CambiarPaginaRemota" /> }
+    }
+}
+@if (eliminar != null) { <AppDialog Title="¿Eliminar este diseño?" OnClose="() => eliminar = null" @ref="dialogo"><ChildContent><p>Se eliminará <strong>@eliminar.Plano.Nombre</strong> del catálogo de diseños.</p></ChildContent><Footer><button type="button" class="btn btn-secondary" @onclick="Cerrar">Cancelar</button><button type="button" class="btn btn-danger" @onclick="Eliminar">Eliminar</button></Footer></AppDialog> }
+@code {
+    private async Task CambiarPaginaRemota(int valor) { pagina = valor; await CargarPagina(); }
+    private async Task CargarPagina() {
+        try {
+            var f = new ConsultaPagina { Pagina = pagina, Tamano = PorPagina, Buscar = filtro, Orden = orden == "Más recientes" ? "recientes" : "antiguas" };
+            var page = await Salas.ConsultarDisenosAsync(f);
+            Filtradas = page.Items; totalItems = page.Total; pagina = page.Numero;
+        } catch (Exception ex) { error = ex.Message; }
+    }
+
+    private const int PorPagina = 6;
+    private int pagina = 1;
+    private string busqueda = "", filtro = "", orden = "Más recientes", aviso = "", error = "";
+    private PlanoSala? editor;
+    private DisenoButacas? eliminar;
+    private Guid version = Guid.NewGuid();
+    private AppDialog? dialogo;
+    private int Uso(int id) => Salas.SalasGestion.Count(s => s.DisenoId == id);
+    private List<DisenoButacas> Filtradas = [];
+    private int totalItems;
+    private int TotalPaginas => Math.Max(1, (int)Math.Ceiling(totalItems / (double)PorPagina));
+    protected override async Task OnInitializedAsync() { if (Usuarios.EsAdministrador()) await CargarPagina(); }
+    private void Crear() { editor = new(); editor.Asientos = Enumerable.Range(0, editor.Filas).SelectMany(f => Enumerable.Range(0, editor.Columnas).Select(c => PlanoSala.Asiento(f, c))).ToHashSet(); version = Guid.NewGuid(); error = aviso = ""; }
+    private async Task Editar(DisenoButacas d) { editor = await Salas.CargarDisenoAsync(d.Id); editor.Numero = d.Id; version = Guid.NewGuid(); error = aviso = ""; }
+    private async Task Duplicar(DisenoButacas d) { await Editar(d); editor!.Numero = 0; editor.Nombre = editor.Nombre[..Math.Min(70, editor.Nombre.Length)] + " (copia)"; }
+    private async Task Guardado(int id) { editor = null; aviso = "Diseño guardado. Ya puedes asignarlo a tus salas."; busqueda = filtro = ""; pagina = 1; await CargarPagina();  await CargarPagina(); }
+    private Task Cerrar() => dialogo?.CerrarDialogo() ?? Task.CompletedTask;
+    private async Task Eliminar() { if (eliminar == null) return; try { await Salas.EliminarDisenoAsync(eliminar.Id); await Cerrar(); await CargarPagina(); aviso = "Diseño eliminado."; } catch (ArgumentException ex) { await Cerrar(); error = ex.Message; } catch { await Cerrar(); error = "No pudimos eliminar el diseño."; } }
+    private async Task Buscar() { filtro = busqueda.Trim(); pagina = 1;  await CargarPagina(); }
+    private async Task Limpiar() { busqueda = filtro = ""; pagina = 1;  await CargarPagina(); }
+    private async Task CambiarOrden(string valor) { orden = valor; pagina = 1;  await CargarPagina(); }
+}

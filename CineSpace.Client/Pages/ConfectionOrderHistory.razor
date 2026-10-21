@@ -1,0 +1,39 @@
+@using CineSpace.Client.Components.Shared
+@page "/confiteria/pedidos"
+@using CineSpace.Client.Components.Admin
+@inject PedidosConfiteriaService Pedidos
+@implements IDisposable
+
+<PageTitle>Mis pedidos de confitería - CineSpace</PageTitle>
+@if(mensajeError.Length > 0) { <p class="alert alert-danger" role="alert">@mensajeError</p> }
+<section class="order-page"><a class="order-back" href="/confiteria"><i class="fas fa-arrow-left" aria-hidden="true"></i>Confitería</a><div class="order-page-heading"><div><h1>Mis pedidos</h1><p>Recupera tus QR y consulta el estado de tus pedidos de confitería.</p></div><a class="btn btn-secondary" href="/confiteria/carrito"><i class="fas fa-bag-shopping" aria-hidden="true"></i>Carrito · @Pedidos.CantidadCarrito</a></div>
+    @if (Pedidos.ErrorCarga != null) { <div class="alert alert-danger" role="alert">@Pedidos.ErrorCarga</div> }
+    <div class="order-list-toolbar"><span role="status">@Filtrados.Count @(Filtrados.Count == 1 ? "pedido" : "pedidos")</span><div class="order-list-filters"><AdminSelect Id="my-orders-status" Etiqueta="Estado" Valor="@estado" Opciones="OpcionesEstados" Activo="@(estado != "todos")" ValorChanged="async valor => { estado = valor; await Reiniciar(); }" /><CineSpace.Client.Components.Shared.CompactOrder Id="my-orders-order" Valor="@orden" ValorChanged="Ordenar" /><ClearFiltersButton Activo="@(estado != "todos")" OnClear="Limpiar" /></div></div>
+    @if (Filtrados.Count == 0) { <div class="order-empty"><i class="fas fa-bag-shopping" aria-hidden="true"></i><h2>Aquí encontrarás tus pedidos</h2><p>Los pedidos de tu cuenta y los realizados como invitado en este navegador se guardan aquí.</p><a class="btn btn-primary" href="/confiteria">Explorar confitería</a></div> }
+    else
+    {
+        <div class="catalogue-table-scroll"><table class="catalogue-table order-history-table"><thead><tr><th scope="col">Pedido</th><th scope="col">Fecha</th><th scope="col">Retira</th><th scope="col">Total</th><th scope="col">Estado</th><th scope="col">Comprobante</th></tr></thead><tbody>@foreach (var p in Filtrados) { <tr><td><strong>@p.Numero</strong><small class="order-table-secondary">@p.Unidades productos</small></td><td>@p.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</td><td>@p.NombreRetiro</td><td class="order-table-amount">@p.Total.ToString("N2") Bs</td><td><span class="order-status @p.Estado.ToString().ToLowerInvariant()">@PedidosConfiteriaService.EstadoNombre(p.Estado)</span></td><td><a class="btn btn-secondary" href="@($"/confiteria/pedido/{p.Token}")" aria-label="Ver pedido @p.Numero"><i class="fas fa-qrcode" aria-hidden="true"></i>Ver pedido</a></td></tr> }</tbody></table></div>
+    }
+    <Pagination CurrentPage="pagina" TotalPages="@Math.Max(1, (int)Math.Ceiling(totalItems / (double)PorPagina))" TotalItems="totalItems" PageSize="PorPagina" ShowPageSizeSelector="false" Label="Paginación de mis pedidos" OnPageChanged="Paginar" />
+</section>
+@code {
+    private string mensajeError = "";
+    private const int PorPagina = 8;
+    private int pagina = 1;
+    private string estado = "todos", orden = "Más recientes";
+    private List<PedidoConfiteria> Filtrados = [];
+    private int totalItems;
+    private async Task Cargar() {
+        try { var p = await Pedidos.ConsultarAsync(new() { Pagina = pagina, Tamano = PorPagina, Buscar = "", Estado = estado == "todos" ? "" : estado, Orden = orden == "Más recientes" ? "recientes" : "antiguas" }, false); Filtrados = p.Items; totalItems = p.Total; pagina = p.Numero; }
+        catch (Exception ex) { mensajeError = ex.Message; }
+    }
+    private async Task Paginar(int valor) { pagina = valor; await Cargar(); }
+
+    protected override async Task OnInitializedAsync() { Pedidos.Changed += Cambiado; await Cargar(); }
+    private void Cambiado() => _ = InvokeAsync(async () => { await Cargar(); StateHasChanged(); });
+    public void Dispose() => Pedidos.Changed -= Cambiado;
+    private static IReadOnlyList<AdminSelectOption> OpcionesEstados => new[] { new AdminSelectOption("todos", "Todos los estados") }.Concat(Enum.GetValues<EstadoPedidoConfiteria>().Select(estado => new AdminSelectOption(estado.ToString(), PedidosConfiteriaService.EstadoNombre(estado)))).ToList();
+    private async Task Reiniciar() { pagina = 1; await Cargar(); }
+    private async Task Limpiar() { estado = "todos"; await Reiniciar(); }
+    private async Task Ordenar(string valor) { orden = valor; await Reiniciar(); }
+}

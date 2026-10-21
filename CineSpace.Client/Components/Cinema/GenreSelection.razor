@@ -1,0 +1,254 @@
+@namespace CineSpace.Client.Components.Cinema
+@using CineSpace.Shared.Models
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject PeliculaService PeliculaService
+@inject CatalogosService Catalogos
+@inject SalaService Salas
+
+<section class="catalogue" aria-labelledby="catalogue-title">
+    <MovieCarousel Peliculas="Peliculas" OnReservar="OnPeliculaSeleccionada" />
+    <div class="catalogue-heading">
+        <div>
+            <h1 id="catalogue-title">Cartelera</h1>
+            <p>Elige una película. Nosotros ponemos la pantalla grande.</p>
+        </div>
+    </div>
+    <div class="catalogue-filters @(HayFiltros ? "has-active-filters" : "")" role="group" aria-label="Filtrar películas">
+        <CatalogueSelect Id="type-selection" Etiqueta="Tipo" Valor="@tipo" Opciones="tipos" Resaltado="@(tipo != "Estrenos")" ValorChanged="@(valor => CambiarFiltro("tipo", valor))" @ref="selectorTipo" />
+        <CatalogueSelect Id="genre-selection" Etiqueta="Género" Valor="@genero" Opciones="generos" Resaltado="@(genero != "Todos")" ValorChanged="@(valor => CambiarFiltro("genero", valor))" />
+        <CatalogueSelect Id="format-selection" Etiqueta="Formato" Valor="@formato" Opciones="formatos" Resaltado="@(formato != "Todos")" ValorChanged="@(valor => CambiarFiltro("formato", valor))" />
+        <CatalogueSelect Id="language-selection" Etiqueta="Idioma" Valor="@idioma" Opciones="idiomas" Resaltado="@(idioma != "Todos")" ValorChanged="@(valor => CambiarFiltro("idioma", valor))" />
+        @if (HayFiltros)
+        {
+            <button type="button" class="catalogue-clear" @onclick="LimpiarFiltros"><i class="fas fa-filter-circle-xmark" aria-hidden="true"></i><span>Limpiar filtros</span></button>
+        }
+    </div>
+    <div class="catalogue-section-heading"><h2 id="catalogue-results-title" tabindex="-1">@TituloResultados</h2><span role="status" aria-live="polite" aria-atomic="true">@(cargandoEstrenos && tipo is "Todos" or "Próximos estrenos" ? "Cargando estrenos…" : $"{TotalResultados} {(TotalResultados == 1 ? "película" : "películas")}")</span></div>
+    <div class="peliculas-grid" @ref="catalogueElement">
+        @if (TotalResultados == 0 && !(cargandoEstrenos && tipo is "Todos" or "Próximos estrenos") && !(errorEstrenos && tipo is "Todos" or "Próximos estrenos"))
+        {
+            <div class="empty-state catalogue-empty"><i class="fas fa-film" aria-hidden="true"></i><h3>@TituloVacio</h3><p>@MensajeVacio</p>@if (HayFiltros) { <button type="button" class="btn btn-secondary" @onclick="LimpiarFiltros">Limpiar filtros</button> }</div>
+        }
+        @if (peliculasVisibles.Count > 0)
+        {
+            @foreach (var fila in peliculasVisibles.Chunk(columnas))
+            {
+                var seleccionada = fila.FirstOrDefault(p => p.Id == peliculaExpandida?.Id);
+                <div class="movie-row @(seleccionada != null ? "is-expanded" : "")">
+                    @if (seleccionada != null && columnas > 2)
+                    {
+                        <MovieCard @key="seleccionada.Id" Pelicula="seleccionada" Expandida="true" CargaInmediata="true" OnReservar="OnPeliculaSeleccionada" OnInfo="ToggleDetalles" OnActivar="ActivarPelicula" OnCerrarOpciones="CerrarOpciones" MantenerCerradaAlEnfocar="@(cerrandoOpcionesId == seleccionada.Id)" />
+                        <MovieDetails Pelicula="seleccionada" OnReservar="OnPeliculaSeleccionada" OnCerrar="CerrarDetalles" />
+                        @if (fila.Length > 1)
+                        {
+                            <div class="row-remainder">
+                                @foreach (var peli in fila.Where(p => p.Id != seleccionada.Id))
+                                {
+                                    <MovieCard @key="peli.Id" Pelicula="peli" Expandida="false" CargaInmediata="false" OnReservar="OnPeliculaSeleccionada" OnInfo="ToggleDetalles" OnActivar="ActivarPelicula" OnCerrarOpciones="CerrarOpciones" MantenerCerradaAlEnfocar="@(cerrandoOpcionesId == peli.Id)" />
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        @foreach (var peli in fila)
+                        {
+                            <MovieCard @key="peli.Id" Pelicula="peli" Expandida="@(peli.Id == seleccionada?.Id)" CargaInmediata="@(peliculasVisibles.IndexOf(peli) < columnas)" OnReservar="OnPeliculaSeleccionada" OnInfo="ToggleDetalles" OnActivar="ActivarPelicula" OnCerrarOpciones="CerrarOpciones" MantenerCerradaAlEnfocar="@(cerrandoOpcionesId == peli.Id)" />
+                        }
+                        @if (seleccionada != null)
+                        {
+                            <MovieDetails Pelicula="seleccionada" OnReservar="OnPeliculaSeleccionada" OnCerrar="CerrarDetalles" />
+                        }
+                    }
+                </div>
+            }
+        }
+    @if(totalPeliculas > PorPagina) { <CineSpace.Client.Components.Admin.Pagination CurrentPage="pagina" TotalPages="@Math.Max(1,(int)Math.Ceiling(totalPeliculas/(double)PorPagina))" TotalItems="totalPeliculas" PageSize="PorPagina" ShowPageSizeSelector="false" OnPageChanged="Paginar" /> }
+        @if (tipo is "Todos" or "Próximos estrenos")
+        {
+            @if (cargandoEstrenos)
+            {
+                <p class="catalogue-upcoming-state" role="status">Cargando los próximos estrenos…</p>
+            }
+            else if (errorEstrenos)
+            {
+                <div class="alert alert-danger" role="alert"><p><i class="fas fa-circle-exclamation me-2" aria-hidden="true"></i>No pudimos cargar los próximos estrenos.</p><button type="button" class="btn btn-secondary" @onclick="CargarEstrenos">Reintentar</button></div>
+            }
+            else if (estrenosVisibles.Count > 0)
+            {
+                <section class="catalogue-upcoming-results" aria-labelledby="catalogue-upcoming-title">
+                    <div class="catalogue-upcoming-heading"><h3 id="catalogue-upcoming-title">@(tipo == "Todos" ? "Próximos estrenos" : "Lo que viene al cine")</h3><span>Fechas anunciadas</span></div>
+                    <div class="catalogue-upcoming-grid">@foreach (var estreno in estrenosVisibles) { <UpcomingMovieCard @key="estreno.Id" Estreno="estreno" /> }</div>
+                    @if(totalEstrenos>8) { <CineSpace.Client.Components.Admin.Pagination CurrentPage="paginaEstrenos" TotalPages="@Math.Max(1,(int)Math.Ceiling(totalEstrenos/8d))" TotalItems="totalEstrenos" PageSize="8" ShowPageSizeSelector="false" Label="Paginación de próximos estrenos" OnPageChanged="PaginarEstrenos" /> }
+                </section>
+            }
+        }
+    </div>
+    @if (tipo is not "Todos" and not "Próximos estrenos") { <UpcomingCarousel /> }
+    <PresalesCarousel Peliculas="Peliculas" OnReservar="OnPeliculaSeleccionada" />
+    <GenreCategories Peliculas="Peliculas" ProximosEstrenos="estrenos" GeneroSeleccionado="@genero" OnGeneroSeleccionado="ExplorarGenero" />
+</section>
+
+@code {
+    [Parameter] public List<Pelicula> Peliculas { get; set; } = new();
+    [Parameter] public EventCallback<Pelicula> OnPeliculaSeleccionada { get; set; }
+    private static readonly string[] tipos = { "Estrenos", "Próximos estrenos", "Preventa", "Todos" };
+    private string[] formatos => new[] { "Todos" }.Concat(Salas.Experiencias.Select(e => e.Nombre)).Append("DBOX").Distinct().ToArray();
+    private static readonly string[] idiomas = { "Todos", "Español", "Inglés" };
+    private string tipo = "Estrenos", genero = "Todos", formato = "Todos", idioma = "Todos";
+    private List<string> generos = new() { "Todos", "Acción", "Comedia", "Drama", "Terror" };
+    private List<Pelicula> peliculasVisibles = new();
+    private List<ProximoEstreno> estrenos = new(), estrenosVisibles = new();
+    private bool cargandoEstrenos, errorEstrenos, disposed, enfocarResultados;
+    private bool HayFiltros => tipo != "Estrenos" || genero != "Todos" || formato != "Todos" || idioma != "Todos";
+    private int TotalResultados => totalPeliculas + (tipo is "Todos" or "Próximos estrenos" ? totalEstrenos : 0);
+    private string TituloResultados => genero != "Todos" ? genero : tipo switch { "Preventa" => "En preventa", "Próximos estrenos" => "Próximos estrenos", "Todos" => "Todas las películas", _ => "En pantalla" };
+    private string TituloVacio => tipo == "Preventa" ? "Aún no hay preventas disponibles" : "No hay películas con estos filtros";
+    private string MensajeVacio => tipo == "Preventa" ? "Explora los estrenos actuales o consulta las próximas fechas." : idioma != "Todos" ? "Aún no hay funciones con este idioma confirmado. Prueba con todos los idiomas." : tipo == "Próximos estrenos" && formato != "Todos" ? "Los formatos se anunciarán cuando se habiliten las funciones. Prueba con todos los formatos." : "Cambia la selección o limpia los filtros para explorar la cartelera.";
+    private Pelicula? peliculaExpandida;
+    private int columnas = 4;
+    private ElementReference catalogueElement;
+    private CatalogueSelect? selectorTipo;
+    private IJSObjectReference? module;
+    private DotNetObjectReference<GenreSelection>? reference;
+    private int? focusId;
+    private int? cerrandoOpcionesId;
+
+    private int paginaEstrenos=1, totalEstrenos, versionEstrenos;
+    protected override async Task OnParametersSetAsync() { if (!ReferenceEquals(ultimaLista,Peliculas)) { ultimaLista = Peliculas; await CargarPeliculas(); } ActualizarResultados(); }
+
+    private async Task CargarEstrenos()
+    {
+        var version=++versionEstrenos;
+        if (tipo is not "Todos" and not "Próximos estrenos") { estrenosVisibles=[]; totalEstrenos=0; return; }
+        cargandoEstrenos = true;
+        errorEstrenos = false;
+        ActualizarResultados();
+        try { var resultado = await PeliculaService.ConsultarEstrenosAsync(new() { Pagina=paginaEstrenos, Tamano=8, Orden="antiguas", Genero=Catalogos.Generos.FirstOrDefault(g=>g.Nombre==genero)?.Id, Experiencia=formato=="Todos" ? null : -1, Idioma=idioma=="Todos" ? "" : idioma }); if (!disposed && version==versionEstrenos) { estrenos=resultado.Items; totalEstrenos=resultado.Total; paginaEstrenos=resultado.Numero; } }
+        catch { if (!disposed && version==versionEstrenos) errorEstrenos = true; }
+        finally { if (!disposed && version==versionEstrenos) { cargandoEstrenos = false; ActualizarResultados(); } }
+    }
+
+    private const int PorPagina = 8;
+    private int pagina = 1, totalPeliculas, solicitud;
+    private List<Pelicula>? ultimaLista;
+    private async Task CambiarFiltro(string campo, string valor) {
+        switch(campo) { case "tipo": tipo = valor; break; case "genero": genero = valor; break; case "formato": formato = valor; break; case "idioma": idioma = valor; break; }
+        peliculaExpandida = null; focusId = cerrandoOpcionesId = null; pagina = paginaEstrenos = 1;
+        await Task.WhenAll(CargarPeliculas(), CargarEstrenos()); ActualizarResultados();
+    }
+    private async Task CargarPeliculas() {
+        var version = ++solicitud;
+        if(tipo == "Próximos estrenos") { peliculasVisibles = []; totalPeliculas = 0; return; }
+        try {
+            var p = await PeliculaService.ConsultarAsync(new() { Pagina = pagina, Tamano = PorPagina, Genero = Catalogos.Generos.FirstOrDefault(g=>g.Nombre==genero)?.Id,
+                Experiencia = formato == "Todos" ? null : Salas.Experiencias.FirstOrDefault(x=>x.Nombre==formato)?.Id ?? -2,
+                Idioma = idioma == "Todos" ? "" : idioma, Estado = tipo == "Preventa" ? "preventa" : tipo == "Estrenos" ? "cartelera" : "publicas" });
+            if(disposed || version != solicitud) return;
+            peliculasVisibles = p.Items; totalPeliculas = p.Total; pagina = p.Numero;
+        } catch { if(version == solicitud) { peliculasVisibles = []; totalPeliculas = 0; } }
+    }
+    private async Task PaginarEstrenos(int valor) { paginaEstrenos=valor; await CargarEstrenos(); }
+    private async Task Paginar(int valor) { pagina = valor; peliculaExpandida = null; await CargarPeliculas(); }
+    private async Task LimpiarFiltros()
+    {
+        tipo = "Estrenos";
+        genero = formato = idioma = "Todos";
+        peliculaExpandida = null;
+        focusId = cerrandoOpcionesId = null;
+        await CargarPeliculas(); ActualizarResultados();
+        if (selectorTipo != null) await selectorTipo.EnfocarAsync();
+    }
+
+    private async Task ExplorarGenero(string categoria)
+    {
+        tipo = "Todos";
+        genero = categoria;
+        formato = idioma = "Todos";
+        peliculaExpandida = null;
+        focusId = cerrandoOpcionesId = null;
+        enfocarResultados = true;
+        paginaEstrenos=1; await Task.WhenAll(CargarPeliculas(), CargarEstrenos()); ActualizarResultados();
+    }
+
+    private void ActualizarResultados()
+    {
+        generos = new[] { "Todos" }.Concat(Catalogos.Generos.Select(g => g.Nombre).Concat(Peliculas.SelectMany(p => p.ListaGeneros)).Concat(estrenos.Select(p => p.Genero)).Where(g => !string.IsNullOrWhiteSpace(g)).Distinct().OrderBy(g => g, StringComparer.CurrentCulture)).ToList();
+        // Upcoming announcements have no confirmed screening format or language yet.
+        estrenosVisibles = tipo is "Todos" or "Próximos estrenos" && formato == "Todos" && idioma == "Todos"
+            ? estrenos.ToList() : new();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (disposed) return;
+        if (firstRender)
+        {
+            var loaded = await JS.InvokeAsync<IJSObjectReference>("import", "./js/catalogue.js");
+            if (disposed) { await loaded.DisposeAsync(); return; }
+            module = loaded;
+            reference = DotNetObjectReference.Create(this);
+            await ActualizarColumnas(await module.InvokeAsync<int>("observeCatalogue", catalogueElement, reference));
+        }
+        if (disposed) return;
+        if (focusId.HasValue && module != null)
+        {
+            var id = focusId.Value;
+            focusId = null;
+            await module.InvokeVoidAsync("focusInfo", catalogueElement, id);
+        }
+        if (enfocarResultados && module != null)
+        {
+            enfocarResultados = false;
+            await module.InvokeVoidAsync("focusCatalogueResults", catalogueElement);
+        }
+    }
+
+    [JSInvokable]
+    public Task ActualizarColumnas(int cantidad)
+    {
+        if (disposed) return Task.CompletedTask;
+        cantidad = Math.Clamp(cantidad, 2, 4);
+        if (columnas == cantidad) return Task.CompletedTask;
+        columnas = cantidad;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private void ActivarPelicula(Pelicula peli)
+    {
+        if (peliculaExpandida == null || peliculaExpandida.Id == peli.Id) return;
+        peliculaExpandida = null;
+        cerrandoOpcionesId = null;
+        focusId = peli.Id;
+    }
+    private void ToggleDetalles(Pelicula peli)
+    {
+        cerrandoOpcionesId = null;
+        peliculaExpandida = peliculaExpandida?.Id == peli.Id ? null : peli;
+        focusId = peli.Id;
+    }
+    private void CerrarDetalles()
+    {
+        cerrandoOpcionesId = null;
+        focusId = peliculaExpandida?.Id;
+        peliculaExpandida = null;
+    }
+    private void CerrarOpciones(Pelicula peli)
+    {
+        peliculaExpandida = null;
+        cerrandoOpcionesId = focusId = peli.Id;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+        if (module != null)
+        {
+            try { await module.InvokeVoidAsync("disconnectCatalogue", catalogueElement); await module.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+        reference?.Dispose();
+    }
+}
+

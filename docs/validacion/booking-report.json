@@ -1,0 +1,62 @@
+{
+  "checks": [
+    "Booking has no arbitrary date picker 1440",
+    "One general ticket type 1440",
+    "FIFO seat replacement 1440",
+    "Customer only sees debit and QR 1440",
+    "Payment QR loads from wwwroot",
+    "Three payment messages 1440",
+    "Payment stages last at least 1.5 seconds 1440",
+    "Payment modal contains only a message 1440",
+    "Entry QR decodes to its actual identifier 1440",
+    "Invoice downloads a real PDF 1440",
+    "Completed booking has no page overflow 1440",
+    "Booking has no arbitrary date picker 390",
+    "One general ticket type 390",
+    "FIFO seat replacement 390",
+    "Customer only sees debit and QR 390",
+    "Three payment messages 390",
+    "Payment stages last at least 1.5 seconds 390",
+    "Payment modal contains only a message 390",
+    "Entry QR decodes to its actual identifier 390",
+    "Invoice downloads a real PDF 390",
+    "Completed booking has no page overflow 390"
+  ],
+  "errors": [],
+  "payments": [
+    {
+      "width": 1440,
+      "stages": [
+        {
+          "text": "Enviando pago…",
+          "time": 5657.5
+        },
+        {
+          "text": "Confirmando pago…",
+          "time": 7168.70000000298
+        },
+        {
+          "text": "Pago confirmado",
+          "time": 8725.800000000745
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "stages": [
+        {
+          "text": "Enviando pago…",
+          "time": 5137.10000000149
+        },
+        {
+          "text": "Confirmando pago…",
+          "time": 6646.60000000149
+        },
+        {
+          "text": "Pago confirmado",
+          "time": 8193.39999999851
+        }
+      ]
+    }
+  ]
+}

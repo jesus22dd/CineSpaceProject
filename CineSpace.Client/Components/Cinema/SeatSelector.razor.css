@@ -1,0 +1,61 @@
+.seat-selector { --chair-fill: var(--cinema-seat-available); --chair-line: var(--cinema-seat-regular-border); display: grid; grid-template-columns: minmax(0,1fr); align-items: start; gap: 24px; }
+.seat-room { min-width: 0; padding: 24px; background: var(--cinema-surface); border-radius: 12px; }
+.seat-room-heading h4 { margin: 0 0 6px; color: var(--cinema-heading); font-size: 23px; }
+.seat-room-heading p { margin: 0; font-size: 13px; color: var(--cinema-muted); }
+.seat-hint { margin: 20px 0 16px; color: var(--cinema-muted); font-size: 13px; line-height: 1.5; }
+.seat-view-tools { display: flex; align-items: center; gap: 6px; margin-bottom: 16px; }
+.seat-view-tools .btn { min-height: 44px; padding: 10px 12px; font-size: 12px; }
+.seat-view-tools button[aria-pressed="true"] { color: var(--cinema-link); background: var(--cinema-accent-soft); }
+.seat-symbols { position: absolute; width: 0; height: 0; overflow: hidden; }
+.seat-map-scroll { --seat-gap: 6px; --seat-row-label: 24px; --seat-padding: 12px; min-width: 0; width: 100%; max-height: min(66dvh,680px); overflow: auto; padding-bottom: 12px; scrollbar-width: thin; scrollbar-color: var(--cinema-control-border) var(--cinema-canvas); overscroll-behavior: contain auto; }
+.seat-map-scroll { scroll-margin-top: calc(var(--cinema-header-height,112px) + 20px); }
+.seat-map-scroll:focus-visible { outline-offset: 2px; }
+.sala-cine { width: max-content; min-width: 100%; padding: 8px var(--seat-padding) 12px; }
+.seat-screen { position: relative; height: 76px; margin: 0 calc(var(--seat-row-label) + var(--seat-gap)) 20px; color: var(--cinema-muted); text-align: center; }
+.seat-screen svg { position: absolute; inset: 0 0 auto; display: block; width: 100%; height: 32px; overflow: visible; }
+.seat-screen path { fill: none; stroke: var(--cinema-seat-regular-border); stroke-width: 5; stroke-linecap: round; }
+.seat-screen span { display: inline-block; padding-top: 40px; color: var(--cinema-heading); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
+.fila-asientos { display: flex; align-items: center; justify-content: center; gap: var(--seat-gap); margin-bottom: 6px; }
+.fila-asientos:last-child { margin-bottom: 0; }
+.etiqueta-fila { position: sticky; left: 0; z-index: 1; display: grid; place-items: center; width: var(--seat-row-label); flex: 0 0 var(--seat-row-label); align-self: stretch; background: var(--cinema-surface); color: var(--cinema-muted); font-size: 11px; font-weight: 600; }
+.etiqueta-fila.row-end { left: auto; right: 0; }
+.seat-map-gap { flex: 0 0 var(--seat-size); width: var(--seat-size); height: var(--seat-size); }
+.asiento { position: relative; display: grid; place-items: center; width: var(--seat-size); height: var(--seat-size); flex: 0 0 var(--seat-size); margin: 0; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--cinema-seat-available-ink); font-size: clamp(10px,calc(var(--seat-size) * .3),13px); font-weight: 600; font-variant-numeric: tabular-nums; }
+.seat-chair { display: block; width: 100%; height: 100%; fill: var(--chair-fill); stroke: var(--chair-line); stroke-width: 1.2; stroke-linejoin: round; transition: fill 140ms, stroke 140ms; }
+.seat-number { position: absolute; inset: 0; display: grid; place-items: center; padding-bottom: 5px; pointer-events: none; }
+:is(.asiento,.seat-key).comfort { --chair-fill: var(--cinema-seat-available-comfort); --chair-line: var(--cinema-seat-comfort-border); color: var(--cinema-seat-comfort-ink); }
+:is(.asiento,.seat-key).vip { --chair-fill: var(--cinema-seat-available-vip); --chair-line: var(--cinema-gold-ink); color: var(--cinema-seat-vip-ink); }
+.asiento:not(:disabled):not(.seleccionado):hover { --chair-line: var(--cinema-accent); }
+.asiento.seleccionado, .seat-key.selected { --chair-fill: var(--cinema-accent); --chair-line: var(--cinema-accent); color: var(--cinema-on-action); }
+.asiento:focus-visible { outline: 2px solid var(--cinema-focus); outline-offset: 2px; z-index: 2; }
+.seat-check { position: absolute; right: 1px; bottom: 1px; display: grid; place-items: center; width: 11px; height: 11px; border-radius: 50%; background: var(--cinema-accent); color: var(--cinema-on-action); font-size: 7px; }
+.asiento.ocupado, .seat-key.occupied { --chair-fill: var(--cinema-seat-occupied); --chair-line: var(--cinema-seat-occupied-border); color: var(--cinema-muted); cursor: not-allowed; opacity: 1; }
+.seat-unavailable { position: absolute; top: 26%; font-size: 11px; }
+.seat-scroll-hint { margin: 12px 0 0; color: var(--cinema-muted); font-size: 11px; line-height: 1.5; }
+.leyenda-asientos { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0,1fr); gap: 8px; padding-top: 20px; margin-top: 20px; border-top: 1px solid var(--cinema-line); color: var(--cinema-ink); font-size: 12px; }
+.leyenda-asientos > span { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 0; text-align: center; white-space: nowrap; }
+.seat-key { position: relative; display: inline-grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; }
+.seat-key > i { position: absolute; top: 8px; font-size: 10px; }
+.seat-inline-summary { min-width: 0; scroll-margin-top: calc(var(--cinema-header-height,112px) + 20px); }
+.seat-inline-summary:focus { outline: none; }
+.seat-edge-summary, .seat-summary-shortcut { display: none; }
+@media(min-width:1100px) {
+    .seat-inline-summary { display: none; }
+    .seat-edge-summary { display: block; position: fixed; inset: var(--cinema-header-height,80px) 0 0 auto; z-index: 25; width: 288px; padding: 28px 20px; overflow-y: auto; overscroll-behavior-y: contain; border: 0; background: var(--cinema-surface); scrollbar-width: thin; scrollbar-color: var(--cinema-line) transparent; }
+}
+@media(max-width:1099px) {
+    .has-selection { padding-bottom: 88px; }
+    .seat-summary-shortcut { position: fixed; z-index: 25; bottom: calc(12px + env(safe-area-inset-bottom,0px)); left: calc(var(--cinema-sidebar-space,0px) + 16px); right: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: auto; max-width: 560px; min-height: 64px; margin-left: auto; padding: 12px 16px; border: 0; border-radius: 10px; background: var(--cinema-accent); color: var(--cinema-on-action); text-align: left; font-size: 13px; }
+    .seat-summary-shortcut:hover { background: var(--cinema-accent-hover); }
+    .seat-summary-shortcut.is-return { background: var(--cinema-on-action); color: var(--cinema-wine); }
+    .seat-summary-shortcut.is-return:hover { background: var(--cinema-paper); }
+    .seat-summary-shortcut:focus-visible { outline: 2px solid var(--cinema-muted); outline-offset: -4px; }
+    .seat-summary-shortcut.is-return:focus-visible { outline-color: var(--cinema-wine); }
+    .seat-summary-shortcut > span:first-child { display: grid; gap: 2px; font-variant-numeric: tabular-nums; }
+    .seat-summary-shortcut > span:first-child > span { font-size: 12px; }
+    .seat-shortcut-action { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+}
+@media(max-width:1023px) { .seat-summary-shortcut { left: 16px; } }
+@media(max-width:600px) { .seat-room { padding: 20px 12px; } .seat-room-heading { padding-inline: 4px; } .seat-room-heading h4 { font-size: 21px; } .seat-map-scroll { --seat-gap: 4px; --seat-row-label: 16px; --seat-padding: 8px; max-height: 58dvh; } .seat-view-tools { gap: 4px; } .seat-view-tools .btn { padding: 10px 8px; flex: 1; gap: 6px; font-size: 11px; } .seat-view-tools .btn i { font-size: 11px; } .seat-hint { font-size: 12px; } .seat-screen { height: 64px; margin-bottom: 16px; } .leyenda-asientos { gap: 4px; font-size: 11px; } .leyenda-asientos > span { flex-direction: column; gap: 4px; text-align: center; } }
+@media(max-width:360px) { .leyenda-asientos { font-size: 10px; } }
+@media(prefers-reduced-motion:reduce) { .seat-chair { transition: none; } }

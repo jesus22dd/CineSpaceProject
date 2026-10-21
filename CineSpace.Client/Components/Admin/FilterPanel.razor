@@ -1,0 +1,259 @@
+@typeparam TFilter where TFilter : class
+
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-filter me-2"></i>@Title
+            </h5>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="ToggleCollapse">
+                <i class="fas @(isCollapsed ? "fa-chevron-down" : "fa-chevron-up")"></i>
+            </button>
+        </div>
+    </div>
+
+    @if (!isCollapsed)
+    {
+        <div class="card-body">
+            <div class="row">
+                @ChildContent
+            </div>
+
+            <div class="d-flex justify-content-between mt-3">
+                <button class="btn btn-secondary" @onclick="HandleClearFilters">
+                    <i class="fas fa-times me-1"></i>Limpiar filtros
+                </button>
+                <button class="btn btn-primary" @onclick="HandleApplyFilters">
+                    <i class="fas fa-search me-1"></i>Aplicar filtros
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = "Filtros";
+
+    [Parameter]
+    public bool Collapsed { get; set; } = false;
+
+    [Parameter]
+    public TFilter Filter { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback<TFilter> OnFilterChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnApplyFilters { get; set; }
+
+    [Parameter]
+    public EventCallback OnClearFilters { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; } = null!;
+
+    private bool isCollapsed;
+
+    protected override void OnInitialized()
+    {
+        isCollapsed = Collapsed;
+    }
+
+    private void ToggleCollapse()
+    {
+        isCollapsed = !isCollapsed;
+    }
+
+    private async Task HandleApplyFilters()
+    {
+        await OnFilterChanged.InvokeAsync(Filter);
+        await OnApplyFilters.InvokeAsync();
+    }
+
+    private async Task HandleClearFilters()
+    {
+        await OnClearFilters.InvokeAsync();
+    }
+}
+
+@* Componentes auxiliares para filtros comunes *@
+
+@code {
+    // Componente para un filtro de texto simple
+    public class TextFilterField : ComponentBase
+    {
+        [Parameter]
+        public string Label { get; set; } = string.Empty;
+
+        [Parameter]
+        public string Placeholder { get; set; } = "Buscar...";
+
+        [Parameter]
+        public string Value { get; set; } = string.Empty;
+
+        [Parameter]
+        public EventCallback<string> ValueChanged { get; set; }
+
+        [Parameter]
+        public string Icon { get; set; } = "fa-search";
+
+        [Parameter]
+        public string CssClass { get; set; } = "col-md-6 mb-3";
+
+        private async Task OnValueChanged(ChangeEventArgs args)
+        {
+            Value = args.Value?.ToString() ?? string.Empty;
+            await ValueChanged.InvokeAsync(Value);
+        }
+
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
+        {
+            base.BuildRenderTree(builder);
+
+            builder.OpenElement(0, "div");
+            builder.AddAttribute(1, "class", CssClass);
+
+            if (!string.IsNullOrEmpty(Label))
+            {
+                builder.OpenElement(2, "label");
+                builder.AddAttribute(3, "class", "form-label");
+                builder.AddContent(4, Label);
+                builder.CloseElement();
+            }
+
+            builder.OpenElement(5, "div");
+            builder.AddAttribute(6, "class", "input-group");
+
+            if (!string.IsNullOrEmpty(Icon))
+            {
+                builder.OpenElement(7, "span");
+                builder.AddAttribute(8, "class", "input-group-text");
+                builder.OpenElement(9, "i");
+                builder.AddAttribute(10, "class", $"fas {Icon}");
+                builder.CloseElement();
+                builder.CloseElement();
+            }
+
+            builder.OpenElement(11, "input");
+            builder.AddAttribute(12, "type", "text");
+            builder.AddAttribute(13, "class", "form-control");
+            builder.AddAttribute(14, "placeholder", Placeholder);
+            builder.AddAttribute(15, "value", Value);
+            builder.AddAttribute(16, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, OnValueChanged));
+            builder.CloseElement();
+
+            builder.CloseElement(); // Cierra input-group
+            builder.CloseElement(); // Cierra div principal
+        }
+    }
+
+    // Componente para un filtro de selección
+    public class SelectFilterField<TValue> : ComponentBase
+    {
+        [Parameter]
+        public string Label { get; set; } = string.Empty;
+
+        [Parameter]
+        public TValue Value { get; set; } = default!;
+
+        [Parameter]
+        public EventCallback<TValue> ValueChanged { get; set; }
+
+        [Parameter]
+        public IEnumerable<SelectListItem<TValue>> Items { get; set; } = Enumerable.Empty<SelectListItem<TValue>>();
+
+        [Parameter]
+        public string Placeholder { get; set; } = "-- Seleccionar --";
+
+        [Parameter]
+        public string CssClass { get; set; } = "col-md-6 mb-3";
+
+        [Parameter]
+        public bool ShowEmptyOption { get; set; } = true;
+
+        private async Task OnValueChanged(ChangeEventArgs args)
+        {
+            if (typeof(TValue) == typeof(string))
+            {
+                Value = (TValue)(object)(args.Value?.ToString() ?? string.Empty);
+            }
+            else if (typeof(TValue).IsEnum)
+            {
+                if (Enum.TryParse(typeof(TValue), args.Value?.ToString(), out object? result) && result != null)
+                {
+                    Value = (TValue)result;
+                }
+            }
+            else if (typeof(TValue) == typeof(int) && int.TryParse(args.Value?.ToString(), out int intValue))
+            {
+                Value = (TValue)(object)intValue;
+            }
+            else if (typeof(TValue) == typeof(bool) && bool.TryParse(args.Value?.ToString(), out bool boolValue))
+            {
+                Value = (TValue)(object)boolValue;
+            }
+
+            await ValueChanged.InvokeAsync(Value);
+        }
+
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
+        {
+            base.BuildRenderTree(builder);
+
+            builder.OpenElement(0, "div");
+            builder.AddAttribute(1, "class", CssClass);
+
+            if (!string.IsNullOrEmpty(Label))
+            {
+                builder.OpenElement(2, "label");
+                builder.AddAttribute(3, "class", "form-label");
+                builder.AddContent(4, Label);
+                builder.CloseElement();
+            }
+
+            builder.OpenElement(5, "select");
+            builder.AddAttribute(6, "class", "form-select");
+            builder.AddAttribute(7, "value", Value?.ToString());
+            builder.AddAttribute(8, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, OnValueChanged));
+
+            if (ShowEmptyOption)
+            {
+                builder.OpenElement(9, "option");
+                builder.AddAttribute(10, "value", "");
+                builder.AddContent(11, Placeholder);
+                builder.CloseElement();
+            }
+
+            foreach (var item in Items)
+            {
+                builder.OpenElement(12, "option");
+                builder.AddAttribute(13, "value", item.Value?.ToString());
+                if (EqualityComparer<TValue>.Default.Equals(item.Value, Value))
+                {
+                    builder.AddAttribute(14, "selected", "selected");
+                }
+                builder.AddContent(15, item.Text);
+                builder.CloseElement();
+            }
+
+            builder.CloseElement(); // Cierra select
+            builder.CloseElement(); // Cierra div principal
+        }
+    }
+
+    // Clase para representar un elemento de lista desplegable
+    public class SelectListItem<TValue>
+    {
+        public string Text { get; set; } = string.Empty;
+        public TValue Value { get; set; } = default!;
+
+        public SelectListItem() { }
+
+        public SelectListItem(string text, TValue value)
+        {
+            Text = text;
+            Value = value;
+        }
+    }
+}

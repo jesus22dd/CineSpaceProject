@@ -1,0 +1,102 @@
+@using CineSpace.Client.Components.Cinema
+@using CineSpace.Client.Components.Shared
+@inject BannersService Banners
+@inject PeliculaService PeliculasService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@implements IDisposable
+
+<NavigationLock OnBeforeInternalNavigation="AntesDeSalir" ConfirmExternalNavigation="@HayCambios" />
+<form class="banner-editor" @onsubmit="Guardar" @onsubmit:preventDefault>
+    <div class="banner-editor-fields">
+        <div class="banner-content-fields">
+            <h2>Contenido del banner</h2>
+            <div><label for="banner-movie">Película</label><select id="banner-movie" class="form-select" @bind="banner.PeliculaId" @bind:after="CambiarPelicula" disabled="@guardando"><option value="0">Selecciona una película</option>@foreach (var p in Peliculas.OrderBy(p => p.Titulo)) { <option value="@p.Id">@p.Titulo</option> }</select></div>
+            <div><label for="banner-tag">Etiqueta</label><select id="banner-tag" class="form-select" @bind="banner.Etiqueta" disabled="@guardando">@foreach (var etiqueta in Enum.GetValues<EtiquetaBanner>()) { <option value="@etiqueta">@etiqueta.Nombre()</option> }</select><p class="form-text">Elige «Sin etiqueta» para dejar solo la imagen y el título. Las demás etiquetas se muestran en horizontal en móvil.</p></div>
+            <label class="confection-publish"><input id="banner-active" class="form-check-input" type="checkbox" @bind="banner.Activo" disabled="@guardando" /><span><strong>Mostrar en la página principal</strong><small>Desmárcalo para guardar el banner sin publicarlo.</small></span></label>
+        </div>
+        <div class="banner-image-fields">
+            <h2>Imagen panorámica</h2>
+            <div class="banner-source-options" role="group" aria-label="Origen de la imagen"><button type="button" class="@(subida ? "" : "is-selected")" aria-pressed="@(!subida ? "true" : "false")" @onclick="() => subida = false" disabled="@guardando"><i class="fas fa-images" aria-hidden="true"></i>Fondos de TMDB</button><button type="button" class="@(subida ? "is-selected" : "")" aria-pressed="@(subida ? "true" : "false")" @onclick="() => subida = true" disabled="@guardando"><i class="fas fa-arrow-up-from-bracket" aria-hidden="true"></i>Subir imagen</button></div>
+            @if (subida)
+            {
+                <div class="banner-upload"><label for="banner-upload">Seleccionar archivo</label><InputFile id="banner-upload" class="form-control" accept="image/jpeg,image/png,image/webp" OnChange="Subir" disabled="@(guardando || preparando)" /><p class="form-text">JPG, PNG o WebP · hasta 6 MB. Usa una imagen horizontal de al menos 720 px de ancho.</p>@if (banner.Imagen.StartsWith("data:")) { <p class="banner-image-selected"><i class="fas fa-check" aria-hidden="true"></i>Imagen propia seleccionada</p> }</div>
+            }
+            else if (cargando) { <p class="banner-image-status" role="status"><i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>Buscando fondos panorámicos…</p> }
+            else if (!string.IsNullOrEmpty(errorFondos)) { <div class="banner-image-status" role="status"><p>@errorFondos</p><button type="button" class="btn btn-secondary" @onclick="() => CargarFondos(false)">Volver a intentar</button></div> }
+            else if (fondos.Count > 0)
+            {
+                <div class="banner-image-grid" role="group" aria-label="Elegir fondo panorámico">
+                    @for (var i = 0; i < fondos.Count; i++) { var fondo = fondos[i]; var n = i + 1; <button type="button" class="banner-image-option @(banner.Imagen == fondo.Url ? "is-selected" : "")" @onclick="() => Seleccionar(fondo)" aria-label="Seleccionar fondo @n" aria-pressed="@(banner.Imagen == fondo.Url ? "true" : "false")" disabled="@(guardando || fallidas.Contains(fondo.Ruta))">@if (fallidas.Contains(fondo.Ruta)) { <div class="banner-image-missing"><i class="fas fa-image" aria-hidden="true"></i></div> } else { <img src="@fondo.Miniatura" alt="" loading="lazy" @onerror="() => MarcarFallida(fondo.Ruta)" /> }<span>@(fallidas.Contains(fondo.Ruta) ? "No disponible" : banner.Imagen == fondo.Url ? "Seleccionado" : $"{fondo.Ancho} × {fondo.Alto}")</span></button> }
+                </div>
+                <p class="form-text">Elige el fondo que mejor deje ver a los personajes y el texto.</p>
+            }
+            else { <p class="banner-image-status">@(Pelicula == null ? "Selecciona una película para ver sus fondos." : "Esta película no tiene fondos panorámicos disponibles. Puedes subir una imagen propia.")</p> }
+            @if (!string.IsNullOrEmpty(banner.Imagen)) { <div class="banner-focus"><label for="banner-focus">Encuadre vertical <span>@banner.FocoVertical%</span></label><input id="banner-focus" class="form-range" type="range" min="0" max="100" step="1" @bind="banner.FocoVertical" @bind:event="oninput" disabled="@guardando" /><div><span>Parte superior</span><span>Parte inferior</span></div></div> }
+        </div>
+    </div>
+    @if (Pelicula != null)
+    {
+        <section class="banner-preview" aria-labelledby="banner-preview-title"><h2 id="banner-preview-title">Vista previa</h2><div class="carousel-stage"><BannerVisual Pelicula="Pelicula" Banner="banner" Preview="true" /></div></section>
+    }
+    @if (!string.IsNullOrEmpty(error)) { <div class="alert alert-danger" role="alert">@error</div> }
+    <div class="confection-form-footer"><span>Tu selección se aplicará al tener cinco películas distintas con banners activos.</span><div><button type="button" class="btn btn-secondary" @onclick="Cancelar" disabled="@(guardando || preparando)">Cancelar</button><button type="submit" class="btn btn-primary" disabled="@(guardando || preparando || cargando)"><i class="fas fa-check" aria-hidden="true"></i>@(guardando ? "Guardando…" : "Guardar banner")</button></div></div>
+</form>
+@if (confirmarSalida)
+{
+    <AppDialog Title="¿Descartar los cambios?" OnClose="CerrarConfirmacion" @ref="confirmacion"><ChildContent><p>El banner tiene cambios sin guardar. Puedes seguir editando o salir sin guardarlos.</p></ChildContent><Footer><button type="button" class="btn btn-secondary" @onclick="Seguir">Seguir editando</button><button type="button" class="btn btn-primary" @onclick="Descartar">Descartar cambios</button></Footer></AppDialog>
+}
+@code {
+    [Parameter, EditorRequired] public BannerInicio Banner { get; set; } = new();
+    [Parameter, EditorRequired] public List<Pelicula> Peliculas { get; set; } = new();
+    [Parameter] public EventCallback<int> OnGuardar { get; set; }
+    [Parameter] public EventCallback OnCancelar { get; set; }
+    private BannerInicio banner = new(), inicial = new();
+    private List<ImagenPelicula> fondos = new();
+    private readonly HashSet<string> fallidas = new();
+    private Pelicula? Pelicula => Peliculas.FirstOrDefault(p => p.Id == banner.PeliculaId);
+    private bool iniciado, guardando, cargando, preparando, subida, confirmarSalida, permitirSalida, disposed;
+    private int version;
+    private string error = "", errorFondos = "";
+    private string? destino;
+    private AppDialog? confirmacion;
+    private bool HayCambios => banner.PeliculaId != inicial.PeliculaId || banner.Imagen != inicial.Imagen || banner.Etiqueta != inicial.Etiqueta || banner.FocoVertical != inicial.FocoVertical || banner.Activo != inicial.Activo;
+    protected override async Task OnParametersSetAsync() { if (iniciado) return; iniciado = true; banner = Banner.Copiar(); inicial = banner.Copiar(); subida = banner.Imagen.StartsWith("data:"); if (Pelicula != null) await CargarFondos(false); }
+    private async Task CambiarPelicula() { banner.Imagen = ""; banner.FocoVertical = 35; subida = false; await CargarFondos(true); }
+    private async Task CargarFondos(bool reemplazar)
+    {
+        var request = ++version; var id = banner.PeliculaId; fondos = new(); fallidas.Clear(); errorFondos = ""; error = ""; cargando = id > 0;
+        if (id <= 0) return;
+        try { var lista = Pelicula?.TmdbId is int tmdbId ? await PeliculasService.ObtenerFondosAsync(tmdbId) : new List<ImagenPelicula>(); if (disposed || request != version) return; fondos = lista; if (reemplazar) foreach (var fondo in fondos.Take(3)) { if (disposed || request != version) return; try { await ValidarImagen(fondo.Url); } catch { fallidas.Add(fondo.Ruta); continue; } if (!disposed && request == version && !subida && string.IsNullOrEmpty(banner.Imagen)) banner.Imagen = fondo.Url; break; } }
+        catch (ArgumentException ex) { if (!disposed && request == version) errorFondos = ex.Message; }
+        finally { if (!disposed && request == version) cargando = false; }
+    }
+    private void Seleccionar(ImagenPelicula fondo) { banner.Imagen = fondo.Url; error = ""; }
+    private void MarcarFallida(string ruta) => fallidas.Add(ruta);
+    private async Task ValidarImagen(string src)
+    {
+        var info = await JS.InvokeAsync<System.Text.Json.JsonElement>("cineBannerImages.inspect", src);
+        var ancho = info.GetProperty("width").GetInt32(); var alto = info.GetProperty("height").GetInt32();
+        if (ancho < 720 || alto <= 0 || (double)ancho / alto < 1.3) throw new ArgumentException("Elige una imagen horizontal de al menos 720 px de ancho para que el banner se vea bien.");
+    }
+    private async Task Subir(InputFileChangeEventArgs e)
+    {
+        preparando = true; error = "";
+        try { var f = e.File; if (f.Size > 6 * 1024 * 1024 || f.ContentType is not "image/jpeg" and not "image/png" and not "image/webp") throw new ArgumentException("Usa una imagen JPG, PNG o WebP de hasta 6 MB."); var foto = await f.RequestImageFileAsync("image/webp", 1920, 1080); using var s = foto.OpenReadStream(2_000_000); using var m = new MemoryStream(); await s.CopyToAsync(m); var src = $"data:{foto.ContentType};base64,{Convert.ToBase64String(m.ToArray())}"; await ValidarImagen(src); if (!disposed) banner.Imagen = src; }
+        catch (ArgumentException ex) { error = ex.Message; } catch { error = "No pudimos preparar esa imagen. Elige otra y vuelve a intentarlo."; }
+        finally { preparando = false; }
+    }
+    private async Task Guardar()
+    {
+        if (guardando || preparando || cargando) return; guardando = true; error = "";
+        try { if (!string.IsNullOrEmpty(banner.Imagen)) await ValidarImagen(banner.Imagen); var id = await Banners.GuardarAsync(banner, Pelicula != null); inicial = banner.Copiar(); permitirSalida = true; await OnGuardar.InvokeAsync(id); }
+        catch (ArgumentException ex) { error = ex.Message; } catch { error = "No pudimos cargar la imagen o guardar el banner. Comprueba tu conexión o elige otra imagen; tus cambios siguen aquí."; }
+        finally { guardando = false; }
+    }
+    private async Task Cancelar() { if (HayCambios) confirmarSalida = true; else await OnCancelar.InvokeAsync(); }
+    private void AntesDeSalir(LocationChangingContext contexto) { if (guardando || preparando) { contexto.PreventNavigation(); error = "Espera a que termine de prepararse o guardarse el banner antes de salir."; return; } if (!HayCambios || permitirSalida) return; contexto.PreventNavigation(); destino = contexto.TargetLocation; confirmarSalida = true; }
+    private void CerrarConfirmacion() { confirmarSalida = false; destino = null; }
+    private Task Seguir() => confirmacion?.CerrarDialogo() ?? Task.CompletedTask;
+    private async Task Descartar() { var ruta = destino; permitirSalida = true; if (confirmacion != null) await confirmacion.CerrarDialogo(); if (ruta != null) Navigation.NavigateTo(ruta); else await OnCancelar.InvokeAsync(); }
+    public void Dispose() { disposed = true; version++; }
+}

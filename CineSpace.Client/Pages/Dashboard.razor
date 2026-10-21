@@ -1,0 +1,51 @@
+@page "/Dashboard"
+@using CineSpace.Client.Components.Admin
+@inject TicketSalesService Ventas
+@inject UsuarioService Usuarios
+@inject SalaService Salas
+
+<PageTitle>Dashboard - CineSpace</PageTitle>
+@if (!Usuarios.EsAdministrador()) { <div class="alert alert-danger" role="alert">El Dashboard está disponible para administradores.</div> }
+else
+{
+    <div class="container cinema-dashboard">
+        <div class="management-heading"><div><h1>Dashboard</h1><p>Ventas, público y rendimiento del cine.</p></div><a class="btn btn-secondary" href="/ventas"><i class="fas fa-table-list" aria-hidden="true"></i>Ver resumen de ventas</a></div>
+        <section class="dashboard-overview" aria-labelledby="overview-title">
+            <div class="overview-heading"><h2 id="overview-title">Ventas de entradas</h2><span>Los filtros se aplican a estos indicadores.</span></div>
+            <SalesFilters Id="dashboard" Etiqueta="Filtros de indicadores" Valor="filtro" ValorChanged="CambiarFiltros" GenerosHistoricos="generos.Select(x => x.Nombre)" />
+            <dl class="dashboard-metrics" aria-live="polite">
+                <div><dt>Tickets vendidos</dt><dd data-metric="tickets">@datos.Tickets.ToString("N0")</dd></div>
+                <div><dt>Ingresos de cine</dt><dd data-metric="income">@datos.Ingresos.ToString("N2")<small>Bs</small></dd></div>
+                <div><dt>Salas con ventas</dt><dd data-metric="rooms">@datos.Salas</dd></div>
+                <div><dt>Ingreso por ticket</dt><dd data-metric="average">@datos.Promedio.ToString("N2")<small>Bs</small></dd></div>
+            </dl>
+        </section>
+
+        <div class="dashboard-analysis-heading"><div><h2>Rendimiento del cine</h2><p>Estos gráficos son independientes de los filtros de arriba. Consulta los detalles con el cursor, el teclado o un toque.</p></div><span class="analysis-scope"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i>Histórico registrado</span></div>
+        <div class="dashboard-charts">
+            <section class="dashboard-widget" aria-labelledby="audience-title"><header><h3 id="audience-title">Nuestro público</h3><p>Entradas generales vendidas</p></header><AnalyticsChart Tipo="pie" Titulo="Distribución de tickets por público" Datos="publico" /></section>
+            <section class="dashboard-widget" aria-labelledby="genres-title"><header><h3 id="genres-title">Top 5 géneros</h3><p>Tickets por género · una película puede pertenecer a varios</p></header><AnalyticsChart Tipo="vertical" Titulo="Top 5 géneros por tickets" Datos="generos" MostrarDetalle="true" /></section>
+            <section class="dashboard-widget" aria-labelledby="rooms-title"><header><h3 id="rooms-title">Salas con más ventas</h3><p>Top 5 · cada compra cuenta como una venta</p></header><AnalyticsChart Tipo="horizontal" Titulo="Top 5 salas por ventas" Datos="salas" Unidad="ventas" MostrarDetalle="true" /></section>
+            <section class="dashboard-widget" aria-labelledby="experiences-title"><header><h3 id="experiences-title">Experiencias con más ventas</h3><p>Top 5 · consulta también los tickets de cada experiencia</p></header><AnalyticsChart Tipo="horizontal" Titulo="Top experiencias por ventas" Datos="experiencias" Unidad="ventas" MostrarDetalle="true" /></section>
+            <section class="dashboard-widget" aria-labelledby="confection-title"><header><h3 id="confection-title">Top 5 categorías de confitería</h3><p>Participación en ingresos de las categorías más vendidas</p></header><AnalyticsChart Tipo="donut" Titulo="Top 5 categorías de confitería por ingresos" Datos="categorias" Unidad="Bs" Vacio="Sin ventas de confitería registradas." /></section>
+            <section class="dashboard-widget" aria-labelledby="daily-title"><header><h3 id="daily-title">Ingresos de los últimos 5 días</h3><p>Cine y confitería · incluye hoy</p></header><AnalyticsChart Tipo="grouped" Titulo="Comparación de ingresos de cine y confitería en cinco días" Series="ingresosCinco" Etiquetas="etiquetasCinco" Unidad="Bs" Vacio="No hay ingresos registrados en estos cinco días." /></section>
+            <section class="dashboard-widget dashboard-widget-wide" aria-labelledby="trend-title"><header><h3 id="trend-title">Evolución de ingresos</h3><p>Últimos 30 días · detecta días fuertes y compara cine, confitería y total</p></header><AnalyticsChart Tipo="line" Titulo="Evolución diaria de ingresos durante treinta días" Series="ingresosMes" Etiquetas="etiquetasMes" Unidad="Bs" Vacio="No hay ingresos registrados en estos treinta días." /></section>
+        </div>
+    </div>
+}
+@code {
+    private AnaliticaCine datos = new();
+    private FiltroVentas filtro = new();
+    private IReadOnlyList<DatoGrafico> publico => datos.Publico;
+    private IReadOnlyList<DatoGrafico> generos => datos.Generos;
+    private IReadOnlyList<DatoGrafico> salas => datos.SalasTop;
+    private IReadOnlyList<DatoGrafico> experiencias => datos.Experiencias;
+    private IReadOnlyList<DatoGrafico> categorias => datos.Categorias;
+    private IReadOnlyList<SerieGrafico> ingresosCinco => datos.IngresosCinco;
+    private IReadOnlyList<SerieGrafico> ingresosMes => datos.IngresosMes;
+    private IReadOnlyList<string> etiquetasCinco => datos.EtiquetasCinco;
+    private IReadOnlyList<string> etiquetasMes => datos.EtiquetasMes;
+    protected override async Task OnInitializedAsync() { if (Usuarios.EsAdministrador()) await CambiarFiltros(filtro); }
+    private int versionCarga;
+    private async Task CambiarFiltros(FiltroVentas valor) { var version=++versionCarga; filtro=valor; var resultado=await Ventas.AnaliticaAsync(valor); if(version==versionCarga) datos=resultado; }
+}

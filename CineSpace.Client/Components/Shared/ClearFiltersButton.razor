@@ -1,0 +1,9 @@
+@namespace CineSpace.Client.Components.Shared
+@if (Activo)
+{
+    <button type="button" class="btn btn-secondary admin-clear-filters" @onclick="OnClear"><i class="fas fa-filter-circle-xmark" aria-hidden="true"></i>Limpiar filtros</button>
+}
+@code {
+    [Parameter] public bool Activo { get; set; }
+    [Parameter] public EventCallback OnClear { get; set; }
+}

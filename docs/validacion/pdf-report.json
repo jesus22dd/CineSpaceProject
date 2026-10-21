@@ -1,0 +1,14 @@
+[
+  {
+    "name": "pdf-desktop-final",
+    "qrReadable": true,
+    "pages": 1,
+    "format": "A4"
+  },
+  {
+    "name": "pdf-mobile-final",
+    "qrReadable": true,
+    "pages": 1,
+    "format": "A4"
+  }
+]

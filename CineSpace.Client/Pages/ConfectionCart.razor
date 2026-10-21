@@ -1,0 +1,58 @@
+@page "/confiteria/carrito"
+@using CineSpace.Client.Components.Shared
+@inject PedidosConfiteriaService Pedidos
+@inject CatalogosService Catalogos
+@inject UsuarioService Usuarios
+@inject TrabajadorService Trabajadores
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Tu carrito - CineSpace</PageTitle>
+<section class="order-page">
+    <a class="order-back" href="/confiteria"><i class="fas fa-arrow-left" aria-hidden="true"></i>Seguir eligiendo</a>
+    <div class="order-page-heading"><div><h1>Tu carrito</h1><p>Revisa tus combos y confirma quién los recogerá.</p></div><a class="order-history-link" href="/confiteria/pedidos">Mis pedidos</a></div>
+    @if (Pedidos.ErrorCarga != null) { <div class="alert alert-danger" role="alert">@Pedidos.ErrorCarga</div> }
+    @if (!string.IsNullOrEmpty(error)) { <div class="alert alert-danger" role="alert">@error</div> }
+    @if (Pedidos.CantidadCarrito == 0)
+    {
+        <div class="order-empty"><i class="fas fa-bag-shopping" aria-hidden="true"></i><h2>Tu carrito está esperando algo rico</h2><p>Elige tus combos en la confitería. El QR se generará al confirmar el pedido.</p><a class="btn btn-primary" href="/confiteria">Explorar confitería</a></div>
+    }
+    else
+    {
+        @if (Pedidos.CarritoDesactualizado) { <div class="alert alert-warning" role="alert"><p>Un combo cambió de precio o dejó de estar disponible. Actualiza el carrito y revisa el nuevo total.</p><button type="button" class="btn btn-secondary" @onclick="Actualizar" disabled="@ocupado">Actualizar carrito</button></div> }
+        <div class="order-cart-layout">
+            <div class="order-cart-items" aria-label="Productos del carrito">
+                <div class="order-cart-toolbar"><span>@Pedidos.CantidadCarrito @(Pedidos.CantidadCarrito == 1 ? "producto" : "productos")</span><button type="button" class="order-clear" disabled="@(ocupado || Pedidos.ErrorCarga != null)" @onclick="() => confirmarVaciado = true"><i class="fas fa-trash-can" aria-hidden="true"></i>Vaciar carrito</button></div>
+                @foreach (var item in Pedidos.Carrito)
+                {
+                    var foto = Pedidos.FotoCarrito(item.ComboId);
+                    <article class="order-cart-item" @key="item.ComboId"><div class="order-cart-photo">@if (!string.IsNullOrEmpty(foto)) { <img src="@foto" alt="" /> } else { <i class="fas fa-cookie-bite" aria-hidden="true"></i> }</div><div class="order-cart-copy"><h2>@item.Nombre</h2><p>@item.PrecioUnitario.ToString("N2") Bs por unidad</p><div class="order-quantity"><button type="button" aria-label="Reducir cantidad de @item.Nombre" disabled="@(ocupado || item.Cantidad == 1)" @onclick="() => Cambiar(item.ComboId, item.Cantidad - 1)"><i class="fas fa-minus" aria-hidden="true"></i></button><span aria-label="Cantidad de @item.Nombre">@item.Cantidad</span><button type="button" aria-label="Aumentar cantidad de @item.Nombre" disabled="@(ocupado || item.Cantidad >= 20)" @onclick="() => Cambiar(item.ComboId, item.Cantidad + 1)"><i class="fas fa-plus" aria-hidden="true"></i></button></div></div><div class="order-cart-end"><strong>@((item.Cantidad * item.PrecioUnitario).ToString("N2")) Bs</strong><button type="button" class="order-remove" aria-label="Eliminar @item.Nombre del carrito" disabled="@ocupado" @onclick="() => Cambiar(item.ComboId, 0)"><i class="fas fa-trash" aria-hidden="true"></i>Eliminar</button></div></article>
+                }
+            </div>
+            <form class="order-checkout" @onsubmit="Confirmar" @onsubmit:preventDefault>
+                <h2>Tu pedido</h2><dl class="order-totals"><div><dt>Productos</dt><dd>@Pedidos.CantidadCarrito</dd></div><div class="order-total"><dt>Total</dt><dd>@Pedidos.TotalCarrito.ToString("N2") <small>Bs</small></dd></div></dl>
+                <label for="pickup-name">Nombre de quien retira</label><input id="pickup-name" class="form-control" maxlength="80" autocomplete="name" @bind="nombre" @bind:event="oninput" disabled="@ocupado" /><p class="order-field-help">Puedes recogerlo tú o indicar el nombre de otra persona.</p>
+                <div class="order-payment-note"><i class="fas fa-cash-register" aria-hidden="true"></i><div><strong>Pago en caja</strong><p>Presenta tu QR en confitería. El personal registrará el pago y entregará tus productos.</p></div></div>
+                <button type="submit" class="btn btn-primary" disabled="@(ocupado || Pedidos.CarritoDesactualizado || Pedidos.ErrorCarga != null)"><i class="fas fa-qrcode" aria-hidden="true"></i>@(ocupado ? "Guardando pedido…" : "Confirmar pedido y obtener QR")</button><span class="order-checkout-help">El pedido queda pendiente de pago hasta su retiro.</span>
+            </form>
+        </div>
+    }
+</section>
+@if (confirmarVaciado)
+{
+    <ConfectionCartClearDialog OnClose="() => confirmarVaciado = false" OnConfirm="Vaciar" />
+}
+@code {
+    private bool confirmarVaciado;
+    private string nombre = "", error = "", solicitud = "";
+    private bool ocupado;
+    protected override void OnInitialized() { solicitud = Pedidos.SolicitudCarrito; nombre = Usuarios.ObtenerUsuarioActual() is { } u ? $"{u.Nombre} {u.Apellido}" : Trabajadores.ObtenerTrabajadorActual()?.ObtenerNombreCompleto() ?? ""; Pedidos.Changed += Cambiado; Catalogos.Changed += Cambiado; }
+    protected override async Task OnInitializedAsync() { try { await Pedidos.CotizarCarritoAsync(); } catch (Exception ex) { error = ex.Message; } }
+    private void Cambiado() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() { Pedidos.Changed -= Cambiado; Catalogos.Changed -= Cambiado; }
+    private async Task Cambiar(int id, int cantidad) => await Ejecutar(() => Pedidos.CantidadAsync(id, cantidad));
+    private async Task Actualizar() => await Ejecutar(Pedidos.ActualizarCarritoAsync);
+    private async Task Vaciar() => await Ejecutar(Pedidos.VaciarCarritoAsync);
+    private async Task Ejecutar(Func<Task> accion) { if (ocupado) return; ocupado = true; error = ""; try { await accion(); solicitud = Pedidos.SolicitudCarrito; } catch (ArgumentException ex) { error = ex.Message; } catch (InvalidOperationException ex) { error = ex.Message; } catch { error = "No pudimos guardar los cambios. Tu carrito sigue aquí; vuelve a intentarlo."; } finally { ocupado = false; } }
+    private async Task Confirmar() { if (ocupado) return; ocupado = true; error = ""; try { var pedido = await Pedidos.CrearAsync(nombre, solicitud); Navigation.NavigateTo($"confiteria/pedido/{pedido.Token}"); } catch (ArgumentException ex) { error = ex.Message; } catch (InvalidOperationException ex) { error = ex.Message; solicitud = Pedidos.SolicitudCarrito; } catch { error = "No pudimos guardar el pedido. Tu carrito sigue aquí; vuelve a intentarlo."; } finally { ocupado = false; } }
+}

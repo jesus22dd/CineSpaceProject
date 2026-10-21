@@ -1,0 +1,39 @@
+@namespace CineSpace.Client.Components.Cinema
+@using CineSpace.Shared.Models
+@using CineSpace.Client.Components.Shared
+@using System.Globalization
+
+<MovieCard Pelicula="pelicula" SoloInformacion="true" Clase="upcoming-card" FechaEstreno="Estreno.FechaEstreno" OnInfo="MostrarInformacion" @ref="tarjeta" />
+
+@if (mostrarInformacion)
+{
+    <AppDialog Title="@Estreno.Titulo" CloseLabel="Cerrar información" OnClose="CerrarInformacion" @ref="dialogo">
+        <ChildContent>
+            <div class="upcoming-detail-summary">
+                <img src="@(string.IsNullOrWhiteSpace(Estreno.ImagenUrl) ? "images/poster-placeholder.svg" : CineSpace.Client.Services.PeliculaService.UrlImagen(Estreno.ImagenUrl))" alt="Póster de @Estreno.Titulo" width="104" height="156" onerror="this.onerror=null;this.src='images/poster-placeholder.svg';" />
+                <dl><dt>Género</dt><dd>@Estreno.Genero</dd><dt>Fecha de estreno</dt><dd><time datetime="@Estreno.FechaEstreno.ToString("yyyy-MM-dd")">@Estreno.FechaEstreno.ToString("dd MMM yyyy", CultureInfo.GetCultureInfo("es-ES"))</time></dd></dl>
+            </div>
+            <div class="upcoming-detail-synopsis"><h3>Sinopsis</h3><p>@(string.IsNullOrWhiteSpace(Estreno.Sinopsis) ? "La sinopsis de este estreno aún no está disponible." : Estreno.Sinopsis)</p></div>
+        </ChildContent>
+        <Footer><button type="button" class="btn btn-primary" @onclick="CerrarDesdeBoton">Cerrar</button></Footer>
+    </AppDialog>
+}
+
+@code {
+    [Parameter, EditorRequired] public ProximoEstreno Estreno { get; set; } = null!;
+    private Pelicula pelicula = new();
+    private bool mostrarInformacion;
+    private AppDialog? dialogo;
+    private MovieCard? tarjeta;
+    private bool restaurarFoco;
+    protected override void OnParametersSet() => pelicula = new Pelicula { Id = Estreno.Id, Titulo = Estreno.Titulo, Genero = Estreno.Genero, ImagenUrl = Estreno.ImagenUrl, HorariosDisponibles = new() };
+    private void MostrarInformacion(Pelicula _) => mostrarInformacion = true;
+    private void CerrarInformacion() { mostrarInformacion = false; restaurarFoco = true; }
+    private Task CerrarDesdeBoton() => dialogo?.CerrarDialogo() ?? Task.CompletedTask;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!restaurarFoco || mostrarInformacion) return;
+        restaurarFoco = false;
+        if (tarjeta != null) await tarjeta.EnfocarInformacion();
+    }
+}

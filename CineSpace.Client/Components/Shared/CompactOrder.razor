@@ -1,0 +1,8 @@
+<div class="compact-order"><AdminSelect Id="@Id" Etiqueta="Orden" Valor="@Valor" Opciones="OpcionesSelect" ValorChanged="ValorChanged" OcultarEtiqueta="true" Completo="true" /></div>
+@code {
+    [Parameter] public string Id { get; set; } = "catalogue-order";
+    [Parameter] public string Valor { get; set; } = "Más recientes";
+    [Parameter] public EventCallback<string> ValorChanged { get; set; }
+    [Parameter] public IReadOnlyList<string> Opciones { get; set; } = new[] { "Más recientes", "Más antiguas" };
+    private IReadOnlyList<AdminSelectOption> OpcionesSelect => AdminSelectOption.From(Opciones);
+}

@@ -1,0 +1,86 @@
+@namespace CineSpace.Client.Components.Cinema
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="catalogue-select @(Resaltado ? "has-selection" : "") @(Compacto ? "is-compact" : "") @(OcultarEtiqueta ? "hide-label" : "")" @ref="element">
+    <button id="@Id" type="button" class="catalogue-select-trigger" role="combobox" aria-haspopup="listbox"
+            aria-expanded="false" aria-controls="@Id-options" aria-labelledby="@Id-label @Id-value" aria-description="@(Resaltado ? "Filtro aplicado" : null)" title="@TextoOpcion(Valor)" @ref="triggerElement">
+        <span class="catalogue-select-symbol" aria-hidden="true"><i class="fas @Icono(TextoOpcion(Valor))"></i></span>
+        <span class="catalogue-select-copy"><span id="@Id-label" class="catalogue-select-label">@Etiqueta @if (Resaltado) { <i class="fas fa-circle-check" aria-hidden="true"></i> }</span><span id="@Id-value" class="catalogue-select-value">@TextoOpcion(Valor)</span></span>
+        <span class="catalogue-select-arrow" aria-hidden="true"><i class="fas fa-chevron-down"></i></span>
+    </button>
+    <div id="@Id-options" class="catalogue-select-menu" role="listbox" aria-labelledby="@Id-label" popover="auto">
+        <div class="catalogue-select-menu-heading" aria-hidden="true"><span>@Etiqueta</span><span>@Opciones.Count opciones</span></div>
+        @for (var index = 0; index < Opciones.Count; index++)
+        {
+            var opcion = Opciones[index];
+            <div id="@Id-option-@index" class="catalogue-select-option" role="option" aria-label="@TextoOpcion(opcion)" aria-selected="@(Valor == opcion ? "true" : "false")" data-value="@opcion">
+                <span class="catalogue-option-symbol" aria-hidden="true"><i class="fas @Icono(TextoOpcion(opcion))"></i></span>
+                <span class="catalogue-option-copy"><span class="catalogue-option-name">@TextoOpcion(opcion)</span>@if (!string.IsNullOrEmpty(Descripcion(TextoOpcion(opcion)))) { <span class="catalogue-option-description" aria-hidden="true">@Descripcion(TextoOpcion(opcion))</span> }</span>
+                <span class="catalogue-option-check" aria-hidden="true"><i class="fas fa-check"></i></span>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Id { get; set; } = "";
+    [Parameter, EditorRequired] public string Etiqueta { get; set; } = "";
+    [Parameter] public string Valor { get; set; } = "Todos";
+    [Parameter] public IReadOnlyList<string> Opciones { get; set; } = Array.Empty<string>();
+    [Parameter] public IReadOnlyDictionary<string, string>? EtiquetasOpciones { get; set; }
+    [Parameter] public bool Resaltado { get; set; }
+    [Parameter] public bool Compacto { get; set; }
+    [Parameter] public bool OcultarEtiqueta { get; set; }
+    [Parameter] public EventCallback<string> ValorChanged { get; set; }
+    private ElementReference element;
+    private ElementReference triggerElement;
+    public ValueTask EnfocarAsync() => triggerElement.FocusAsync(preventScroll: true);
+    private IJSObjectReference? module;
+    private DotNetObjectReference<CatalogueSelect>? reference;
+    private bool disposed;
+    private string TextoOpcion(string valor) => EtiquetasOpciones?.TryGetValue(valor, out var texto) == true ? texto : valor;
+
+    private string Icono(string valor) => (Etiqueta, valor) switch
+    {
+        ("Tipo", "Estrenos") => "fa-clapperboard", ("Tipo", "Próximos estrenos") => "fa-calendar-days", ("Tipo", "Preventa") => "fa-ticket",
+        ("Género", "Acción") => "fa-bolt", ("Género", "Comedia") => "fa-masks-theater", ("Género", "Drama") => "fa-feather-pointed", ("Género", "Terror") => "fa-ghost",
+        ("Formato", "3D") => "fa-glasses", ("Formato", "DBOX") => "fa-couch",
+        ("Vista", "Tabla") => "fa-list", ("Vista", "Tarjetas") => "fa-table-cells-large",
+        ("Orden", "Más recientes") => "fa-arrow-down-wide-short", ("Orden", "Más antiguas") => "fa-arrow-up-wide-short",
+        ("Tipo", _) => "fa-calendar-days", ("Género", _) => "fa-masks-theater", ("Formato", _) => "fa-film", ("Idioma", _) => "fa-language", ("Vista", _) => "fa-table-cells-large",
+        ("Rol", _) => "fa-user-group", ("Cargo", _) => "fa-id-card", ("Categoría", _) => "fa-cookie-bite", ("Estado", _) => "fa-circle-check", ("Período", _) => "fa-calendar-days", ("Tipo de sala", _) => "fa-couch", ("Experiencia", _) => "fa-glasses", ("Película", _) => "fa-film", ("Desde", _) => "fa-star", ("Hasta", _) => "fa-star", _ => "fa-sliders"
+    };
+    private string Descripcion(string valor) => (Etiqueta, valor) switch
+    {
+        ("Tipo", "Estrenos") => "En cartelera ahora", ("Tipo", "Próximos estrenos") => "Próximamente en el cine", ("Tipo", "Preventa") => "Reserva antes del estreno", ("Tipo", "Todos") => "Toda la cartelera",
+        ("Formato", "Todos") => "Todas las experiencias", ("Formato", "2D") => "Proyección estándar", ("Formato", "3D") => "Imagen con profundidad", ("Formato", "DBOX") => "Asientos con movimiento",
+        ("Idioma", "Todos") => "Cualquier idioma", ("Idioma", "Español") => "Funciones en español", ("Idioma", "Inglés") => "Funciones en inglés",
+        ("Vista", "Tarjetas") => "Explora los pósters", ("Vista", "Tabla") => "Compara los detalles",
+        ("Orden", "Más recientes") => "Más recientes primero", ("Orden", "Más antiguas") => "Más antiguas primero", _ => ""
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || disposed) return;
+        var loaded = await JS.InvokeAsync<IJSObjectReference>("import", "./js/catalogue-select.js");
+        if (disposed) { await loaded.DisposeAsync(); return; }
+        module = loaded;
+        reference = DotNetObjectReference.Create(this);
+        await module.InvokeVoidAsync("connectSelect", element, reference);
+    }
+
+    [JSInvokable] public Task Seleccionar(string valor) => !disposed && Opciones.Contains(valor)
+        ? ValorChanged.InvokeAsync(valor) : Task.CompletedTask;
+
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+        if (module != null)
+        {
+            try { await module.InvokeVoidAsync("disconnectSelect", element); await module.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+        reference?.Dispose();
+    }
+}

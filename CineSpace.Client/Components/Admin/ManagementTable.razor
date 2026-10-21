@@ -1,0 +1,19 @@
+<div class="management-result-heading">
+    <h2>@Title</h2>
+    <span role="status">@Summary</span>
+</div>
+<p class="table-scroll-note">Desliza la tabla para ver todas las columnas.</p>
+<div class="managed-table-scroll" role="region" aria-label="@Title" tabindex="0">
+    <table class="managed-movie-table @TableClass">
+        <thead>@HeaderContent</thead>
+        <tbody>@ChildContent</tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter, EditorRequired] public string Summary { get; set; } = "";
+    [Parameter] public string TableClass { get; set; } = "";
+    [Parameter, EditorRequired] public RenderFragment HeaderContent { get; set; } = default!;
+    [Parameter, EditorRequired] public RenderFragment ChildContent { get; set; } = default!;
+}

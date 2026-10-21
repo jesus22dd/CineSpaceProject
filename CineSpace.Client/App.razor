@@ -1,0 +1,36 @@
+@inject ApiCine Api
+@inject BannersService Banners
+@inject PedidosConfiteriaService Pedidos
+@if (cargando)
+{ <LayoutView Layout="@typeof(MainLayout)"><div class="page-placeholder" role="status" aria-label="Cargando contenido"><span class="session-spinner" aria-hidden="true"></span><p>Preparando tu próxima función…</p></div></LayoutView> }
+else if (error is not null)
+{ <LayoutView Layout="@typeof(MainLayout)"><div class="empty-state" role="alert"><h1>No pudimos conectar con CineSpace</h1><p>@error</p><button class="btn btn-primary" @onclick="Cargar">Volver a intentar</button></div></LayoutView> }
+else
+{
+<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>Página no encontrada - Cine Space</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <div class="empty-state"><h1>Esta función no está en cartelera.</h1><p>La página que buscas no existe o cambió de dirección.</p><a class="btn btn-primary" href="">Volver al inicio</a></div>
+        </LayoutView>
+    </NotFound>
+</Router>
+}
+@code {
+    private bool cargando = true;
+    private string? error;
+    protected override Task OnInitializedAsync() => Cargar();
+    private async Task Cargar() {
+        cargando = true; error = null;
+        try { await Task.WhenAll(Api.InicializarAsync(), Pedidos.InicializarAsync()); }
+        catch {
+            try { var estado = await Api.Get<CineSpace.Shared.Contracts.EstadoBaseDatos>("api/sistema/preparacion"); error = estado.Preparada ? "No pudimos cargar el catálogo. Vuelve a intentar." : estado.Mensaje; }
+            catch { error = "El servidor no está disponible. Abre iniciar_CineSpace.bat o ejecuta CineSpace.Server con el perfil https en Visual Studio."; }
+        }
+        finally { cargando = false; }
+    }
+}

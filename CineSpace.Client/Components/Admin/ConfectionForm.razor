@@ -1,0 +1,49 @@
+@using CineSpace.Client.Components.Shared
+@inject CatalogosService Catalogos
+@inject NavigationManager Navigation
+
+<NavigationLock OnBeforeInternalNavigation="AntesDeSalir" ConfirmExternalNavigation="@HayCambios" />
+<form class="confection-editor" @onsubmit="Guardar" @onsubmit:preventDefault>
+    <div class="confection-editor-fields">
+        <div class="confection-editor-photo"><label for="combo-photo">Foto del combo</label><div class="confection-photo-preview">@if (!string.IsNullOrEmpty(combo.Foto)) { <img src="@combo.Foto" alt="Vista previa de @combo.Nombre" /> } else { <i class="fas fa-camera" aria-hidden="true"></i><span>Sube la foto del combo</span> }</div><InputFile id="combo-photo" class="form-control" accept="image/jpeg,image/png,image/webp" OnChange="CargarFoto" disabled="@(guardando || preparando)" /><p class="form-text">JPG, PNG o WebP · hasta 6 MB.</p>@if (preparando) { <p role="status">Preparando foto…</p> }</div>
+        <div class="confection-editor-copy">
+            <div><label for="combo-name">Nombre</label><input id="combo-name" class="form-control" maxlength="60" placeholder="Ej. Combo para dos" @bind="combo.Nombre" @bind:event="oninput" disabled="@guardando" /></div>
+            <div><label for="combo-description">Descripción</label><textarea id="combo-description" class="form-control" rows="4" maxlength="1200" placeholder="Describe qué incluye el combo." @bind="combo.Descripcion" @bind:event="oninput" disabled="@guardando"></textarea></div>
+            <div><label for="combo-category">Categoría</label><select id="combo-category" class="form-select" @bind="combo.CategoriaId" disabled="@guardando"><option value="0">Selecciona una categoría</option>@foreach (var categoria in Catalogos.Categorias.OrderBy(x => x.Nombre)) { <option value="@categoria.Id">@categoria.Nombre</option> }</select>@if (Catalogos.Categorias.Count == 0) { <p class="form-text">Crea una categoría en Categorías de confitería para continuar.</p> }</div>
+            <div><label for="combo-price">Precio (Bs)</label><input id="combo-price" type="number" class="form-control" min="0" max="100000" step="0.01" @bind="combo.Precio" disabled="@guardando" /><p class="form-text">Precio final del combo. Es necesario para habilitar la compra.</p></div>
+            <label class="confection-publish"><input type="checkbox" class="form-check-input" @bind="combo.Publicado" disabled="@guardando" /><span><strong>Mostrar en la confitería pública</strong><small>Desmárcalo para mantener el combo como borrador.</small></span></label>
+        </div>
+    </div>
+    @if (!string.IsNullOrEmpty(error)) { <div class="alert alert-danger" role="alert">@error</div> }
+    <div class="confection-form-footer"><span>@(HayCambios ? "Cambios sin guardar" : "")</span><div><button type="button" class="btn btn-secondary" @onclick="Cancelar" disabled="@(guardando || preparando)">Cancelar</button><button type="submit" class="btn btn-primary" disabled="@(guardando || preparando)"><i class="fas fa-check" aria-hidden="true"></i>@(guardando ? "Guardando…" : "Guardar combo")</button></div></div>
+</form>
+@if (confirmarSalida)
+{
+    <AppDialog Title="¿Descartar los cambios?" OnClose="CerrarConfirmacion" @ref="confirmacion"><ChildContent><p>El combo tiene cambios sin guardar. Puedes seguir editando o salir sin guardarlos.</p></ChildContent><Footer><button type="button" class="btn btn-secondary" @onclick="Seguir">Seguir editando</button><button type="button" class="btn btn-primary" @onclick="Descartar">Descartar cambios</button></Footer></AppDialog>
+}
+@code {
+    [Parameter, EditorRequired] public ComboConfiteria Combo { get; set; } = new();
+    [Parameter] public EventCallback<int> OnGuardar { get; set; }
+    [Parameter] public EventCallback OnCancelar { get; set; }
+    private ComboConfiteria combo = new(), inicial = new();
+    private bool iniciado, preparando, guardando, confirmarSalida, permitirSalida;
+    private string error = "";
+    private string? destino;
+    private AppDialog? confirmacion;
+    private bool HayCambios => combo.Nombre != inicial.Nombre || combo.Descripcion != inicial.Descripcion || combo.CategoriaId != inicial.CategoriaId || combo.Foto != inicial.Foto || combo.Publicado != inicial.Publicado || combo.Precio != inicial.Precio;
+    protected override void OnParametersSet() { if (iniciado) return; combo = Combo.Copiar(); inicial = combo.Copiar(); iniciado = true; }
+    private async Task CargarFoto(InputFileChangeEventArgs e)
+    {
+        error = ""; preparando = true;
+        try { var archivo = e.File; if (archivo.Size > 6 * 1024 * 1024) throw new ArgumentException("La foto supera los 6 MB. Elige una más pequeña."); if (archivo.ContentType is not "image/jpeg" and not "image/png" and not "image/webp") throw new ArgumentException("Usa una foto JPG, PNG o WebP."); var imagen = await archivo.RequestImageFileAsync("image/webp", 960, 960); using var stream = imagen.OpenReadStream(2_000_000); using var memoria = new MemoryStream(); await stream.CopyToAsync(memoria); combo.Foto = $"data:{imagen.ContentType};base64,{Convert.ToBase64String(memoria.ToArray())}"; }
+        catch (ArgumentException ex) { error = ex.Message; }
+        catch { error = "No pudimos preparar esa foto. Elige una imagen válida y vuelve a intentarlo."; }
+        finally { preparando = false; }
+    }
+    private async Task Guardar() { if (guardando || preparando) return; guardando = true; error = ""; try { var id = await Catalogos.GuardarComboAsync(combo); inicial = combo.Copiar(); permitirSalida = true; await OnGuardar.InvokeAsync(id); } catch (ArgumentException ex) { error = ex.Message; } catch { error = "No pudimos guardar el combo. Inténtalo de nuevo; tu foto y tus cambios siguen aquí."; } finally { guardando = false; } }
+    private async Task Cancelar() { if (HayCambios) confirmarSalida = true; else await OnCancelar.InvokeAsync(); }
+    private void AntesDeSalir(LocationChangingContext contexto) { if (!HayCambios || permitirSalida) return; contexto.PreventNavigation(); destino = contexto.TargetLocation; confirmarSalida = true; }
+    private void CerrarConfirmacion() { confirmarSalida = false; destino = null; }
+    private Task Seguir() => confirmacion?.CerrarDialogo() ?? Task.CompletedTask;
+    private async Task Descartar() { var ruta = destino; permitirSalida = true; if (confirmacion != null) await confirmacion.CerrarDialogo(); if (ruta != null) Navigation.NavigateTo(ruta); else await OnCancelar.InvokeAsync(); }
+}

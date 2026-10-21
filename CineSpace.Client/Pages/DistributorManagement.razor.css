@@ -1,0 +1,4 @@
+.distributor-editor { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.distributor-editor .experience-editor-actions { grid-column: 1 / -1; }
+.movie-management ::deep .distributor-table { min-width:960px; }
+@media (max-width:575px) { .distributor-editor { grid-template-columns:minmax(0,1fr); } }

@@ -1,0 +1,46 @@
+@namespace CineSpace.Client.Components.Auth
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject LogoutDialogService Logout
+
+<dialog class="logout-dialog" aria-labelledby="logout-title" aria-describedby="logout-description" @ref="element">
+    <div class="logout-heading">
+        <span class="logout-symbol"><i class="fas fa-sign-out-alt" aria-hidden="true"></i></span>
+        <button type="button" class="logout-close" aria-label="Cerrar confirmación" @onclick="CerrarDialogo"><i class="fas fa-times" aria-hidden="true"></i></button>
+    </div>
+    <h2 id="logout-title">¿Cerrar sesión?</h2>
+    <p id="logout-description">Podrás seguir explorando la cartelera. Para reservar o consultar tus compras, tendrás que iniciar sesión de nuevo.</p>
+    <div class="logout-actions">
+        <button type="button" class="btn btn-secondary" data-dialog-autofocus @onclick="CerrarDialogo">Seguir aquí</button>
+        <button type="button" class="btn btn-primary" @onclick="Confirmar">Cerrar sesión</button>
+    </div>
+</dialog>
+
+@code {
+    private ElementReference element;
+    private IJSObjectReference? module;
+    private DotNetObjectReference<LogoutDialog>? reference;
+    private int? dialogId;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/auth-dialog.js");
+        reference = DotNetObjectReference.Create(this);
+        dialogId = await module.InvokeAsync<int>("openAuthDialog", element, reference);
+    }
+    [JSInvokable] public async Task CerrarDialogo() { await CerrarElemento(); Logout.Cerrar(); }
+    private async Task Confirmar() { await CerrarElemento(); await Logout.ConfirmarAsync(); }
+    private async Task CerrarElemento()
+    {
+        if (module != null && dialogId.HasValue) await module.InvokeVoidAsync("closeAuthDialog", dialogId.Value);
+    }
+    public async ValueTask DisposeAsync()
+    {
+        if (module != null)
+        {
+            try { await CerrarElemento(); await module.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+        reference?.Dispose();
+    }
+}

@@ -1,0 +1,44 @@
+@namespace CineSpace.Client.Layout
+@inject NavigationManager Navigation
+
+<footer class="site-footer">
+    <div class="footer-inner">
+        <div class="footer-content">
+            <div class="footer-intro">
+            <a class="footer-brand" href="/" aria-label="Cine Space, volver a cartelera">
+                <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="5" width="26" height="22" rx="5" /><path d="M11 5v22M21 5v22M3 12h8M3 20h8M21 12h8M21 20h8" /></svg>
+                <span>Cine<span>Space</span></span>
+            </a>
+            <p>Películas, funciones y asientos en un solo lugar.</p>
+            <div class="footer-socials" aria-label="Redes sociales, plantilla de perfiles">
+                <span class="footer-social-label">Redes sociales</span>
+                @foreach (var red in redes)
+                {
+                    <span class="footer-social-icon" role="img" aria-label="@red.Nombre" title="@red.Nombre"><i class="fab @red.Icono" aria-hidden="true"></i></span>
+                }
+            </div>
+            </div>
+            <nav class="footer-links" aria-label="Explorar Cine Space">
+                <h3>Tu visita</h3>
+                <a href="/">Ver cartelera</a>
+                <a href="/confiteria">Ver confitería</a>
+                @if (EstaAutenticado) { <a href="/perfil">Mi cuenta</a> }
+                else { <button type="button" @onclick="OnIniciarSesion">Iniciar sesión</button> }
+                <a href="@(Navigation.Uri.Split('#')[0] + "#footer-help")">Ayuda para reservar</a>
+            </nav>
+            <div class="footer-help" id="footer-help">
+                <h3>Antes de ir</h3>
+                <details><summary>¿Cómo reservo?</summary><p>Elige una película e inicia sesión. Después selecciona el horario, la experiencia y tus asientos para completar la reserva.</p></details>
+                <details><summary>¿Qué formatos hay?</summary><p>Al elegir tu función podrás consultar las experiencias disponibles para esa sala y sus precios.</p></details>
+            </div>
+        </div>
+        <div class="footer-bottom"><span>© @DateTime.Now.Year Cine Space</span><a href="@(Navigation.Uri.Split('#')[0] + "#main-content")">Volver arriba <i class="fas fa-arrow-up" aria-hidden="true"></i></a></div>
+    </div>
+</footer>
+
+@code {
+    [Parameter] public bool EstaAutenticado { get; set; }
+    [Parameter] public EventCallback OnIniciarSesion { get; set; }
+    // Template only: add the official profile URLs before making these icons links.
+    private readonly (string Nombre, string Icono)[] redes = { ("Facebook", "fa-facebook-f"), ("Instagram", "fa-instagram"), ("TikTok", "fa-tiktok"), ("YouTube", "fa-youtube") };
+}

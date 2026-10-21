@@ -1,0 +1,274 @@
+@inject ApiCine Api
+@using CineSpace.Client.Components.Shared
+@using CineSpace.Shared.Models
+@using CineSpace.Client.Services
+@inject UsuarioService UsuarioService
+
+<div class="container-fluid p-0 people-management movie-management">
+    <!-- Cabecera con estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title">Total Usuarios</h5>
+                    <h2 class="card-text">@UsuarioService.ObtenerTotalUsuarios()</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-bg-success">
+                <div class="card-body">
+                    <h5 class="card-title">Clientes</h5>
+                    <h2 class="card-text">@UsuarioService.ObtenerTotalUsuariosPorRol(RolUsuario.Cliente)</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-bg-info">
+                <div class="card-body">
+                    <h5 class="card-title">Administradores</h5>
+                    <h2 class="card-text">@UsuarioService.ObtenerTotalUsuariosPorRol(RolUsuario.Administrador)</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="catalogue-toolbar movie-management-toolbar people-toolbar">
+        <form class="catalogue-search @(filtroTexto.Length > 0 || filtroAplicado.Length > 0 ? "has-query" : "")" role="search" @onsubmit="Buscar" @onsubmit:preventDefault><input type="search" class="form-control" placeholder="Buscar por nombre, email o CI" aria-label="Buscar usuarios" @bind="filtroTexto" @bind:event="oninput" />@if (filtroTexto.Length > 0 || filtroAplicado.Length > 0) { <button type="button" class="catalogue-clear" aria-label="Limpiar búsqueda" @onclick="LimpiarBusqueda"><i class="fas fa-times" aria-hidden="true"></i></button> }<button type="submit" class="btn btn-primary" aria-label="Buscar usuarios"><i class="fas fa-search" aria-hidden="true"></i></button></form>
+        <div class="catalogue-secondary-filters">
+            <AdminSelect Id="user-order" Etiqueta="Orden de usuarios" Valor="@orden" Opciones="Ordenes" ValorChanged="async valor => { orden = valor; await FiltrarUsuarios(); }" />
+            <AdminSelect Id="user-role-filter" Etiqueta="Rol" Valor="@filtroRol" Opciones="OpcionesRol" Activo="@(!string.IsNullOrEmpty(filtroRol))" ValorChanged="async valor => { filtroRol = valor; await FiltrarUsuarios(); }" />
+            <ClearFiltersButton Activo="@(!string.IsNullOrWhiteSpace(filtroAplicado) || !string.IsNullOrEmpty(filtroRol) || orden != "recientes")" OnClear="LimpiarFiltros" />
+            <button type="button" class="btn btn-primary" @onclick="MostrarFormularioNuevo"><i class="fas fa-plus" aria-hidden="true"></i>Nuevo Usuario</button>
+        </div>
+    </div>
+
+    @if (mostrarFormulario)
+    {
+        <UserForm Usuario="@usuarioSeleccionado"
+                  ModoEdicion="@modoEdicion"
+                  OnGuardar="GuardarUsuario"
+                  OnCancelar="CerrarFormulario" />
+    }
+
+    @if (mostrarConfirmacion)
+    {
+        <div class="card mb-4">
+            <div class="card-header bg-danger text-white">
+                <h5>Confirmar Eliminación</h5>
+            </div>
+            <div class="card-body">
+                <p>¿Está seguro que desea eliminar al usuario <strong>@(usuarioSeleccionado.Nombre) @(usuarioSeleccionado.Apellido)</strong>?</p>
+                <p>Esta acción no se puede deshacer.</p>
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarConfirmacion">Cancelar</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmarEliminar">Eliminar</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(mensaje))
+    {
+        <div class="alert @(mensajeEsError ? "alert-danger" : "alert-success") alert-dismissible fade show mb-4" role="alert">
+            @mensaje
+            <button type="button" class="btn-close" @onclick="LimpiarMensaje"></button>
+        </div>
+    }
+
+    <ManagementTable Title="Usuarios" Summary="@($"{usuariosFiltrados.Count} usuarios")" TableClass="user-table"><HeaderContent>
+                    <tr>
+                        <th scope="col">Email</th>
+                        <th scope="col">Nombre</th>
+                        <th scope="col">Apellido</th>
+                        <th scope="col">CI</th>
+                        <th scope="col">Rol</th>
+                        <th scope="col">Acciones</th>
+                    </tr>
+                </HeaderContent><ChildContent>
+                    @if (usuariosFiltrados.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center py-3">No se encontraron usuarios</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var usuario in usuariosFiltrados)
+                        {
+                            <tr>
+                                <td class="user-table-email">@usuario.Email</td>
+                                <td><strong>@usuario.Nombre</strong></td>
+                                <td>@usuario.Apellido</td>
+                                <td>@usuario.CI</td>
+                                <td>@usuario.Rol</td>
+                                <td><div class="managed-table-actions">
+                                    <button type="button" class="btn btn-secondary" title="Editar" aria-label="Editar usuario @usuario.Nombre" @onclick="() => EditarUsuario(usuario)">
+                                        <i class="fas fa-pen-to-square" aria-hidden="true"></i>
+                                    </button>
+                                    @if (usuario.Rol != RolUsuario.Administrador || UsuarioService.ObtenerUsuarioActual()?.Email != usuario.Email)
+                                    {
+                                        <button type="button" class="btn btn-danger" title="Eliminar" aria-label="Eliminar usuario @usuario.Nombre" @onclick="() => EliminarUsuario(usuario)">
+                                            <i class="fas fa-trash" aria-hidden="true"></i>
+                                        </button>
+                                    }
+                                </div></td>
+                            </tr>
+                        }
+                    }
+                </ChildContent></ManagementTable>
+    <Pagination CurrentPage="paginaActual" TotalPages="TotalPaginas" TotalItems="totalItems" PageSize="PorPagina" ShowPageSizeSelector="false" Label="Paginación de usuarios" OnPageChanged="CambiarPagina" />
+</div>
+
+@code {
+    private const int PorPagina = 3;
+    private int paginaActual = 1;
+    private int totalItems;
+    private int TotalPaginas => Math.Max(1, (int)Math.Ceiling(totalItems / (double)PorPagina));
+    private async Task CambiarPagina(int pagina) { paginaActual = pagina; await CargarUsuarios(); }
+    // Lista de usuarios y filtros
+    private List<Usuario> usuarios = new List<Usuario>();
+    private List<Usuario> usuariosFiltrados = new List<Usuario>();
+    private string filtroTexto = string.Empty;
+    private string filtroAplicado = string.Empty;
+    private string filtroRol = string.Empty;
+    private string orden = "recientes";
+    private static readonly AdminSelectOption[] Ordenes = { new("recientes", "Más recientes"), new("antiguos", "Más antiguos") };
+    private static IReadOnlyList<AdminSelectOption> OpcionesRol => new[] { new AdminSelectOption("", "Todos los roles") }.Concat(Enum.GetValues<RolUsuario>().Select(valor => new AdminSelectOption(valor.ToString(), valor.ToString()))).ToList();
+
+    // Control de formulario y edición
+    private bool mostrarFormulario = false;
+    private bool modoEdicion = false;
+    private Usuario usuarioSeleccionado = new Usuario();
+
+    // Control de mensajes
+    private string mensaje = string.Empty;
+    private bool mensajeEsError = false;
+
+    // Control de confirmación de eliminación
+    private bool mostrarConfirmacion = false;
+
+    protected override async Task OnInitializedAsync() { await CargarUsuarios(); }
+
+    private int versionCarga;
+    private async Task CargarUsuarios()
+    {
+        var version=++versionCarga;
+        try {
+            var resumen = Api.ResumenAsync();
+            var page = await UsuarioService.ConsultarAsync(new() { Pagina = paginaActual, Tamano = PorPagina, Buscar = filtroAplicado, Rol = filtroRol, Estado = "", Orden = orden == "antiguos" ? "antiguas" : "recientes" });
+            if (version!=versionCarga) return;
+            usuarios = usuariosFiltrados = page.Items; totalItems = page.Total; paginaActual = page.Numero;
+            await resumen;
+        } catch (Exception ex) { mensaje = ex.Message; mensajeEsError = true; }
+    }
+
+    private async Task LimpiarBusqueda() { filtroTexto = filtroAplicado = ""; await FiltrarUsuarios(); }
+
+    private async Task Buscar() { filtroAplicado = filtroTexto.Trim(); await FiltrarUsuarios(); }
+
+    private async Task FiltrarUsuarios() { paginaActual = 1; await CargarUsuarios(); }
+
+    private async Task CambiarFiltroRol(ChangeEventArgs e)
+    {
+        filtroRol = e.Value?.ToString() ?? string.Empty;
+        await FiltrarUsuarios();
+    }
+
+    private async Task LimpiarFiltros()
+    {
+        filtroTexto = filtroAplicado = string.Empty;
+        filtroRol = string.Empty;
+        orden = "recientes";
+        await FiltrarUsuarios();
+    }
+
+    private void MostrarFormularioNuevo()
+    {
+        usuarioSeleccionado = new Usuario
+            {
+                Rol = RolUsuario.Cliente
+            };
+        modoEdicion = false;
+        mostrarFormulario = true;
+    }
+
+    private void EditarUsuario(Usuario usuario)
+    {
+        // Crear una copia para evitar modificar el original directamente
+        usuarioSeleccionado = new Usuario
+            {
+                Id = usuario.Id,
+                Email = usuario.Email,
+                FechaRegistroUtc = usuario.FechaRegistroUtc,
+                Nombre = usuario.Nombre,
+                Apellido = usuario.Apellido,
+                CI = usuario.CI,
+                Password = usuario.Password,
+                Rol = usuario.Rol
+            };
+        modoEdicion = true;
+        mostrarFormulario = true;
+    }
+
+    private async Task GuardarUsuario(Usuario usuario)
+    {
+        if (modoEdicion)
+        {
+            // Usar el nuevo método ModificarUsuario
+            var resultado = await UsuarioService.ModificarUsuario(usuario);
+            mensaje = resultado.mensaje;
+            mensajeEsError = !resultado.exito;
+        }
+        else
+        {
+            // Registrar nuevo usuario
+            var resultado = await UsuarioService.RegistrarUsuario(usuario);
+            mensaje = resultado.mensaje;
+            mensajeEsError = !resultado.exito;
+        }
+
+        if (!mensajeEsError)
+        {
+            CerrarFormulario();
+            await CargarUsuarios();
+        }
+
+        // Forzar actualización de la UI
+        StateHasChanged();
+    }
+
+    private void EliminarUsuario(Usuario usuario)
+    {
+        usuarioSeleccionado = usuario;
+        mostrarConfirmacion = true;
+    }
+
+    private async Task ConfirmarEliminar()
+    {
+        var resultado = await UsuarioService.EliminarUsuario(usuarioSeleccionado.Email);
+        mensaje = resultado.mensaje;
+        mensajeEsError = !resultado.exito;
+
+        mostrarConfirmacion = false;
+        await CargarUsuarios();
+
+        // Forzar actualización de la UI
+        StateHasChanged();
+    }
+
+    private void CerrarFormulario()
+    {
+        mostrarFormulario = false;
+    }
+
+    private void CerrarConfirmacion()
+    {
+        mostrarConfirmacion = false;
+    }
+
+    private void LimpiarMensaje()
+    {
+        mensaje = string.Empty;
+    }
+}

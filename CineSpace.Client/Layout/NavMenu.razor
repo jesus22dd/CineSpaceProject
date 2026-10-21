@@ -1,0 +1,110 @@
+@inject UsuarioService UsuarioService
+@inject TrabajadorService TrabajadorService
+@inject LogoutDialogService LogoutDialog
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<nav class="admin-navigation @(!Expanded ? "is-compact" : "")" aria-label="Menú de gestión">
+    @if (UsuarioService.EsAdministrador())
+    {
+        <NavLink href="Dashboard" @onclick="Close" aria-label="Dashboard" title="@CompactTitle("Dashboard")"><i class="fas fa-chart-line" aria-hidden="true"></i><span class="nav-label">Dashboard</span></NavLink>
+        <NavLink href="ventas" @onclick="Close" aria-label="Resumen de ventas" title="@CompactTitle("Resumen de ventas")"><i class="fas fa-table-list" aria-hidden="true"></i><span class="nav-label">Resumen de ventas</span></NavLink>
+        <div class="nav-group">
+            <button type="button" class="nav-group-trigger @(GrupoActual == "usuarios" ? "is-current" : "")" @onclick='() => ToggleGroup("usuarios")' aria-label="Usuarios" title="@CompactTitle("Usuarios")" aria-expanded="@(GroupExpanded("usuarios") ? "true" : "false")" aria-controls="users-navigation"><i class="fas fa-users" aria-hidden="true"></i><span class="nav-label">Usuarios</span><i class="fas fa-chevron-down nav-chevron" aria-hidden="true"></i></button>
+            <div id="users-navigation" class="nav-submenu" hidden="@(!GroupExpanded("usuarios"))">@if(GroupExpanded("usuarios")){<NavLink href="PanelAdministracion" @onclick="Close" aria-label="Usuarios y equipo"><i class="fas fa-user-group" aria-hidden="true"></i><span>Usuarios y equipo</span></NavLink><NavLink href="admin/distribuidoras" @onclick="Close" aria-label="Distribuidoras"><i class="fas fa-building" aria-hidden="true"></i><span>Distribuidoras</span></NavLink>}</div>
+        </div>
+    }
+    <div class="nav-group">
+        <button type="button" class="nav-group-trigger @(GrupoActual == "cartelera" ? "is-current" : "")" @onclick='() => ToggleGroup("cartelera")' aria-label="Cartelera" title="@CompactTitle("Cartelera")" aria-expanded="@(GroupExpanded("cartelera") ? "true" : "false")" aria-controls="cartelera-navigation">
+            <i class="fas fa-film" aria-hidden="true"></i><span class="nav-label">Cartelera</span><i class="fas fa-chevron-down nav-chevron" aria-hidden="true"></i>
+        </button>
+        <div id="cartelera-navigation" class="nav-submenu" hidden="@(!GroupExpanded("cartelera"))">
+            @if (GroupExpanded("cartelera"))
+            {
+                <NavLink href="PanelTrabajador" @onclick="Close" aria-label="Películas"><i class="fas fa-film" aria-hidden="true"></i><span>Películas</span></NavLink>
+                <NavLink href="admin/funciones" @onclick="Close" aria-label="Funciones"><i class="fas fa-calendar-days" aria-hidden="true"></i><span>Funciones</span></NavLink>
+                @if (UsuarioService.EsAdministrador())
+                {
+                    <NavLink href="admin/generos" @onclick="Close" aria-label="Géneros de cartelera"><i class="fas fa-masks-theater" aria-hidden="true"></i><span>Géneros de cartelera</span></NavLink>
+                    <NavLink href="admin/proximos-estrenos" @onclick="Close" aria-label="Próximos estrenos"><i class="fas fa-calendar-days" aria-hidden="true"></i><span>Próximos estrenos</span></NavLink>
+                    <NavLink href="admin/banners" @onclick="Close" aria-label="Banners de inicio"><i class="fas fa-panorama" aria-hidden="true"></i><span>Banners de inicio</span></NavLink>
+                }
+            }
+        </div>
+    </div>
+    <NavLink href="VerificarBoleto" @onclick="Close" aria-label="Verificar boletos" title="@CompactTitle("Verificar boletos")"><i class="fas fa-qrcode" aria-hidden="true"></i><span class="nav-label">Verificar boletos</span></NavLink>
+    @if (UsuarioService.EsAdministrador() || PuedeGestionarPedidos)
+    {
+        <div class="nav-group">
+            <button type="button" class="nav-group-trigger @(GrupoActual == "confiteria" ? "is-current" : "")" @onclick='() => ToggleGroup("confiteria")' aria-label="Confitería" title="@CompactTitle("Confitería")" aria-expanded="@(GroupExpanded("confiteria") ? "true" : "false")" aria-controls="confectionery-navigation">
+                <i class="fas fa-cookie-bite" aria-hidden="true"></i><span class="nav-label">Confitería</span><i class="fas fa-chevron-down nav-chevron" aria-hidden="true"></i>
+            </button>
+            <div id="confectionery-navigation" class="nav-submenu" hidden="@(!GroupExpanded("confiteria"))">
+                @if (GroupExpanded("confiteria"))
+                {
+                    @if (UsuarioService.EsAdministrador())
+                    {
+                        <NavLink href="admin/confiteria" @onclick="Close" aria-label="Gestionar confitería"><i class="fas fa-cookie-bite" aria-hidden="true"></i><span>Gestionar confitería</span></NavLink>
+                        <NavLink href="admin/categorias-confiteria" @onclick="Close" aria-label="Categorías de confitería"><i class="fas fa-tags" aria-hidden="true"></i><span>Categorías de confitería</span></NavLink>
+                    }
+                    <NavLink href="admin/pedidos-confiteria" @onclick="Close" aria-label="Pedidos de confitería"><i class="fas fa-bag-shopping" aria-hidden="true"></i><span>Pedidos de confitería</span></NavLink>
+                }
+            </div>
+        </div>
+    }
+    @if (UsuarioService.EsAdministrador())
+    {
+        <NavLink href="reviews" @onclick="Close" aria-label="Reseñas" title="@CompactTitle("Reseñas")"><i class="far fa-star" aria-hidden="true"></i><span class="nav-label">Reseñas</span></NavLink>
+        <div class="nav-group"><button type="button" class="nav-group-trigger @(GrupoActual == "salas" ? "is-current" : "")" @onclick='() => ToggleGroup("salas")' aria-label="Salas" title="@CompactTitle("Salas")" aria-expanded="@(GroupExpanded("salas") ? "true" : "false")" aria-controls="rooms-navigation"><i class="fas fa-chair" aria-hidden="true"></i><span class="nav-label">Salas</span><i class="fas fa-chevron-down nav-chevron" aria-hidden="true"></i></button><div id="rooms-navigation" class="nav-submenu" hidden="@(!GroupExpanded("salas"))">@if (GroupExpanded("salas")) { <NavLink href="salas" @onclick="Close" aria-label="Gestionar salas"><i class="fas fa-chair" aria-hidden="true"></i><span>Gestionar salas</span></NavLink><NavLink href="admin/disenos-sala" @onclick="Close" aria-label="Diseños de sala"><i class="fas fa-border-all" aria-hidden="true"></i><span>Diseños de sala</span></NavLink><NavLink href="admin/tipos-sala" @onclick="Close" aria-label="Tipos de sala"><i class="fas fa-door-open" aria-hidden="true"></i><span>Tipos de sala</span></NavLink><NavLink href="admin/experiencias" @onclick="Close" aria-label="Tipos de experiencia"><i class="fas fa-glasses" aria-hidden="true"></i><span>Tipos de experiencia</span></NavLink> }</div></div>
+        <NavLink href="cine" @onclick="Close" aria-label="Reservar entradas" title="@CompactTitle("Reservar entradas")"><i class="fas fa-ticket-alt" aria-hidden="true"></i><span class="nav-label">Reservar entradas</span></NavLink>
+    }
+    <div class="nav-divider" aria-hidden="true"></div>
+    <button type="button" class="nav-logout" @onclick="Logout" aria-label="Cerrar sesión" title="@CompactTitle("Cerrar sesión")"><i class="fas fa-sign-out-alt" aria-hidden="true"></i><span class="nav-label">Cerrar sesión</span></button>
+</nav>
+
+@code {
+    [Parameter] public bool Expanded { get; set; }
+    [Parameter] public EventCallback OnToggleNavMenu { get; set; }
+    [Parameter] public EventCallback OnExpandNavMenu { get; set; }
+    private string? openGroup;
+    private string? GrupoActual => CurrentGroup();
+    private bool PuedeGestionarPedidos => TrabajadorService.ObtenerTrabajadorActual()?.CargoTrabajador is Cargo.Taquillero or Cargo.Concesiones or Cargo.Gerente;
+    protected override void OnInitialized()
+    {
+        openGroup = CurrentGroup();
+        Navigation.LocationChanged += LocationChanged;
+    }
+    private string? CurrentGroup()
+    {
+        var path = new Uri(Navigation.Uri).AbsolutePath.Trim('/').ToLowerInvariant();
+        return path switch
+        {
+            "paneltrabajador" or "admin/peliculas" or "admin/funciones" or "admin/generos" or "admin/banners" => "cartelera",
+            "admin/proximos-estrenos" => "cartelera",
+            "paneladministracion" or "admin/distribuidoras" => "usuarios",
+            "salas" or "admin/disenos-sala" or "admin/tipos-sala" or "admin/experiencias" => "salas",
+            "admin/confiteria" or "admin/categorias-confiteria" or "admin/pedidos-confiteria" => "confiteria",
+            _ => null
+        };
+    }
+    private void LocationChanged(object? sender, LocationChangedEventArgs args) => _ = InvokeAsync(() =>
+    {
+        openGroup = CurrentGroup();
+        StateHasChanged();
+    });
+    private bool GroupExpanded(string group) => Expanded && openGroup == group;
+    private async Task ToggleGroup(string group)
+    {
+        openGroup = Expanded && openGroup == group ? null : group;
+        if (!Expanded) await OnExpandNavMenu.InvokeAsync();
+    }
+    public void Dispose() => Navigation.LocationChanged -= LocationChanged;
+    private string? CompactTitle(string label) => Expanded ? null : label;
+    private Task Close() => OnToggleNavMenu.InvokeAsync();
+    private async Task Logout()
+    {
+        await Close();
+        LogoutDialog.Solicitar();
+    }
+}
+

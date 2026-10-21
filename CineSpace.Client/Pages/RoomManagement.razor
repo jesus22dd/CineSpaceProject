@@ -1,0 +1,130 @@
+@page "/salas"
+@using CineSpace.Client.Components.Admin
+@using CineSpace.Client.Components.Shared
+@using CineSpace.Shared.Models
+@inject SalaService Salas
+@inject PeliculaService Peliculas
+@inject UsuarioService Usuarios
+
+<PageTitle>Gestionar salas - CineSpace</PageTitle>
+@if (!Usuarios.EsAdministrador()) { <div class="alert alert-danger" role="alert">Esta sección está disponible para administradores.</div> }
+else
+{
+    <div class="rooms-heading"><div><h1>@(editor == null ? "Gestionar salas" : editor.Numero == 0 ? "Crear sala" : "Editar sala")</h1><p>Asigna un diseño de butacas y configura las experiencias y el precio de cada sala.</p></div>@if (editor == null) { <button type="button" class="btn btn-primary" disabled="@cargando" @onclick="Crear"><i class="fas fa-plus" aria-hidden="true"></i>Crear sala</button> }</div>
+    @if (!string.IsNullOrEmpty(error)) { <div class="alert alert-danger" role="alert">@error</div> }
+    @if (!string.IsNullOrEmpty(aviso)) { <div class="alert alert-success" role="status">@aviso</div> }
+    @if (!string.IsNullOrEmpty(Salas.ErrorCarga)) { <div class="alert alert-warning" role="alert">@Salas.ErrorCarga</div> }
+    @if(cargando) { <p role="status">Cargando salas…</p> }
+    else if (editor != null)
+    {
+        <form class="room-settings" @onsubmit="Guardar" @onsubmit:preventDefault aria-label="Configuración de sala">
+            <div class="room-settings-fields">
+                <div class="room-field-wide"><label for="room-name">Nombre de la sala</label><input id="room-name" class="form-control" maxlength="80" required @bind="editor.Nombre" @bind:event="oninput" /></div>
+                <div><label for="room-type">Tipo de sala</label><select id="room-type" class="form-select" @bind="editor.Tipo" disabled="@Bloqueada">@foreach (var tipo in Salas.TiposSala) { <option value="@tipo.Id">@tipo.Nombre</option> }</select></div>
+                <div><label for="room-price">Precio por entrada (Bs)</label><input id="room-price" class="form-control" type="number" min="0.01" max="10000" step="0.01" required @bind="editor.Precio" @bind:event="oninput" /></div>
+                <div><label for="room-offer">Oferta</label><select id="room-offer" class="form-select" @bind="Oferta"><option value="no">Sin oferta</option><option value="si">Con oferta</option></select></div>
+                @if (editor.Oferta) { <div><label for="room-discount">Descuento (%)</label><input id="room-discount" class="form-control" type="number" min="1" max="100" step="1" required @bind="editor.Descuento" @bind:event="oninput" /></div> }
+            </div>
+            @if (Salas.TiposSala.Count == 0) { <p class="alert alert-info">Crea un <a href="admin/tipos-sala">tipo de sala</a> antes de guardar una sala.</p> }
+            <p class="room-final-price" aria-live="polite">Precio final por entrada <strong>@editor.PrecioFinal.ToString("N2") Bs</strong>@if (editor.Oferta) { <span>Antes @editor.Precio.ToString("N2") Bs</span> }</p>
+            <fieldset class="room-experiences"><legend>Experiencias disponibles</legend><p>Selecciona las experiencias que ofrece esta sala. El precio se aplica a cada entrada.</p><div class="room-experience-options">@foreach (var experiencia in Salas.Experiencias) { <label class="room-experience-choice @(editor.Experiencias.Contains(experiencia.Id) ? "is-selected":"")"><input class="form-check-input" type="checkbox" checked="@editor.Experiencias.Contains(experiencia.Id)" @onchange="e => CambiarExperiencia(experiencia.Id, e)" disabled="@Bloqueada" /><span>@experiencia.Nombre</span></label> }</div><p class="room-experience-scroll-hint">Desliza para ver todas las experiencias.</p>@if (Salas.Experiencias.Count == 0) { <a href="admin/experiencias">Crear una experiencia</a> }</fieldset>
+            <fieldset class="room-design-picker"><legend>Diseño de sala</legend><p>Reutiliza una distribución. Cada opción muestra su forma y capacidad.</p>
+                @if (Bloqueada) { <p class="alert alert-info">Esta sala tiene funciones asignadas. Libérala en Cartelera antes de cambiar el diseño, el tipo o las experiencias.</p> }
+                @if (disenos.Count > 0)
+                {
+                    <div class="room-design-toolbar">
+                        <div class="room-design-context">
+                            <p class="room-selected-design" role="status">Diseño seleccionado: <strong>@NombreDiseno(editor.DisenoId)</strong></p>
+                            <p class="room-design-order-note">Primero por uso en salas; en caso de empate, por antigüedad.</p>
+                        </div>
+                        <div class="room-design-filters">
+                            <div><label for="room-design-recency">Antigüedad</label><AdminSelect Id="room-design-recency" Etiqueta="Antigüedad del diseño" Valor="@antiguedadDisenos" Opciones="OpcionesAntiguedadDisenos" Completo="true" ValorChanged="CambiarAntiguedadDisenos" /></div>
+                            <div><label for="room-design-usage">Uso en salas</label><AdminSelect Id="room-design-usage" Etiqueta="Uso del diseño en salas" Valor="@usoDisenos" Opciones="OpcionesUsoDisenos" Completo="true" ValorChanged="CambiarUsoDisenos" /></div>
+                        </div>
+                    </div>
+                }
+                <div class="room-design-options" style="@($"--room-design-columns:{DisenosPorPagina}")">@foreach (var diseno in DisenosPaginaActual) { <button @key="diseno.Id" type="button" class="room-design-option @(editor.DisenoId == diseno.Id ? "is-selected" : "")" aria-label="Seleccionar diseño @diseno.Plano.Nombre" aria-pressed="@(editor.DisenoId == diseno.Id ? "true" : "false")" disabled="@Bloqueada" @onclick="() => editor.DisenoId = diseno.Id"><RoomPlanPreview Plano="diseno.Plano" /><span class="room-design-copy"><strong>@diseno.Plano.Nombre</strong><small>@diseno.Plano.Asientos.Count butacas · @diseno.Plano.Filas × @diseno.Plano.Columnas</small><small class="room-design-usage">@UsoDiseno(diseno.Id) @(UsoDiseno(diseno.Id) == 1 ? "sala" : "salas") con este diseño</small></span><span class="room-design-selection">@if(editor.DisenoId == diseno.Id){<i class="fas fa-check" aria-hidden="true"></i>}@(editor.DisenoId == diseno.Id ? "Seleccionado" : "Seleccionar")</span></button> }</div>
+                @if (disenos.Count > 0) { <div class="room-design-pagination" role="navigation" aria-label="Paginación de diseños de sala"><button type="button" class="btn btn-secondary" disabled="@(paginaDisenos==1)" @onclick="()=>PaginarDisenos(paginaDisenos-1)">Anterior</button><span role="status">@paginaDisenos de @TotalPaginasDisenos</span><button type="button" class="btn btn-secondary" disabled="@(paginaDisenos>=TotalPaginasDisenos)" @onclick="()=>PaginarDisenos(paginaDisenos+1)">Siguiente</button></div> }
+                @if (disenos.Count == 0) { <p>No hay diseños disponibles. <a href="admin/disenos-sala">Crea un diseño de sala</a> para continuar.</p> }
+            </fieldset>
+            <div class="room-settings-actions"><button type="button" class="btn btn-secondary" @onclick="Cancelar" disabled="@guardando">Cancelar</button><button type="submit" class="btn btn-primary" disabled="@(guardando || Salas.TiposSala.Count == 0 || disenos.Count == 0 || editor.DisenoId <= 0 || editor.Experiencias.Count == 0)">@(guardando ? "Guardando…" : "Guardar sala")</button></div>
+        </form>
+    }
+    else
+    {
+        <section class="movie-management rooms-directory" aria-labelledby="room-directory-title">
+            <div class="catalogue-toolbar movie-management-toolbar"><form class="catalogue-search @(busqueda.Length>0||filtro.Length>0 ? "has-query":"")" role="search" @onsubmit="Buscar" @onsubmit:preventDefault><label class="visually-hidden" for="room-search">Buscar sala</label><input id="room-search" class="form-control" type="search" placeholder="Buscar sala…" @bind="busqueda" @bind:event="oninput" />@if(busqueda.Length>0||filtro.Length>0){<button type="button" class="catalogue-clear" aria-label="Limpiar búsqueda de salas" @onclick="Limpiar"><i class="fas fa-times" aria-hidden="true"></i></button>}<button type="submit" class="btn btn-primary" aria-label="Buscar sala"><i class="fas fa-search" aria-hidden="true"></i></button></form><div class="catalogue-secondary-filters"><CompactOrder Id="room-order" Valor="@orden" ValorChanged="CambiarOrden" /><ClearFiltersButton Activo="@(!string.IsNullOrEmpty(filtro))" OnClear="Limpiar" /></div></div>
+            <div class="management-result-heading"><h2 id="room-directory-title">Salas</h2><span role="status">@Filtradas.Count @(Filtradas.Count==1 ? "sala":"salas")</span></div>
+            @if (Filtradas.Count == 0) { <p class="rooms-empty" role="status">No encontramos salas. Prueba otra búsqueda o crea una sala.</p> }
+            @if(Filtradas.Count>0)
+            {
+                <p class="table-scroll-note">Desliza la tabla para ver todas las columnas.</p>
+                <div class="managed-table-scroll"><table class="managed-movie-table room-table"><thead><tr><th scope="col">Sala</th><th scope="col">Diseño</th><th scope="col">Butacas</th><th scope="col">Experiencias</th><th scope="col">Precio</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead><tbody>
+                @foreach(var sala in Filtradas)
+                {
+                    <tr @key="sala.Numero" data-room="@sala.Numero"><th scope="row"><strong>@sala.Nombre</strong></th><td>@NombreDiseno(sala.DisenoId)</td><td class="room-table-capacity">@sala.Capacidad</td><td class="room-table-experiences">@string.Join(" · ",sala.Experiencias.Select(Salas.NombreExperiencia))</td><td class="room-table-price">@sala.PrecioFinal.ToString("N2") Bs
+                        @if (sala.Oferta) { <small>@sala.Descuento% de descuento</small> }
+                    </td><td>@(Salas.SalaEnUso(sala.Numero) ? "En cartelera":"Disponible")</td><td><div class="managed-table-actions"><button type="button" class="btn btn-secondary" aria-label="Editar @sala.Nombre" title="Editar" @onclick="()=>Editar(sala.Numero)"><i class="fas fa-pen-to-square" aria-hidden="true"></i></button><button type="button" class="btn btn-secondary" aria-label="Duplicar @sala.Nombre" title="Duplicar" @onclick="()=>Duplicar(sala.Numero)"><i class="far fa-copy" aria-hidden="true"></i></button><button type="button" class="btn btn-danger" aria-label="Eliminar @sala.Nombre" title="Eliminar" disabled="@Salas.SalaEnUso(sala.Numero)" @onclick="()=>eliminar=sala"><i class="fas fa-trash" aria-hidden="true"></i></button></div></td></tr>
+                }
+                </tbody></table></div>
+            }
+            @if (Filtradas.Count > 0) { <Pagination CurrentPage="pagina" TotalPages="TotalPaginas" TotalItems="totalItems" PageSize="PorPagina" ShowPageSizeSelector="false" Label="Paginación de salas" OnPageChanged="CambiarPaginaRemota" /> }
+        </section>
+    }
+}
+@if (eliminar != null) { <AppDialog Title="¿Eliminar esta sala?" OnClose="() => eliminar = null" @ref="dialogo"><ChildContent><p>Se eliminará <strong>@eliminar.Nombre</strong>. Su diseño seguirá disponible para otras salas.</p></ChildContent><Footer><button type="button" class="btn btn-secondary" @onclick="CerrarEliminar">Cancelar</button><button type="button" class="btn btn-danger" @onclick="Eliminar" disabled="@guardando">Eliminar sala</button></Footer></AppDialog> }
+@code {
+    private async Task CambiarPaginaRemota(int valor) { pagina = valor; await CargarPagina(); }
+    private async Task CargarPagina() {
+        try {
+            var f = new ConsultaPagina { Pagina = pagina, Tamano = PorPagina, Buscar = filtro, Orden = orden == "Más recientes" ? "recientes" : "antiguas" };
+            var page = await Salas.ConsultarSalasAsync(f);
+            Filtradas = page.Items; totalItems = page.Total; pagina = page.Numero;
+        } catch (Exception ex) { error = ex.Message; }
+    }
+
+    private SalaCine? editor, eliminar;
+    private List<DisenoButacas> disenos = new();
+    private Dictionary<int, int> salasPorDiseno = new();
+    private string antiguedadDisenos = "recientes", usoDisenos = "mas";
+    private static readonly IReadOnlyList<AdminSelectOption> OpcionesAntiguedadDisenos = new[] { new AdminSelectOption("recientes", "Más recientes"), new AdminSelectOption("antiguos", "Más antiguos") };
+    private static readonly IReadOnlyList<AdminSelectOption> OpcionesUsoDisenos = new[] { new AdminSelectOption("mas", "Más salas"), new AdminSelectOption("menos", "Menos salas") };
+    private AppDialog? dialogo;
+    private const int PorPagina = 5, DisenosPorPagina = 5;
+    private int pagina = 1, paginaDisenos = 1;
+    private bool guardando, cargando = true;
+    private string busqueda = "", filtro = "", orden = "Más recientes", error = "", aviso = "";
+    private bool Bloqueada => editor != null && editor.Numero > 0 && Salas.SalaEnUso(editor.Numero);
+    private string Oferta { get => editor!.Oferta ? "si" : "no"; set { editor!.Oferta = value == "si"; editor.Descuento = editor.Oferta ? Math.Max(1, editor.Descuento) : 0; } }
+    private List<SalaCine> Filtradas = [];
+    private int totalItems;
+    private int TotalPaginas => Math.Max(1, (int)Math.Ceiling(totalItems / (double)PorPagina));
+    private List<DisenoButacas> DisenosOrdenados => disenos;
+    private IEnumerable<DisenoButacas> DisenosPaginaActual => disenos;
+    private int totalDisenos;
+    private int TotalPaginasDisenos => Math.Max(1,(int)Math.Ceiling(totalDisenos/(double)DisenosPorPagina));
+    private async Task CargarDisenos() { var p = await Salas.ConsultarDisenosAsync(new() { Pagina = paginaDisenos, Tamano = DisenosPorPagina, Orden = antiguedadDisenos == "recientes" ? "recientes" : "antiguas", Estado = usoDisenos == "mas" ? "mas-salas" : "menos-salas" }); disenos = p.Items; totalDisenos = p.Total; paginaDisenos = p.Numero; }
+    private async Task PaginarDisenos(int valor) { paginaDisenos = valor; await CargarDisenos(); }
+    private string NombreDiseno(int id) => disenos.FirstOrDefault(d => d.Id == id)?.Plano.Nombre ?? "";
+    private int UsoDiseno(int id) => salasPorDiseno.GetValueOrDefault(id);
+    private void PrepararOrdenDisenos()
+    {
+        antiguedadDisenos = "recientes";
+        usoDisenos = "mas";
+        salasPorDiseno = Salas.SalasGestion.GroupBy(s => s.DisenoId).ToDictionary(g => g.Key, g => g.Count());
+    }
+    private async Task CambiarAntiguedadDisenos(string valor) { antiguedadDisenos = valor; paginaDisenos = 1; await CargarDisenos(); }
+    private async Task CambiarUsoDisenos(string valor) { usoDisenos = valor; paginaDisenos = 1; await CargarDisenos(); }
+    protected override async Task OnInitializedAsync() { if (Usuarios.EsAdministrador()) { disenos = Salas.Disenos.ToList(); await CargarPagina(); } cargando = false; }
+    private async Task Crear() { PrepararOrdenDisenos(); await CargarDisenos(); editor = new() { Tipo = Salas.TiposSala.FirstOrDefault()?.Id ?? -1, DisenoId = DisenosOrdenados.FirstOrDefault()?.Id ?? 0, Experiencias = Salas.Experiencias.Take(1).Select(e => e.Id).ToList() }; paginaDisenos=1;error = aviso = ""; }
+    private async Task Editar(int numero) { PrepararOrdenDisenos(); await CargarDisenos(); editor = Salas.ObtenerSala(numero).Copiar();paginaDisenos=Math.Max(1,DisenosOrdenados.FindIndex(d=>d.Id==editor.DisenoId)/DisenosPorPagina+1); error = aviso = ""; }
+    private async Task Duplicar(int numero) { await Editar(numero); editor!.Numero = 0; editor.Nombre = editor.Nombre[..Math.Min(70, editor.Nombre.Length)] + " (copia)"; }
+    private void Cancelar() { editor = null; error = ""; }
+    private void CambiarExperiencia(int id, ChangeEventArgs args) { if (editor == null || Bloqueada) return; if (args.Value is true) { if (!editor.Experiencias.Contains(id)) editor.Experiencias.Add(id); } else editor.Experiencias.Remove(id); }
+    private async Task Guardar() { if (editor == null || guardando) return; guardando = true; error = ""; try { var id = await Salas.GuardarSalaAsync(editor); aviso = $"{editor.Nombre.Trim()} guardada."; editor = null; busqueda = filtro = ""; pagina = 1; await CargarPagina(); } catch (ArgumentException ex) { error = ex.Message; } catch { error = "No pudimos guardar la sala. Tus cambios siguen aquí."; } finally { guardando = false; } }
+    private Task CerrarEliminar() => dialogo?.CerrarDialogo() ?? Task.CompletedTask;
+    private async Task Eliminar() { if (eliminar == null || guardando) return; guardando = true; try { await Salas.EliminarSalaAsync(eliminar.Numero); await CerrarEliminar(); await CargarPagina(); aviso = "Sala eliminada."; } catch (ArgumentException ex) { await CerrarEliminar(); error = ex.Message; } catch { await CerrarEliminar(); error = "No pudimos eliminar la sala."; } finally { guardando = false; } }
+    private async Task Buscar() { filtro = busqueda.Trim(); pagina = 1;  await CargarPagina(); }
+    private async Task Limpiar() { busqueda = filtro = ""; pagina = 1;  await CargarPagina(); }
+    private async Task CambiarOrden(string valor) { orden = valor; pagina = 1;  await CargarPagina(); }
+}

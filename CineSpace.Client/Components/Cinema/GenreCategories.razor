@@ -1,0 +1,111 @@
+@namespace CineSpace.Client.Components.Cinema
+@implements IAsyncDisposable
+@inject CatalogosService Catalogos
+@inject IJSRuntime JS
+
+<section class="genre-categories" aria-labelledby="genre-categories-title">
+    <div class="genre-categories-heading">
+        <div>
+            <h2 id="genre-categories-title">Géneros</h2>
+            <p>Explora la cartelera y los próximos estrenos.</p>
+        </div>
+        <div class="genre-heading-actions">
+            <button type="button" class="genre-view-all" @onclick="VerTodas">Ver todas las películas<i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+            @if (desborda)
+            {
+                <div class="genre-carousel-controls" role="group" aria-label="Desplazar géneros">
+                    <button type="button" class="genre-carousel-arrow" aria-label="Géneros anteriores" aria-controls="genre-categories-track" disabled="@(!puedeRetroceder)" @onclick="() => Mover(-1)"><i class="fas fa-chevron-left" aria-hidden="true"></i></button>
+                    <button type="button" class="genre-carousel-arrow" aria-label="Géneros siguientes" aria-controls="genre-categories-track" disabled="@(!puedeAvanzar)" @onclick="() => Mover(1)"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+                </div>
+            }
+        </div>
+    </div>
+    <ul id="genre-categories-track" class="genre-categories-grid" @ref="track">
+        @foreach (var categoria in categorias)
+        {
+            <li @key="categoria.Nombre">
+                <button type="button" class="genre-category @(GeneroSeleccionado == categoria.Nombre ? "is-selected" : "")"
+                        aria-label="Explorar @categoria.Nombre, @TextoCantidad(categoria.Cantidad)"
+                        aria-pressed="@(GeneroSeleccionado == categoria.Nombre ? "true" : "false")"
+                        @onclick="() => OnGeneroSeleccionado.InvokeAsync(categoria.Nombre)">
+                    <span class="genre-category-count">@TextoCantidad(categoria.Cantidad)</span>
+                    <i class="fas @Icono(categoria.Nombre) genre-category-icon" aria-hidden="true"></i>
+                    <span class="genre-category-name">@categoria.Nombre</span>
+                </button>
+            </li>
+        }
+    </ul>
+    @if (desborda)
+    {
+        <span class="visually-hidden" role="status">Géneros @primero–@ultimo de @categorias.Count</span>
+    }
+</section>
+
+@code {
+    [Parameter] public IReadOnlyList<Pelicula> Peliculas { get; set; } = Array.Empty<Pelicula>();
+    [Parameter] public IReadOnlyList<ProximoEstreno> ProximosEstrenos { get; set; } = Array.Empty<ProximoEstreno>();
+    [Parameter] public string GeneroSeleccionado { get; set; } = "Todos";
+    [Parameter] public EventCallback<string> OnGeneroSeleccionado { get; set; }
+    private List<Categoria> categorias = new();
+    private ElementReference track;
+    private IJSObjectReference? modulo;
+    private DotNetObjectReference<GenreCategories>? referencia;
+    private bool desborda, puedeRetroceder, puedeAvanzar, disposed;
+    private int primero, ultimo;
+    private Task VerTodas() => OnGeneroSeleccionado.InvokeAsync("Todos");
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/genre-carousel.js");
+        if (disposed) { await modulo.DisposeAsync(); return; }
+        referencia = DotNetObjectReference.Create(this);
+        await modulo.InvokeVoidAsync("connectGenres", track, referencia);
+    }
+    private async Task Mover(int direccion)
+    {
+        if (modulo != null && !disposed) await modulo.InvokeVoidAsync("moveGenres", track, direccion);
+    }
+    [JSInvokable]
+    public void ActualizarGeneros(int inicio, int fin, bool anterior, bool siguiente, bool overflow)
+    {
+        if (disposed) return;
+        primero = inicio; ultimo = fin;
+        puedeRetroceder = anterior; puedeAvanzar = siguiente; desborda = overflow;
+        StateHasChanged();
+    }
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+        if (modulo != null)
+        {
+            try { await modulo.InvokeVoidAsync("disconnectGenres", track); await modulo.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+        referencia?.Dispose();
+    }
+
+    protected override void OnParametersSet()
+    {
+        categorias = Peliculas.SelectMany(p => p.ListaGeneros.Select(nombre => new { p.Id, Nombre = nombre }))
+            .Concat(ProximosEstrenos.Select(p => new { p.Id, Nombre = p.Genero }))
+            .Where(p => !string.IsNullOrWhiteSpace(p.Nombre))
+            .DistinctBy(p => (p.Id, p.Nombre))
+            .GroupBy(p => p.Nombre)
+            .OrderBy(g => g.Key, StringComparer.CurrentCulture)
+            .Select(g => new Categoria(g.Key, g.Count())).ToList();
+        categorias = Catalogos.Generos.Select(g => new Categoria(g.Nombre, categorias.FirstOrDefault(c => c.Nombre == g.Nombre)?.Cantidad ?? 0)).Where(g => g.Cantidad > 0).OrderBy(g => g.Nombre).ToList();
+    }
+
+    private static string TextoCantidad(int cantidad) => $"{cantidad} {(cantidad == 1 ? "película" : "películas")}";
+    private static string Icono(string genero) => genero switch
+    {
+        "Acción" => "fa-bolt", "Aventura" => "fa-compass", "Animación" => "fa-wand-magic-sparkles",
+        "Comedia" => "fa-face-laugh", "Drama" => "fa-masks-theater", "Terror" => "fa-ghost",
+        "Ciencia ficción" => "fa-rocket", "Suspenso" => "fa-eye", "Romance" => "fa-heart",
+        "Música" => "fa-music", "Misterio" => "fa-magnifying-glass", "Familiar" => "fa-people-roof",
+        "Documental" => "fa-camera", "Historia" => "fa-landmark", "Fantasía" => "fa-hat-wizard",
+        "Bélico" => "fa-shield", "Crimen" => "fa-fingerprint", "Wéstern" => "fa-hat-cowboy", _ => "fa-film"
+    };
+    private sealed record Categoria(string Nombre, int Cantidad);
+}

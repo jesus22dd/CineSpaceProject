@@ -1,0 +1,143 @@
+@namespace CineSpace.Client.Components.Cinema
+@using CineSpace.Shared.Models
+@using System.Globalization
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject PeliculaService Peliculas
+@inject SalaService Salas
+
+<article class="movie-card @(AccionUnica ? "movie-card-single-action" : "") @Clase @(EstaRevelada ? "is-revealed" : "") @(Expandida ? "is-selected" : "")" data-movie-id="@Pelicula.Id"
+         @ref="cardElement" @onpointerenter="PointerEnter" @onpointerleave="PointerLeave" @onfocusin="FocusIn" @onfocusout="FocusOut" @onkeydown="HandleKeys">
+    <div class="movie-poster-container">
+        <img src="@CineSpace.Client.Services.PeliculaService.UrlImagen(Pelicula.ImagenUrl)"
+             alt="Póster de @Pelicula.Titulo" loading="@(CargaInmediata ? "eager" : "lazy")" decoding="async" width="500" height="750" style="@($"object-position:50% {Pelicula.FocoPosterVertical}%")"
+             onerror="this.onerror=null;this.src='images/poster-placeholder.svg';" />
+    </div>
+    @if (Pelicula.EnPreventa)
+    {
+        <span class="movie-presale-badge"><i class="fas fa-ticket" aria-hidden="true"></i>Preventa</span>
+    }
+    <button type="button" class="movie-card-trigger" @ref="triggerElement" aria-label="Ver opciones de @Pelicula.Titulo"
+            aria-expanded="@(EstaRevelada ? "true" : "false")" aria-controls="@ActionsId" @onclick="Revelar"></button>
+    <div class="movie-card-body">
+        <p class="movie-genre">@Pelicula.GenerosTexto</p>
+        <h3>@Pelicula.Titulo</h3>
+        @if (FechaEstreno.HasValue)
+        {
+            <p class="movie-release-date">Estreno · <time datetime="@FechaEstreno.Value.ToString("yyyy-MM-dd")">@FechaEstreno.Value.ToString("dd MMM yyyy", CultureInfo.GetCultureInfo("es-ES"))</time></p>
+        }
+        @if (!AccionUnica)
+        {
+            <p class="movie-schedule" aria-label="Experiencias disponibles">@foreach (var experiencia in Peliculas.ObtenerExperienciasDisponiblesParaPelicula(Pelicula.Id)) { <span>@Salas.NombreExperiencia(experiencia)</span> }</p>
+        }
+        <div id="@ActionsId" class="movie-actions" inert="@(!EstaRevelada)">
+            @if (SoloInformacion)
+            {
+                <button type="button" class="movie-info-button movie-single-info" aria-label="Información de @Pelicula.Titulo" @onclick="VerDetalles">Información</button>
+            }
+            else
+            {
+                @if (!SoloReserva)
+                {
+                    <button type="button" class="movie-info-button movie-mobile-info" aria-expanded="@(Expandida ? "true" : "false")"
+                            aria-controls="@(Expandida ? $"details-{Pelicula.Id}" : null)" aria-label="Información de @Pelicula.Titulo" @onclick="VerDetalles">Información</button>
+                }
+                <button type="button" class="btn btn-primary movie-reserve-button" aria-label="@(SoloReserva ? $"Reservar preventa de {Pelicula.Titulo}" : $"Reservar {Pelicula.Titulo}")" @onclick="Reservar">Reservar</button>
+                @if (!SoloReserva)
+                {
+                    <button type="button" class="movie-info-button movie-desktop-info" aria-expanded="@(Expandida ? "true" : "false")"
+                            aria-label="@(Expandida ? $"Cerrar detalles de {Pelicula.Titulo}" : $"Información de {Pelicula.Titulo}")" @onclick="VerDetalles">@(Expandida ? "Cerrar" : "Info")</button>
+                }
+            }
+        </div>
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public Pelicula Pelicula { get; set; } = default!;
+    [Parameter] public bool Expandida { get; set; }
+    [Parameter] public bool SoloReserva { get; set; }
+    [Parameter] public bool SoloInformacion { get; set; }
+    [Parameter] public DateOnly? FechaEstreno { get; set; }
+    [Parameter] public string? Clase { get; set; }
+    [Parameter] public bool CargaInmediata { get; set; }
+    [Parameter] public EventCallback<Pelicula> OnReservar { get; set; }
+    [Parameter] public EventCallback<Pelicula> OnInfo { get; set; }
+    [Parameter] public EventCallback<Pelicula> OnActivar { get; set; }
+    [Parameter] public EventCallback<Pelicula> OnCerrarOpciones { get; set; }
+    [Parameter] public bool MantenerCerradaAlEnfocar { get; set; }
+    private bool revelada;
+    private bool hovering;
+    private bool focused;
+    private bool skipFocusReveal;
+    private bool cierreAnterior;
+    private bool EstaRevelada => revelada || hovering || focused || Expandida;
+    private bool AccionUnica => SoloReserva || SoloInformacion;
+    private string ActionsId => $"{(SoloInformacion ? "upcoming-actions" : SoloReserva ? "presale-actions" : "movie-actions")}-{Pelicula.Id}";
+    private ElementReference cardElement;
+    private ElementReference triggerElement;
+    public async Task EnfocarInformacion()
+    {
+        if (module != null) await module.InvokeVoidAsync("focusCardInformation", cardElement);
+    }
+    private IJSObjectReference? module;
+
+    protected override void OnParametersSet()
+    {
+        if (MantenerCerradaAlEnfocar && !cierreAnterior)
+        {
+            revelada = hovering = focused = false;
+            skipFocusReveal = true;
+        }
+        cierreAnterior = MantenerCerradaAlEnfocar;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/catalogue.js");
+    }
+    private void PointerEnter(PointerEventArgs args) { if (args.PointerType == "mouse") hovering = true; }
+    private void PointerLeave(PointerEventArgs args) { if (args.PointerType == "mouse") hovering = false; }
+    private void FocusIn()
+    {
+        if (skipFocusReveal) { skipFocusReveal = false; return; }
+        focused = true;
+    }
+    private async Task FocusOut()
+    {
+        if (module != null && !await module.InvokeAsync<bool>("containsFocus", cardElement))
+        {
+            focused = false;
+            revelada = false;
+            skipFocusReveal = false;
+        }
+    }
+    private async Task Revelar()
+    {
+        revelada = true;
+        await OnActivar.InvokeAsync(Pelicula);
+    }
+    private async Task Reservar()
+    {
+        await OnActivar.InvokeAsync(Pelicula);
+        await OnReservar.InvokeAsync(Pelicula);
+    }
+    private async Task VerDetalles()
+    {
+        revelada = true;
+        await OnInfo.InvokeAsync(Pelicula);
+    }
+    private async Task Cerrar()
+    {
+        revelada = hovering = focused = false;
+        skipFocusReveal = true;
+        if (Expandida) await OnCerrarOpciones.InvokeAsync(Pelicula);
+        else await triggerElement.FocusAsync(preventScroll: true);
+    }
+    private async Task HandleKeys(KeyboardEventArgs args) { if (args.Key == "Escape") await Cerrar(); }
+    public async ValueTask DisposeAsync()
+    {
+        if (module != null) { try { await module.DisposeAsync(); } catch (JSDisconnectedException) { } }
+    }
+}
+

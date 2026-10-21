@@ -1,0 +1,105 @@
+@page "/admin/funciones"
+@using CineSpace.Client.Components.Worker
+@using CineSpace.Client.Components.Shared
+@using CineSpace.Client.Components.Admin
+@inject UsuarioService Usuarios
+@inject TrabajadorService Trabajadores
+@inject PeliculaService Peliculas
+@inject FuncionesService Funciones
+@inject SalaService Salas
+
+<PageTitle>Funciones - Cine Space</PageTitle>
+@if(Permitido)
+{
+    <div class="management-heading"><div><h1>Funciones</h1><p>Programa películas en distintas salas, respetando su duración y el tiempo de limpieza.</p></div><div class="management-actions"><a class="btn btn-secondary" href="/PanelTrabajador">Ver películas</a><button class="btn btn-primary" @onclick="Nueva">Programar funciones</button></div></div>
+    @if(!string.IsNullOrWhiteSpace(mensaje)) { <p class="alert @(error ? "alert-danger":"alert-success")" role="status">@mensaje</p> }
+    @if(actual!=null)
+    {
+        <section class="card function-editor"><div class="card-header"><h2>@(editando ? "Editar programación" : "Programar funciones")</h2></div><div class="card-body">
+            <form @onsubmit="Guardar" @onsubmit:preventDefault>
+                <div class="row">
+                    <div class="col-lg-6 mb-3"><SearchSelect @key="claveFormulario" Id="screening-movie" Etiqueta="Película" Placeholder="Selecciona una película" Valor="@actual.PeliculaId.ToString()" Opciones="OpcionesPeliculas" ValorChanged="CambiarPelicula" /></div>
+                    <div class="col-sm-6 mb-3"><label for="screening-experience" class="form-label">Experiencia</label><select id="screening-experience" class="form-select" value="@actual.ExperienciaId" @onchange="CambiarExperiencia">@foreach(var e in Salas.Experiencias) { <option value="@e.Id">@e.Nombre</option> }</select></div>
+                    <div class="col-lg-6 mb-3"><SearchSelect @key="claveSala" Id="screening-room" Etiqueta="Sala" Placeholder="Selecciona una sala" Valor="@actual.NumeroSala.ToString()" Opciones="OpcionesSalas" ValorChanged="CambiarSala" /></div>
+                    <div class="col-sm-6 mb-3"><label for="screening-publication" class="form-label">Publicación</label><select id="screening-publication" class="form-select" @bind="Publicacion"><option value="cartelera">En cartelera</option><option value="preventa">Preventa</option></select></div>
+                </div>
+                @if(actual.NumeroSala>0) { var sala=Salas.ObtenerSala(actual.NumeroSala);<p class="function-price">Precio por entrada: <strong>@sala.PrecioFinal.ToString("N2") Bs</strong>@if(sala.Oferta){<span> · @sala.Descuento% de descuento</span>}</p> }
+                <ScreeningDateRange @bind-Desde="actual.Desde" @bind-Hasta="actual.Hasta" />
+                <MovieScheduleEditor @key="claveHorario" Valor="actual.Horario" OnCambio="p=>actual.Horario=p" />
+                <p class="text-muted">Cada horario seleccionado crea una función por día dentro del rango de fechas.</p>
+                <div class="movie-form-actions"><button type="button" class="btn btn-secondary" disabled="@ocupado" @onclick="()=>actual=null">Cancelar</button><button type="submit" class="btn btn-primary" disabled="@(ocupado||actual.NumeroSala==0||actual.PeliculaId==0||actual.Horario.Horarios.Count==0||actual.Hasta<actual.Desde||(actual.Hasta-actual.Desde).TotalDays>365)">@(ocupado ? "Guardando…" : "Guardar funciones")</button></div>
+            </form>
+        </div></section>
+    }
+    else
+    {
+        <section class="movie-management">
+            <div class="catalogue-toolbar movie-management-toolbar">
+                <form class="catalogue-search @(busqueda.Length>0||busquedaAplicada.Length>0 ? "has-query":"")" role="search" aria-label="Buscar funciones" @onsubmit="Buscar" @onsubmit:preventDefault><input class="form-control" type="search" placeholder="Buscar película o sala…" aria-label="Buscar película o sala" @bind="busqueda" @bind:event="oninput" />@if(busqueda.Length>0||busquedaAplicada.Length>0){<button type="button" class="catalogue-clear" aria-label="Limpiar búsqueda de funciones" @onclick="Limpiar"><i class="fas fa-times" aria-hidden="true"></i></button>}<button type="submit" class="btn btn-primary" aria-label="Buscar funciones"><i class="fas fa-search" aria-hidden="true"></i></button></form>
+                <div class="catalogue-secondary-filters"><CompactOrder Id="functions-order" Valor="@orden" ValorChanged="CambiarOrden" /><ViewToggle Etiqueta="Vista de funciones" Valor="@vista" ValorChanged="v=>vista=v" /><ClearFiltersButton Activo="HayFiltros" OnClear="Limpiar" /></div>
+            </div>
+            <div class="management-result-heading"><h2>Programaciones</h2><span role="status">@Filtradas.Count @(Filtradas.Count==1 ? "programación":"programaciones")</span></div>
+            @if(Filtradas.Count==0) { <div class="management-empty"><p>No hay programaciones para estos filtros. Selecciona una película y programa sus funciones.</p></div> }
+            @if(vista=="Tarjetas")
+            {
+            <div class="managed-movie-grid">
+            @foreach(var plan in Filtradas)
+            {
+                var peli=peliculas.First(p=>p.Id==plan.PeliculaId);
+                <article class="managed-movie function-card" @key="plan.Id" data-program-id="@plan.Id">
+                    <img class="managed-movie-poster" src="@CineSpace.Client.Services.PeliculaService.UrlImagen(peli.ImagenUrl,"w342")" style="@($"object-position:50% {peli.FocoPosterVertical}%")" alt="Póster de @peli.Titulo" loading="lazy" />
+                    <div class="managed-movie-body"><span class="managed-genre">@peli.GenerosTexto</span> <span class="badge bg-secondary">@CantidadFunciones(plan.Id) funciones</span><h3 title="@peli.Titulo">@peli.Titulo</h3><p class="managed-room">@Salas.ObtenerNombreSala(plan.NumeroSala) <span>· @Salas.NombreExperiencia(plan.ExperienciaId)</span></p><p class="managed-times">@(plan.Horario.EnPreventa ? "Preventa":"En cartelera")</p><p class="managed-times function-period">@plan.Desde.ToString("dd/MM/yyyy") — @plan.Hasta.ToString("dd/MM/yyyy")</p><p class="managed-times function-times">@string.Join(" · ",plan.Horario.Horarios)</p><p class="managed-times">@ProgramacionFunciones.Duracion(plan.Horario.DuracionMinutos) · Limpieza @plan.Horario.LimpiezaMinutos min</p></div>
+                    <div class="managed-actions"><button type="button" class="btn btn-secondary" aria-label="Editar funciones de @peli.Titulo en @Salas.ObtenerNombreSala(plan.NumeroSala)" @onclick="()=>Editar(plan)"><i class="fas fa-pen-to-square" aria-hidden="true"></i><span class="action-label">Editar</span></button><button type="button" class="btn btn-danger" aria-label="Eliminar funciones de @peli.Titulo en @Salas.ObtenerNombreSala(plan.NumeroSala)" @onclick="()=>eliminar=plan"><i class="fas fa-trash" aria-hidden="true"></i><span class="action-label">Eliminar</span></button></div>
+                </article>
+            }
+            </div>
+            }
+            else if(Filtradas.Count>0)
+            {
+                <p class="table-scroll-note">Desliza la tabla para ver todas las columnas.</p>
+                <div class="managed-table-scroll"><table class="managed-movie-table function-table"><thead><tr><th scope="col">Película</th><th scope="col">Sala</th><th scope="col">Experiencia</th><th scope="col">Estado</th><th scope="col">Fechas</th><th scope="col">Horarios</th><th scope="col">Duración / limpieza</th><th scope="col">Funciones</th><th scope="col">Acciones</th></tr></thead><tbody>
+                @foreach(var plan in Filtradas)
+                {
+                    var peli=peliculas.First(p=>p.Id==plan.PeliculaId);
+                    <tr @key="plan.Id" data-program-id="@plan.Id"><td><div class="managed-table-film"><img src="@CineSpace.Client.Services.PeliculaService.UrlImagen(peli.ImagenUrl,"w342")" style="@($"object-position:50% {peli.FocoPosterVertical}%")" alt="" loading="lazy" /><strong>@peli.Titulo</strong></div></td><td>@Salas.ObtenerNombreSala(plan.NumeroSala)</td><td>@Salas.NombreExperiencia(plan.ExperienciaId)</td><td>@(plan.Horario.EnPreventa ? "Preventa":"En cartelera")</td><td class="function-table-dates"><time datetime="@plan.Desde.ToString("yyyy-MM-dd")">@plan.Desde.ToString("dd/MM/yyyy")</time><time datetime="@plan.Hasta.ToString("yyyy-MM-dd")">@plan.Hasta.ToString("dd/MM/yyyy")</time></td><td class="function-table-times">@foreach(var hora in plan.Horario.Horarios){<span>@hora</span>}</td><td>@ProgramacionFunciones.Duracion(plan.Horario.DuracionMinutos)<small>@plan.Horario.LimpiezaMinutos min de limpieza</small></td><td>@CantidadFunciones(plan.Id)</td><td><div class="managed-table-actions"><button type="button" class="btn btn-secondary" aria-label="Editar funciones de @peli.Titulo en @Salas.ObtenerNombreSala(plan.NumeroSala)" @onclick="()=>Editar(plan)"><i class="fas fa-pen-to-square" aria-hidden="true"></i></button><button type="button" class="btn btn-danger" aria-label="Eliminar funciones de @peli.Titulo en @Salas.ObtenerNombreSala(plan.NumeroSala)" @onclick="()=>eliminar=plan"><i class="fas fa-trash" aria-hidden="true"></i></button></div></td></tr>
+                }
+                </tbody></table></div>
+            }
+            <Pagination CurrentPage="pagina" TotalPages="TotalPaginas" TotalItems="totalItems" PageSize="10" ShowPageSizeSelector="false" OnPageChanged="Paginar" />
+        </section>
+    }
+    @if(eliminar!=null) { <AppDialog Title="¿Eliminar estas funciones?" OnClose="()=>eliminar=null"><ChildContent><p>Se quitarán las funciones de esta programación. Las programaciones con entradas vendidas se conservan.</p></ChildContent><Footer><button class="btn btn-secondary" data-dialog-autofocus @onclick="()=>eliminar=null">Cancelar</button><button class="btn btn-danger" @onclick="Eliminar" disabled="@ocupado">Eliminar funciones</button></Footer></AppDialog> }
+}
+else { <p class="alert alert-danger">Esta sección requiere una sesión de administración o de trabajador.</p> }
+@code {
+    private async Task CargarPagina() { var p = await Funciones.ConsultarAsync(new() { Pagina = pagina, Tamano = 10, Buscar = busquedaAplicada, Orden = orden == "Más recientes" ? "recientes" : "antiguas" }); Filtradas = p.Items; totalItems = p.Total; pagina = p.Numero; }
+    private async Task Paginar(int valor) { pagina = valor; await CargarPagina(); }
+
+    [SupplyParameterFromQuery(Name="pelicula")] public int? PeliculaId {get;set;}
+    private bool Permitido=>Usuarios.EsAdministrador()||Trabajadores.EstaAutenticado();
+    private List<Pelicula> peliculas=new();
+    private ProgramacionSala? actual,eliminar;
+    private int pagina=1,claveHorario,claveSala,claveFormulario;
+    private int? consultaAplicada;
+    private bool error,editando,ocupado;
+    private string mensaje="",busqueda="",busquedaAplicada="",orden="Más recientes",vista="Tabla";
+    private string Publicacion {get=>actual?.Horario.EnPreventa==true?"preventa":"cartelera";set {if(actual!=null)actual.Horario.EnPreventa=value=="preventa";}}
+    private bool HayFiltros=>busquedaAplicada.Length>0;
+    private List<ProgramacionSala> Filtradas = [];
+    private int totalItems;
+    private IReadOnlyList<SearchSelectOption> OpcionesPeliculas=>peliculas.Select((p,i)=>new{Pelicula=p,Indice=i}).OrderByDescending(x=>x.Pelicula.FechaAgregadaUtc??DateTime.MinValue).ThenByDescending(x=>x.Indice).Select(x=>new SearchSelectOption(x.Pelicula.Id.ToString(),x.Pelicula.Titulo,$"{x.Pelicula.DuracionMinutos} min")).ToList();
+    private IReadOnlyList<SearchSelectOption> OpcionesSalas=>Salas.SalasGestion.Where(s=>actual!=null&&s.Experiencias.Contains(actual.ExperienciaId)).OrderByDescending(s=>s.Numero).Select(s=>new SearchSelectOption(s.Numero.ToString(),s.Nombre,$"{s.PrecioFinal:N2} Bs por entrada",$"Sala {s.Numero}")).ToList();
+    private int TotalPaginas=>Math.Max(1,(int)Math.Ceiling(totalItems/10d));
+    private int CantidadFunciones(string id)=>Filtradas.FirstOrDefault(p=>p.Id==id)?.CantidadFunciones ?? 0;
+    protected override async Task OnParametersSetAsync() { if(!Permitido)return;try { peliculas=await Peliculas.OpcionesAsync();await Funciones.InicializarAsync();if(consultaAplicada!=PeliculaId){consultaAplicada=PeliculaId;busqueda=busquedaAplicada=peliculas.FirstOrDefault(p=>p.Id==PeliculaId)?.Titulo??"";pagina=1;}await CargarPagina();} catch(Exception ex){mensaje=ex.Message;error=true;} }
+    private void Nueva() { editando=false;actual=new(){PeliculaId=PeliculaId??0,ExperienciaId=Salas.Experiencias.FirstOrDefault()?.Id??-1};if(actual.PeliculaId>0)actual.Horario.DuracionMinutos=peliculas.First(p=>p.Id==actual.PeliculaId).DuracionMinutos;claveHorario++;claveSala++;claveFormulario++;mensaje=""; }
+    private void Editar(ProgramacionSala p) { actual=p.Copiar();editando=true;claveHorario++;claveSala++;claveFormulario++;mensaje=""; }
+    private void CambiarPelicula(string valor) { if(actual==null||!int.TryParse(valor,out var id)||actual.PeliculaId==id)return;actual.PeliculaId=id;var peli=peliculas.FirstOrDefault(p=>p.Id==id);if(peli!=null)actual.Horario.DuracionMinutos=peli.DuracionMinutos;actual.Horario.Horarios.Clear();claveHorario++; }
+    private void CambiarSala(string valor) { if(actual!=null&&int.TryParse(valor,out var numero)&&(numero==0||Salas.ExperienciaDisponibleEnSala(numero,actual.ExperienciaId)))actual.NumeroSala=numero; }
+    private void CambiarExperiencia(ChangeEventArgs e) { if(actual==null)return;actual.ExperienciaId=int.Parse(e.Value?.ToString()??"-1");if(!Salas.ExperienciaDisponibleEnSala(actual.NumeroSala,actual.ExperienciaId))actual.NumeroSala=0;claveSala++; }
+    private async Task Buscar() { busquedaAplicada=busqueda.Trim();pagina=1; await CargarPagina();}
+    private async Task CambiarOrden(string valor) { orden=valor;pagina=1; await CargarPagina();}
+    private async Task Limpiar() { busqueda=busquedaAplicada="";pagina=1; await CargarPagina();}
+    private async Task Guardar() { if(actual==null||ocupado)return;ocupado=true;try { await Funciones.GuardarAsync(actual);actual=null;mensaje="Funciones guardadas.";error=false;await CargarPagina(); }catch(Exception ex){mensaje=ex.Message;error=true;}finally{ocupado=false;} }
+    private async Task Eliminar() { if(eliminar==null||ocupado)return;ocupado=true;try { await Funciones.EliminarAsync(eliminar.Id);mensaje="Funciones eliminadas.";error=false; }catch(Exception ex){mensaje=ex.Message;error=true;}finally{eliminar=null;ocupado=false;await CargarPagina();} }
+}

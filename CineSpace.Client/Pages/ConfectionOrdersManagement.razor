@@ -1,0 +1,58 @@
+@page "/admin/pedidos-confiteria"
+@using CineSpace.Client.Components.Admin
+@using CineSpace.Client.Components.Shared
+@inject PedidosConfiteriaService Pedidos
+@implements IDisposable
+
+@if (etapaPago > 0) { <CineSpace.Client.Components.Cinema.PaymentProgress Etapa="etapaPago" /> }
+<PageTitle>Pedidos de confitería - CineSpace</PageTitle>
+@if (!Pedidos.EsPersonal) { <div class="alert alert-danger" role="alert">Inicia sesión como personal de caja o confitería para validar pedidos.</div> }
+else
+{
+    <div class="movie-management"><div class="management-heading"><div><h1>Pedidos de confitería</h1><p>Valida el QR, registra el pago en caja y entrega los productos.</p></div><span class="order-status">@Listado.Count(p => p.Estado == EstadoPedidoConfiteria.Pendiente) pendientes</span></div>
+    <section class="order-verify-panel" aria-labelledby="order-verify-title"><h2 id="order-verify-title">Verificar un pedido</h2><p>Escanea con un lector QR, pega el enlace del pedido o escribe su código de retiro.</p><form class="order-verify-form" @onsubmit="Verificar" @onsubmit:preventDefault><label class="visually-hidden" for="order-code">Código o enlace del pedido</label><input id="order-code" class="form-control" maxlength="512" placeholder="CF-… o enlace del QR" autocomplete="off" @bind="codigo" @bind:event="oninput" disabled="@ocupado" /><button type="submit" class="btn btn-primary" disabled="@(ocupado || string.IsNullOrWhiteSpace(codigo))"><i class="fas fa-qrcode" aria-hidden="true"></i>Verificar</button></form><OrderQrScanner OnCodigo="Leido" />@if (!string.IsNullOrEmpty(error) && seleccionado == null || Pedidos.ErrorCarga != null) { <div class="alert alert-danger mt-3" role="alert">@(Pedidos.ErrorCarga ?? error)</div> }@if (!string.IsNullOrEmpty(aviso)) { <div class="alert alert-success mt-3" role="status">@aviso</div> }</section>
+    <div class="catalogue-toolbar movie-management-toolbar"><form class="catalogue-search @(busqueda.Length > 0 || filtro.Length > 0 ? "has-query" : "")" role="search" @onsubmit="Buscar" @onsubmit:preventDefault><label class="visually-hidden" for="orders-search">Buscar pedidos</label><input id="orders-search" type="search" class="form-control" placeholder="Buscar por nombre o código…" @bind="busqueda" @bind:event="oninput" />@if (busqueda.Length > 0 || filtro.Length > 0) { <button type="button" class="catalogue-clear" aria-label="Limpiar búsqueda" @onclick="Limpiar"><i class="fas fa-times" aria-hidden="true"></i></button> }<button type="submit" class="btn btn-primary" aria-label="Buscar pedidos"><i class="fas fa-search" aria-hidden="true"></i></button></form><div class="catalogue-secondary-filters"><AdminSelect Id="orders-status" Etiqueta="Estado" Valor="@estado" Opciones="OpcionesEstados" Activo="@(estado != "todos")" ValorChanged="async valor => { estado = valor; await Reiniciar(); }" /><CompactOrder Id="orders-order" Valor="@orden" ValorChanged="Ordenar" /><ClearFiltersButton Activo="@(!string.IsNullOrWhiteSpace(filtro) || estado != "todos")" OnClear="Limpiar" /></div></div>
+    @if (Filtrados.Count == 0) { <div class="catalogue-empty"><i class="fas fa-bag-shopping" aria-hidden="true"></i><h2>No hay pedidos con estos filtros</h2><p>Los pedidos confirmados aparecerán aquí para su retiro.</p></div> }
+    else { <ManagementTable Title="Pedidos" Summary="@($"{Filtrados.Count} pedidos")" TableClass="orders-table"><HeaderContent><tr><th scope="col">Pedido</th><th scope="col">Retira</th><th scope="col">Fecha</th><th scope="col">Productos</th><th scope="col">Total</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></HeaderContent><ChildContent>@foreach (var p in Filtrados) { <tr><td><strong>@p.Numero</strong><small class="order-table-secondary">@p.CodigoRetiro</small></td><td>@p.NombreRetiro</td><td>@p.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</td><td>@p.Unidades</td><td class="order-table-amount">@p.Total.ToString("N2") Bs</td><td>@PedidosConfiteriaService.EstadoNombre(p.Estado)</td><td><div class="managed-table-actions"><button type="button" class="btn btn-secondary" title="Verificar" aria-label="Verificar pedido @p.Numero" @onclick="() => VerPedido(p.Token)"><i class="fas fa-qrcode" aria-hidden="true"></i></button></div></td></tr> }</ChildContent></ManagementTable> }
+    <Pagination CurrentPage="pagina" TotalPages="@Math.Max(1, (int)Math.Ceiling(totalItems / (double)PorPagina))" TotalItems="totalItems" PageSize="PorPagina" ShowPageSizeSelector="false" Label="Paginación de pedidos de confitería" OnPageChanged="Paginar" />
+    </div>
+}
+@if (seleccionado != null && Pedidos.EsPersonal)
+{
+    <AppDialog Title="@($"Pedido {seleccionado.Numero}")" Class="order-delivery-dialog" OnClose="CerrarDetalle" @ref="dialogo"><ChildContent><span class="order-status @seleccionado.Estado.ToString().ToLowerInvariant()">@PedidosConfiteriaService.EstadoNombre(seleccionado.Estado)</span><dl class="order-metadata mt-4"><div><dt>Retira</dt><dd>@seleccionado.NombreRetiro</dd></div><div><dt>Código</dt><dd>@seleccionado.CodigoRetiro</dd></div></dl><ConfectionOrderLines Lineas="seleccionado.Lineas" /><div class="order-receipt-total"><span>Total</span><strong>@seleccionado.Total.ToString("N2") <small>Bs</small></strong></div>@if (seleccionado.Estado == EstadoPedidoConfiteria.Pendiente) { <label for="order-payment-method" class="form-label">Medio de pago en caja</label><select id="order-payment-method" class="form-select" @bind="medioPago" disabled="@ocupado"><option>Efectivo</option><option>Tarjeta de débito</option><option>Pago QR</option></select><label class="order-payment-confirm"><input id="order-payment-confirmed" type="checkbox" class="form-check-input" @bind="confirmado" disabled="@ocupado" /><span>Confirmo que recibí <strong>@seleccionado.Total.ToString("N2") Bs</strong> y entregaré los productos de este pedido.</span></label> } else { <div class="alert alert-info" role="status">@(seleccionado.Estado == EstadoPedidoConfiteria.Retirado ? $"Este pedido ya fue retirado el {seleccionado.FechaRetiro:dd/MM/yyyy HH:mm}. Su QR no puede utilizarse otra vez." : "Este pedido fue cancelado. Su QR no permite retirar productos.")</div> }@if (!string.IsNullOrEmpty(error)) { <div class="alert alert-danger mt-3" role="alert">@error</div> }</ChildContent><Footer><button type="button" class="btn btn-secondary" disabled="@ocupado" @onclick="Cerrar">Cerrar</button>@if (seleccionado.Estado == EstadoPedidoConfiteria.Pendiente) { <button type="button" class="btn btn-primary" disabled="@(ocupado || !confirmado)" @onclick="Entregar"><i class="fas fa-check" aria-hidden="true"></i>@(ocupado ? "Registrando…" : "Registrar pago y entregar")</button> }</Footer></AppDialog>
+}
+@code {
+    [SupplyParameterFromQuery(Name = "codigo")] public string? CodigoInicial { get; set; }
+    private const int PorPagina = 8;
+    private string codigo = "", busqueda = "", filtro = "", estado = "Pendiente", orden = "Más recientes", error = "", aviso = "", medioPago = "Efectivo", procesado = "";
+    private int pagina = 1;
+    private bool ocupado, confirmado;
+    private PedidoConfiteria? seleccionado;
+    private AppDialog? dialogo;
+    private IReadOnlyList<PedidoConfiteria> Listado => Pedidos.EsPersonal ? Pedidos.ListadoPersonal() : Array.Empty<PedidoConfiteria>();
+    private List<PedidoConfiteria> Filtrados = [];
+    private int totalItems;
+    private async Task Cargar() {
+        try { var p = await Pedidos.ConsultarAsync(new() { Pagina = pagina, Tamano = PorPagina, Buscar = filtro, Estado = estado == "todos" ? "" : estado, Orden = orden == "Más recientes" ? "recientes" : "antiguas" }, true); Filtrados = p.Items; totalItems = p.Total; pagina = p.Numero; }
+        catch (Exception ex) { error = ex.Message; }
+    }
+    private async Task Paginar(int valor) { pagina = valor; await Cargar(); }
+
+    protected override async Task OnInitializedAsync() { Pedidos.Changed += Cambiado; await Cargar(); }
+    protected override async Task OnParametersSetAsync() { if (Pedidos.EsPersonal && !string.IsNullOrEmpty(CodigoInicial) && CodigoInicial != procesado) { procesado = CodigoInicial; codigo = CodigoInicial; await Verificar(); } }
+    private void Cambiado() => _ = InvokeAsync(async () => { await Cargar(); StateHasChanged(); });
+    public void Dispose() => Pedidos.Changed -= Cambiado;
+    private static IReadOnlyList<AdminSelectOption> OpcionesEstados => new[] { new AdminSelectOption("todos", "Todos los estados") }.Concat(Enum.GetValues<EstadoPedidoConfiteria>().Select(estado => new AdminSelectOption(estado.ToString(), PedidosConfiteriaService.EstadoNombre(estado)))).ToList();
+    private async Task Reiniciar() { pagina = 1; await Cargar(); }
+    private async Task Buscar() { filtro = busqueda.Trim(); await Reiniciar(); }
+    private async Task Ordenar(string valor) { orden = valor; await Reiniciar(); }
+    private async Task Limpiar() { filtro = busqueda = ""; estado = "todos"; await Reiniciar(); }
+    private async Task Leido(string valor) { codigo = valor; await Verificar(); }
+    private async Task VerPedido(string token) { codigo = token; await Verificar(); }
+    private async Task Verificar() { if (ocupado || !Pedidos.EsPersonal) return; ocupado = true; error = aviso = ""; try { await Pedidos.InicializarAsync(); if (Pedidos.ErrorCarga != null) throw new InvalidOperationException(Pedidos.ErrorCarga); seleccionado = await Pedidos.Verificar(Uri.TryCreate(codigo, UriKind.Absolute, out var enlace) ? enlace.AbsolutePath.TrimEnd('/').Split('/').Last() : codigo.Trim()); confirmado = false; medioPago = "Efectivo"; if (seleccionado == null) error = "No encontramos un pedido válido con ese QR o código de retiro."; } catch { error = "No pudimos verificar el pedido. Recarga e inténtalo de nuevo."; } finally { ocupado = false; } }
+    private Task Cerrar() => dialogo?.CerrarDialogo() ?? Task.CompletedTask;
+    private void CerrarDetalle() { seleccionado = null; confirmado = false; error = ""; }
+    private int etapaPago;
+    private async Task Entregar() { if (ocupado || !confirmado || seleccionado == null) return; ocupado = true; error = ""; var token = seleccionado.Token; try { etapaPago=1; StateHasChanged(); await Task.Delay(1500); etapaPago=2; StateHasChanged(); await Task.WhenAll(Pedidos.EntregarAsync(token, medioPago),Task.Delay(1500)); etapaPago=3; StateHasChanged(); await Task.Delay(1500); aviso = "Pago registrado y pedido entregado. Este QR ya no puede reutilizarse."; pagina = 1; await Cerrar(); } catch (ArgumentException ex) { error = ex.Message; seleccionado = Pedidos.ObtenerPorToken(token); confirmado = false; } catch (InvalidOperationException ex) { error = ex.Message; seleccionado = Pedidos.ObtenerPorToken(token); confirmado = false; } catch { error = "No pudimos registrar la entrega. Revisa el estado antes de volver a intentarlo."; confirmado = false; } finally { ocupado = false; etapaPago=0; } }
+}
+

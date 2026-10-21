@@ -1,0 +1,93 @@
+@namespace CineSpace.Client.Components.Cinema
+@using CineSpace.Client.Components.Shared
+@using System.Globalization
+@inject SalaService Salas
+@inject CatalogosService Catalogos
+@inject FuncionesService Cartelera
+
+<article class="movie-booking" aria-labelledby="booking-film-title">
+    <div class="film-backdrop"><img src="@PeliculaService.UrlImagen(Pelicula.ImagenPanoramicaUrl,"w1280")" style="@($"object-position:50% {Pelicula.FocoPanoramicaVertical}%")" alt="" onerror="this.onerror=null;this.src='images/poster-placeholder.svg';" /></div>
+    <header class="film-identity">
+        <img class="film-poster" src="@PeliculaService.UrlImagen(Pelicula.ImagenUrl)" alt="Póster de @Pelicula.Titulo" onerror="this.onerror=null;this.src='images/poster-placeholder.svg';" />
+        <div><p class="film-eyebrow">@(Funciones.Count > 0 && Funciones.All(f => f.EnPreventa) ? "Preventa" : "En cartelera")</p><h1 id="booking-film-title" tabindex="-1">@Pelicula.Titulo</h1><p class="film-duration">@Pelicula.DuracionMinutos min · @FormatosTexto</p></div>
+        <button type="button" class="btn btn-secondary film-trailer" disabled="@(Trailer.Length == 0)" @onclick="() => trailerAbierto = true"><i class="fas fa-play" aria-hidden="true"></i>@(Trailer.Length == 0 ? "Tráiler no disponible" : "Ver tráiler")</button>
+    </header>
+    <div class="film-booking-layout">
+        <section class="film-information" aria-labelledby="booking-about-title"><h2 id="booking-about-title">Sobre la película</h2><p class="film-synopsis">@(string.IsNullOrWhiteSpace(Pelicula.Sinopsis) ? "La sinopsis aún no está disponible." : Pelicula.Sinopsis)</p>
+            <div class="film-genres" aria-label="Géneros">@foreach(var genero in Pelicula.ListaGeneros){<span>@genero</span>}</div>
+            <dl><div><dt>Formatos</dt><dd><ul class="film-format-list">@foreach(var formato in Funciones.Select(f => f.ExperienciaId).Distinct()){<li>@Salas.NombreExperiencia(formato)</li>}</ul></dd></div><div><dt>Duración</dt><dd>@Pelicula.DuracionMinutos minutos</dd></div><div><dt>Fecha de estreno</dt><dd>@(Pelicula.FechaEstreno?.ToString("dd MMM yyyy", Espanol) ?? "Por confirmar")</dd></div><div><dt>Distribuidora</dt><dd>@Catalogos.DistribuidoraNombre(Pelicula.DistribuidoraId)</dd></div></dl>
+        </section>
+        <section class="film-screenings" aria-labelledby="booking-screenings-title">
+            <h2 id="booking-screenings-title">Elige tu función</h2>
+            @if (fechasDisponibles.Count > 0)
+            {
+                <div class="screening-dates" style="@($"--screening-date-count:{fechasDisponibles.Count}")" role="group" aria-label="Fecha de la función">
+                    @foreach (var dia in fechasDisponibles)
+                    {
+                        <button type="button" class="@(fecha == dia ? "is-selected" : "")" data-date="@dia.ToString("yyyy-MM-dd")" aria-pressed="@(fecha == dia ? "true" : "false")" @onclick="() => CambiarFecha(dia)">@NombreDia(dia)<small>@dia.ToString("dd MMM",Espanol)</small></button>
+                    }
+                </div>
+                <p class="screenings-date-label" role="status">@fecha.ToString("dddd dd 'de' MMMM", Espanol)</p>
+            }
+            else
+            {
+                <div class="screenings-empty" role="status"><i class="fas fa-calendar-xmark" aria-hidden="true"></i><strong>No hay funciones disponibles.</strong><p>Consulta la cartelera para elegir otra película.</p></div>
+            }
+            @foreach (var grupo in DelDia.GroupBy(f => f.ExperienciaId))
+            {
+                <section class="screening-format" aria-label="Funciones @Salas.NombreExperiencia(grupo.Key)"><div class="screening-format-heading"><h3>@Salas.NombreExperiencia(grupo.Key)</h3></div>
+                    @foreach (var funcionesSala in grupo.GroupBy(f => f.NumeroSala))
+                    {
+                        var sala = Salas.ObtenerSala(funcionesSala.Key);
+                        <div class="screening-room"><p class="screening-room-label">@sala.Nombre<span>@sala.PrecioFinal.ToString("N2") Bs por ticket</span></p><div class="screening-slots">
+                        @foreach(var funcion in funcionesSala)
+                        {
+                            var libres = Cartelera.ButacasDisponibles(funcion.Id);
+                            <button type="button" class="screening-slot @(Seleccionada == funcion.Id ? "is-selected" : "")" data-function="@funcion.Id" aria-pressed="@(Seleccionada == funcion.Id ? "true" : "false")" disabled="@(libres == 0)" title="@(libres == 0 ? "Función agotada" : $"{sala.Nombre} · {sala.PrecioFinal:N2} Bs{(funcion.EnPreventa ? " · Preventa" : "")}")" aria-label="@($"{funcion.Inicio:HH:mm}, {sala.Nombre}, {Salas.NombreExperiencia(grupo.Key)}, {(libres == 0 ? "agotada" : sala.PrecioFinal.ToString("N2") + " Bs")}")" @onclick="() => OnSeleccionar.InvokeAsync(funcion)"><strong>@funcion.Inicio.ToString("HH:mm")</strong></button>
+                        }
+                        </div></div>
+                    }
+                </section>
+            }
+            <div class="screening-confirmation"><p role="status">@if(Elegida != null){<strong>@Elegida.Inicio.ToString("HH:mm") · @Salas.ObtenerNombreSala(Elegida.NumeroSala)</strong><span>@Salas.NombreExperiencia(Elegida.ExperienciaId) · @Elegida.Inicio.ToString("dd/MM/yyyy")</span>}else{<span>Selecciona un horario para reservar tus tickets.</span>}</p><button type="button" class="btn btn-primary" disabled="@(Elegida == null || Cartelera.ButacasDisponibles(Elegida.Id) == 0)" @onclick="OnContinuar">Reservar entradas<i class="fas fa-arrow-right" aria-hidden="true"></i></button></div>
+        </section>
+    </div>
+    <div class="booking-actions"><button type="button" class="btn btn-secondary" @onclick="OnVolver"><i class="fas fa-arrow-left" aria-hidden="true"></i>Volver a cartelera</button></div>
+</article>
+@if(trailerAbierto)
+{
+    <TrailerPlayer Titulo="@Pelicula.Titulo" Url="@Trailer" OnClose="() => trailerAbierto = false" />
+}
+@code {
+    [Parameter,EditorRequired] public Pelicula Pelicula {get;set;} = new();
+    [Parameter] public IReadOnlyList<FuncionCine> Funciones {get;set;} = Array.Empty<FuncionCine>();
+    [Parameter] public string? Seleccionada {get;set;}
+    [Parameter] public EventCallback<FuncionCine?> OnSeleccionar {get;set;}
+    [Parameter] public EventCallback OnContinuar {get;set;}
+    [Parameter] public EventCallback OnVolver {get;set;}
+    private static readonly CultureInfo Espanol = CultureInfo.GetCultureInfo("es-ES");
+    private DateTime fecha; private int origen; private bool trailerAbierto;
+    private List<DateTime> fechasDisponibles = new();
+    private List<FuncionCine> DelDia => fechasDisponibles.Contains(fecha) ? Funciones.Where(f => f.Inicio.Date == fecha && f.Inicio > DateTime.Now && Cartelera.Obtener(f.Id) != null).OrderBy(f => f.Inicio).ThenBy(f => f.NumeroSala).ToList() : new();
+    private FuncionCine? Elegida => DelDia.FirstOrDefault(f => f.Id == Seleccionada);
+    private string FormatosTexto => string.Join(" · ", Funciones.Select(f => f.ExperienciaId).Distinct().Select(Salas.NombreExperiencia));
+    protected override void OnParametersSet()
+    {
+        fechasDisponibles = Funciones.OrderBy(f => f.Inicio).Where(f => f.Inicio > DateTime.Now && Cartelera.ButacasDisponibles(f.Id) > 0).Select(f => f.Inicio.Date).Distinct().Take(3).ToList();
+        var mismaPelicula = origen == Pelicula.Id;
+        origen = Pelicula.Id;
+        var elegida = Funciones.FirstOrDefault(f => f.Id == Seleccionada);
+        if (mismaPelicula && fechasDisponibles.Contains(fecha)) return;
+        fecha = elegida != null && fechasDisponibles.Contains(elegida.Inicio.Date) ? elegida.Inicio.Date : fechasDisponibles.FirstOrDefault();
+    }
+    private async Task CambiarFecha(DateTime nueva) { if(fecha == nueva.Date || !fechasDisponibles.Contains(nueva.Date))return;fecha = nueva.Date;await OnSeleccionar.InvokeAsync(null); }
+    private static string NombreDia(DateTime dia) => dia == DateTime.Today ? "Hoy" : dia == DateTime.Today.AddDays(1) ? "Mañana" : dia.ToString("ddd",Espanol);
+    private string Trailer
+    {
+        get {
+            if(!Uri.TryCreate(Pelicula.TrailerUrl,UriKind.Absolute,out var u) || u.Scheme is not ("https" or "http"))return "";
+            var id = u.Host is "youtu.be" or "www.youtu.be" ? u.AbsolutePath.Trim('/') : u.Host is "youtube.com" or "www.youtube.com" or "www.youtube-nocookie.com" ? u.AbsolutePath.StartsWith("/embed/") ? u.AbsolutePath[7..] : u.Query.TrimStart('?').Split('&').FirstOrDefault(s => s.StartsWith("v="))?[2..] : null;
+            return id != null && System.Text.RegularExpressions.Regex.IsMatch(id,@"^[a-zA-Z0-9_-]{11}$") ? $"https://www.youtube-nocookie.com/embed/{id}?rel=0" : "";
+        }
+    }
+}

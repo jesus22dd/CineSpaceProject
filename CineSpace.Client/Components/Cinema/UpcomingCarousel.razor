@@ -1,0 +1,42 @@
+@namespace CineSpace.Client.Components.Cinema
+@using CineSpace.Shared.Models
+@implements IDisposable
+@inject PeliculaService PeliculaService
+
+<MovieStripCarousel Id="upcoming-title" Titulo="Próximos estrenos" Total="estrenos.Count" Cargando="cargando" Nota="Fechas anunciadas">
+    <Tarjetas>
+        @foreach (var estreno in estrenos)
+        {
+            <UpcomingMovieCard @key="estreno.Id" Estreno="estreno" />
+        }
+    </Tarjetas>
+    <Estado>
+        @if (cargando)
+        {
+            <p class="upcoming-state" role="status">Cargando los próximos estrenos…</p>
+        }
+        else if (error)
+        {
+            <div class="alert alert-danger" role="alert"><p><i class="fas fa-circle-exclamation me-2" aria-hidden="true"></i>No pudimos cargar los próximos estrenos.</p><button type="button" class="btn btn-secondary" @onclick="CargarEstrenos">Reintentar</button></div>
+        }
+        else
+        {
+            <p class="upcoming-state">Aún no hay estrenos anunciados. Vuelve pronto para descubrir lo que viene.</p>
+        }
+    </Estado>
+</MovieStripCarousel>
+
+@code {
+    private List<ProximoEstreno> estrenos = new();
+    private bool cargando = true, error, disposed;
+    protected override Task OnInitializedAsync() => CargarEstrenos();
+    private async Task CargarEstrenos()
+    {
+        cargando = true;
+        error = false;
+        try { var resultado = await PeliculaService.ObtenerProximosEstrenos(); if (!disposed) estrenos = resultado; }
+        catch { if (!disposed) error = true; }
+        finally { if (!disposed) cargando = false; }
+    }
+    public void Dispose() => disposed = true;
+}

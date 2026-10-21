@@ -1,0 +1,23 @@
+{
+  "checks": [
+    "Six ratings per page 1440",
+    "Collapsed rating cards have a fixed equal height 1440",
+    "Long rating grows only after Ver más 1440",
+    "Rating sort requests the server 1440",
+    "Ratings pagination is enabled 1440",
+    "Six purchases per page 1440",
+    "Six ratings per page 390",
+    "Collapsed rating cards have a fixed equal height 390",
+    "Long rating grows only after Ver más 390",
+    "Rating sort requests the server 390",
+    "Ratings pagination is enabled 390",
+    "Six purchases per page 390",
+    "Guest can confirm and download a private pickup QR",
+    "Guest order survives a reload",
+    "Both account management tabs support oldest sorting",
+    "Staff reads ticket QR image and records admission",
+    "Used ticket is visibly blocked from another admission",
+    "Staff reads pickup QR image and registers cash delivery"
+  ],
+  "errors": []
+}

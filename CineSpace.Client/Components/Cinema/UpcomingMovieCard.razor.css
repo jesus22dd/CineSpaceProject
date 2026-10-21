@@ -1,0 +1,10 @@
+.upcoming-detail-summary { display: grid; grid-template-columns: 104px minmax(0, 1fr); align-items: center; gap: 20px; }
+.upcoming-detail-summary img { display: block; width: 104px; height: 156px; border-radius: 6px; object-fit: cover; }
+.upcoming-detail-summary dl { margin: 0; }
+.upcoming-detail-summary dt { margin-bottom: 4px; color: var(--cinema-muted); font-size: 12px; font-weight: 500; }
+.upcoming-detail-summary dd { margin: 0 0 16px; color: var(--cinema-ink); font-size: 14px; font-weight: 600; }
+.upcoming-detail-summary dd:last-child { margin-bottom: 0; }
+.upcoming-detail-synopsis { margin-top: 20px; }
+.upcoming-detail-synopsis h3 { margin: 0 0 8px; font-size: 18px; }
+.upcoming-detail-synopsis p { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
+@media (max-width: 380px) { .upcoming-detail-summary { grid-template-columns: 84px minmax(0, 1fr); gap: 16px; } .upcoming-detail-summary img { width: 84px; height: 126px; } }

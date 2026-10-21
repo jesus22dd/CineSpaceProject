@@ -1,0 +1,79 @@
+@using CineSpace.Shared.Models
+@using CineSpace.Client.Components.Shared
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<section class="movie-schedule-editor" aria-label="Programación de funciones" @ref="elemento">
+    <h3>Programación de funciones</h3>
+    <div class="schedule-settings">
+        <button type="button" class="schedule-setting" data-time-field="start" aria-label="Configurar primera función" @onclick='() => Abrir("start")'><i class="far fa-clock schedule-setting-icon" aria-hidden="true"></i><span><small>Primera función</small><strong>@plan.HoraInicio</strong></span><i class="fas fa-pen" aria-hidden="true"></i></button>
+        <button type="button" class="schedule-setting" data-time-field="movie" aria-label="Configurar duración de película" @onclick='() => Abrir("movie")'><i class="fas fa-film schedule-setting-icon" aria-hidden="true"></i><span><small>Duración</small><strong>@ProgramacionFunciones.Duracion(plan.DuracionMinutos)</strong></span><i class="fas fa-pen" aria-hidden="true"></i></button>
+        <button type="button" class="schedule-setting" data-time-field="cleaning" aria-label="Configurar tiempo de limpieza" @onclick='() => Abrir("cleaning")'><i class="fas fa-broom schedule-setting-icon" aria-hidden="true"></i><span><small>Limpieza</small><strong>@ProgramacionFunciones.Duracion(plan.LimpiezaMinutos)</strong></span><i class="fas fa-pen" aria-hidden="true"></i></button>
+    </div>
+    <p class="schedule-cycle"><i class="fas fa-arrow-right" aria-hidden="true"></i>Una función cada <strong>@ProgramacionFunciones.Duracion(plan.DuracionMinutos + plan.LimpiezaMinutos)</strong>, contando película y limpieza.</p>
+    @if (!plan.Configurada && anteriores.Count > 0) { <p class="schedule-preserved">Tus horarios actuales se conservan. Cambia los tiempos para recalcular las sugerencias.</p> }
+    @if (recalculado) { <p class="schedule-preserved" role="status">Horarios recalculados. Revisa cuáles quieres habilitar.</p> }
+    <div class="schedule-options-heading"><h4>Horarios sugeridos</h4><div><button type="button" @onclick="SeleccionarTodos">Marcar todos</button><button type="button" @onclick="QuitarTodos" disabled="@(plan.Horarios.Count == 0)">Limpiar</button></div></div>
+    <div class="function-options" role="group" aria-label="Seleccionar funciones">
+        @foreach (var funcion in Opciones)
+        {
+            var horario = funcion.HoraInicio; var marcado = plan.Horarios.Contains(horario);
+            <label class="function-option @(marcado ? "is-selected" : "")">
+                <input class="form-check-input" type="checkbox" checked="@marcado" aria-label="Habilitar función @horario" @onchange="e => CambiarHorario(horario, e.Value is true)" />
+                <span><strong>@horario</strong><small>Fin @funcion.HoraFin</small><small>Sala lista @funcion.HoraSalaLista</small></span>
+                @if (anteriores.Contains(horario) && !sugeridos.Any(f => f.HoraInicio == horario)) { <em>Actual</em> }
+            </label>
+        }
+    </div>
+    <div class="schedule-footnote"><p role="status">@plan.Horarios.Count @(plan.Horarios.Count == 1 ? "función seleccionada" : "funciones seleccionadas")</p><p>Último inicio antes de medianoche. El final puede ser al día siguiente.</p></div>
+    @if (!string.IsNullOrEmpty(ErrorSeleccion)) { <div class="alert alert-danger schedule-validation" role="alert">@ErrorSeleccion</div> }
+</section>
+@if (campo != null)
+{
+    var elegido = campo;
+    <ScheduleTimePicker @key="elegido" Titulo="@(elegido == "start" ? "Primera función" : elegido == "movie" ? "Duración de la película" : "Tiempo de limpieza")" Valor="@ValorCampo(elegido)" EsHora="@(elegido == "start")" Minimo="@(elegido == "movie" ? 1 : 0)" Maximo="@(elegido == "start" ? 1439 : elegido == "movie" ? 720 : 360)" OnAplicar="valor => AplicarCampo(elegido, valor)" OnCerrar="CerrarReloj" />
+}
+
+@code {
+    [Parameter, EditorRequired] public ProgramacionFunciones Valor { get; set; } = new();
+    [Parameter] public EventCallback<ProgramacionFunciones> OnCambio { get; set; }
+    private ProgramacionFunciones plan = new();
+    private ProgramacionFunciones? origen;
+    private List<FuncionSugerida> sugeridos = new();
+    private HashSet<string> anteriores = new();
+    private bool recalculado;
+    private string? campo, restaurarCampo;
+    private ElementReference elemento;
+    private IJSObjectReference? modulo;
+    private IEnumerable<FuncionSugerida> Opciones => sugeridos.Concat(anteriores.Where(h => !sugeridos.Any(f => f.HoraInicio == h)).Select(h => { ProgramacionFunciones.LeerHora(h, out var m); return new FuncionSugerida(m, m + plan.DuracionMinutos, m + plan.DuracionMinutos + plan.LimpiezaMinutos); })).OrderBy(f => f.Inicio);
+    private string ErrorSeleccion { get { if (!plan.Configurada || plan.Horarios.Count == 0) return string.Empty; try { plan.ValidarSeleccion(); return string.Empty; } catch (ArgumentException ex) { return ex.Message; } } }
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(origen, Valor)) return;
+        origen = Valor; plan = Valor.Copiar(); sugeridos = plan.Sugerencias();
+        if (!plan.Configurada) anteriores = plan.Horarios.Where(h => ProgramacionFunciones.LeerHora(h, out _)).ToHashSet();
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (restaurarCampo == null) return;
+        modulo ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/time-picker.js");
+        var control = restaurarCampo; restaurarCampo = null;
+        await modulo.InvokeVoidAsync("restoreScheduleFocus", elemento, control);
+    }
+    private int ValorCampo(string campo) { if (campo == "start") { ProgramacionFunciones.LeerHora(plan.HoraInicio, out var minutos); return minutos; } return campo == "movie" ? plan.DuracionMinutos : plan.LimpiezaMinutos; }
+    private void Abrir(string elegido) => campo = elegido;
+    private void CerrarReloj() { restaurarCampo = campo; campo = null; }
+    private async Task AplicarCampo(string elegido, int valor)
+    {
+        if (elegido == "start") plan.HoraInicio = ProgramacionFunciones.Hora(valor);
+        else if (elegido == "movie") plan.DuracionMinutos = valor;
+        else plan.LimpiezaMinutos = valor;
+        plan.Configurada = true; sugeridos = plan.Sugerencias(); anteriores.Clear();
+        var validos = sugeridos.Select(f => f.HoraInicio).ToHashSet(); plan.Horarios = plan.Horarios.Where(validos.Contains).ToList();
+        recalculado = true; await OnCambio.InvokeAsync(plan.Copiar());
+    }
+    private async Task CambiarHorario(string horario, bool marcado) { plan.Configurada = true; if (marcado) { if (!plan.Horarios.Contains(horario)) plan.Horarios.Add(horario); } else plan.Horarios.Remove(horario); await OnCambio.InvokeAsync(plan.Copiar()); }
+    private async Task SeleccionarTodos() { plan.Configurada = true; anteriores.Clear(); plan.Horarios = sugeridos.Select(f => f.HoraInicio).ToList(); await OnCambio.InvokeAsync(plan.Copiar()); }
+    private async Task QuitarTodos() { plan.Configurada = true; plan.Horarios.Clear(); await OnCambio.InvokeAsync(plan.Copiar()); }
+    public async ValueTask DisposeAsync() { if (modulo != null) { try { await modulo.DisposeAsync(); } catch (JSDisconnectedException) { } } }
+}

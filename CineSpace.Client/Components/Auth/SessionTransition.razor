@@ -1,0 +1,37 @@
+@namespace CineSpace.Client.Components.Auth
+@inject SessionTransitionService Transicion
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<dialog class="session-notice" aria-labelledby="session-notice-title" tabindex="-1" @ref="element">
+    <div class="session-notice-content" role="status" aria-live="polite" aria-atomic="true">
+        <span class="session-spinner" aria-hidden="true"></span>
+        <span id="session-notice-title">@Transicion.Mensaje</span>
+    </div>
+</dialog>
+
+@code {
+    private ElementReference element;
+    private IJSObjectReference? module;
+    private int? dialogId;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/auth-dialog.js");
+        dialogId = await module.InvokeAsync<int>("openAuthDialog", element, null, new { dismissible = false });
+        Transicion.NotificarVisible();
+    }
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (module != null)
+            {
+                if (dialogId.HasValue) await module.InvokeVoidAsync("closeAuthDialog", dialogId.Value);
+                await module.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException) { }
+        finally { Transicion.NotificarCerrado(); }
+    }
+}

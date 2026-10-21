@@ -1,0 +1,9 @@
+.movie-genres { min-width: 0; margin: 0; padding: 0; border: 0; }
+.movie-genres legend { float: none; width: auto; margin: 0 0 8px; color: var(--cinema-heading); font-size: 14px; line-height: 1.5; font-weight: 600; }
+.genre-rows { display: grid; gap: 8px; }
+.genre-selected { display: flex; min-width: 0; }
+.genre-selected .form-control { flex: 1; min-width: 0; border-radius: 6px 0 0 6px; color: var(--cinema-heading); font-weight: 500; }
+.genre-selected .genre-remove { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: 0 0 80px; min-height: 44px; padding: 8px; border-radius: 0 6px 6px 0; }
+.movie-genres ::deep .genre-add { min-width: 80px; min-height: 44px; padding: 8px 12px; font-size: 14px; border-left: 1px solid var(--cinema-line); }
+.genre-help { margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: var(--cinema-muted); }
+.genre-error { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: var(--cinema-link); font-weight: 600; }

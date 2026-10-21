@@ -1,0 +1,28 @@
+@namespace CineSpace.Client.Components.Cinema
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<dialog class="payment-progress" aria-labelledby="payment-progress-title" @ref="dialogo" tabindex="-1">
+    <span class="session-spinner" aria-hidden="true"></span>
+    <div role="status" aria-live="polite" aria-atomic="true"><h2 id="payment-progress-title">@Mensaje</h2></div>
+</dialog>
+
+@code {
+    [Parameter] public int Etapa { get; set; }
+    private string Mensaje => Etapa switch { 1 => "Enviando pago…", 2 => "Confirmando pago…", _ => "Pago confirmado" };
+    private ElementReference dialogo;
+    private IJSObjectReference? modulo;
+    private int? dialogId;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/payment-progress.js");
+        dialogId = await modulo.InvokeAsync<int>("open", dialogo);
+    }
+    public async ValueTask DisposeAsync()
+    {
+        if (modulo == null) return;
+        try { if (dialogId.HasValue) await modulo.InvokeVoidAsync("close", dialogId.Value); await modulo.DisposeAsync(); }
+        catch (JSDisconnectedException) { }
+    }
+}

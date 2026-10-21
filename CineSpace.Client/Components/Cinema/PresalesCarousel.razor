@@ -1,0 +1,20 @@
+@namespace CineSpace.Client.Components.Cinema
+@using CineSpace.Shared.Models
+@inject PeliculaService Catalogo
+
+<MovieStripCarousel Id="presales-title" Titulo="Preventas disponibles" Clase="presales-section" Total="preventas.Count" Nota="Reserva tu próxima función">
+    <Tarjetas>
+        @foreach (var pelicula in preventas)
+        {
+            <MovieCard @key="pelicula.Id" Pelicula="pelicula" SoloReserva="true" Clase="upcoming-card" OnReservar="OnReservar" />
+        }
+    </Tarjetas>
+    <Estado><div class="alert alert-info" role="status">Aún no hay preventas disponibles. Consulta los próximos estrenos para descubrir lo que viene.</div></Estado>
+</MovieStripCarousel>
+
+@code {
+    [Parameter] public List<Pelicula> Peliculas { get; set; } = new();
+    [Parameter] public EventCallback<Pelicula> OnReservar { get; set; }
+    private List<Pelicula> preventas = new();
+    protected override async Task OnInitializedAsync() => preventas = (await Catalogo.ConsultarAsync(new() { Estado = "preventa", Tamano = 8 })).Items;
+}

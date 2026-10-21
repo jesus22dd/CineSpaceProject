@@ -1,0 +1,46 @@
+@page "/confiteria/pedido/{Token}"
+@using CineSpace.Client.Components.Shared
+@inject PedidosConfiteriaService Pedidos
+@inject QRService QR
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Tu pedido de confitería - CineSpace</PageTitle>
+<section class="order-page">
+    <a class="order-back" href="/confiteria/pedidos"><i class="fas fa-arrow-left" aria-hidden="true"></i>Mis pedidos</a>
+    @if (pedido == null) { <div class="order-empty"><i class="fas fa-circle-info" aria-hidden="true"></i><h1>No encontramos este pedido</h1><p>Comprueba el enlace o vuelve a tu historial de pedidos.</p><a class="btn btn-primary" href="/confiteria/pedidos">Ver mis pedidos</a></div> }
+    else
+    {
+        <div class="order-page-heading"><div><h1>@(pedido.Estado == EstadoPedidoConfiteria.Pendiente ? "Tu pedido está confirmado" : pedido.Estado == EstadoPedidoConfiteria.Retirado ? "Pedido retirado" : "Pedido cancelado")</h1><p>@(pedido.Estado == EstadoPedidoConfiteria.Pendiente ? "Presenta este QR en confitería para pagar y recoger tus productos." : pedido.Estado == EstadoPedidoConfiteria.Retirado ? "El retiro y el pago ya están registrados." : "Este pedido ya no puede retirarse.")</p></div><span class="order-status @pedido.Estado.ToString().ToLowerInvariant()">@PedidosConfiteriaService.EstadoNombre(pedido.Estado)</span></div>
+        @if (!string.IsNullOrEmpty(error) || Pedidos.ErrorCarga != null) { <div class="alert alert-danger" role="alert">@(Pedidos.ErrorCarga ?? error)</div> }
+        <div class="order-receipt-layout">
+            <div class="order-pickup-panel">
+                @if (pedido.Estado == EstadoPedidoConfiteria.Pendiente)
+                {
+                    <div class="order-qr"><img src="@QR.ObtenerUrlImagenQR(qr)" alt="QR de retiro del pedido @pedido.Numero" /></div><h2>Tu código de retiro</h2><strong class="order-pickup-code">@pedido.CodigoRetiro</strong><p>Si no puedes mostrar el QR, indica este código al personal.</p><button type="button" class="btn btn-secondary" @onclick="Descargar"><i class="fas fa-download" aria-hidden="true"></i>Descargar QR</button>
+                }
+                else { <div class="order-closed-icon"><i class="fas @(pedido.Estado == EstadoPedidoConfiteria.Retirado ? "fa-circle-check" : "fa-circle-xmark")" aria-hidden="true"></i></div><h2>@PedidosConfiteriaService.EstadoNombre(pedido.Estado)</h2><p>Este QR ya no está habilitado para retirar productos.</p> }
+            </div>
+            <div class="order-receipt-copy"><h2>Detalle del pedido</h2><dl class="order-metadata"><div><dt>Pedido</dt><dd>@pedido.Numero</dd></div><div><dt>Retira</dt><dd>@pedido.NombreRetiro</dd></div><div><dt>Creado</dt><dd>@pedido.FechaCreacion.ToString("dd/MM/yyyy · HH:mm")</dd></div>@if (pedido.FechaRetiro != null) { <div><dt>Retirado</dt><dd>@pedido.FechaRetiro.Value.ToString("dd/MM/yyyy · HH:mm")</dd></div><div><dt>Pago</dt><dd>@pedido.MedioPago</dd></div> }</dl><ConfectionOrderLines Lineas="pedido.Lineas" /><div class="order-receipt-total"><span>@(pedido.Estado == EstadoPedidoConfiteria.Pendiente ? "Total a pagar en caja" : "Total del pedido")</span><strong>@pedido.Total.ToString("N2") <small>Bs</small></strong></div><div class="order-receipt-actions"><a class="btn btn-primary" href="/confiteria">Volver a confitería</a>@if (pedido.Estado == EstadoPedidoConfiteria.Pendiente) { <button type="button" class="order-cancel" @onclick="() => cancelar = true">Cancelar pedido</button> }@if (Pedidos.EsPersonal) { <a class="btn btn-secondary" href="@($"/admin/pedidos-confiteria?codigo={pedido.Token}")"><i class="fas fa-qrcode" aria-hidden="true"></i>Verificar en caja</a> }</div></div>
+        </div>
+    }
+</section>
+@if (cancelar && pedido != null)
+{
+    <AppDialog Title="¿Cancelar este pedido?" OnClose="() => cancelar = false" @ref="dialogo"><ChildContent><p>Se cancelará <strong>@pedido.Numero</strong>. Su QR dejará de servir para retirar productos. No hay un pago registrado para este pedido.</p>@if (!string.IsNullOrEmpty(error)) { <div class="alert alert-danger" role="alert">@error</div> }</ChildContent><Footer><button type="button" class="btn btn-secondary" disabled="@ocupado" @onclick="Cerrar">Mantener pedido</button><button type="button" class="btn btn-danger" disabled="@ocupado" @onclick="CancelarPedido">Cancelar pedido</button></Footer></AppDialog>
+}
+@code {
+    [Parameter] public string Token { get; set; } = "";
+    private PedidoConfiteria? pedido;
+    private string qr = "", tokenQr = "", error = "";
+    private bool cancelar, ocupado;
+    private AppDialog? dialogo;
+    protected override void OnInitialized() => Pedidos.Changed += Actualizado;
+    protected override Task OnParametersSetAsync() => Leer();
+    private async Task Leer() { try { pedido = await Pedidos.ObtenerAsync(Token); } catch (Exception ex) { pedido = null; error = ex.Message; } if (pedido != null && tokenQr != pedido.Token) { tokenQr = pedido.Token; qr = QR.GenerarQRRetiro(Navigation.ToAbsoluteUri($"confiteria/pedido/{pedido.Token}").ToString()); } }
+    private void Actualizado() => _ = InvokeAsync(async () => { await Leer(); StateHasChanged(); });
+    public void Dispose() => Pedidos.Changed -= Actualizado;
+    private Task Cerrar() => dialogo?.CerrarDialogo() ?? Task.CompletedTask;
+    private async Task Descargar() { try { await QR.DescargarQRAsync(qr, $"QR-{pedido!.Numero}.png"); } catch { error = "No pudimos descargar el QR. Inténtalo de nuevo."; } }
+    private async Task CancelarPedido() { if (ocupado || pedido == null) return; ocupado = true; error = ""; try { await Pedidos.CancelarAsync(pedido.Token); await Cerrar(); } catch (ArgumentException ex) { error = ex.Message; } catch (InvalidOperationException ex) { error = ex.Message; } catch { error = "No pudimos cancelar el pedido. Inténtalo de nuevo."; } finally { ocupado = false; } }
+}

@@ -1,0 +1,120 @@
+@namespace CineSpace.Client.Components.Reviews
+@using CineSpace.Client.Components.Admin
+@using CineSpace.Client.Components.Cinema
+@using CineSpace.Client.Components.Shared
+
+<section class="reviews-list" aria-label="Lista de reseñas">
+    <div class="reviews-toolbar">
+        <h2>Lista de reseñas (@TotalItems)</h2>
+        <div class="reviews-view-controls">
+            <ViewToggle Etiqueta="Vista de reseñas" Valor="@vista" ValorChanged="valor => vista = valor" />
+            <button type="button" class="btn @(soloDestacadas ? "btn-primary" : "btn-secondary")" aria-pressed="@(soloDestacadas ? "true" : "false")" @onclick="ToggleFiltro"><i class="fas fa-star" aria-hidden="true"></i>@(soloDestacadas ? "Mostrar todas" : "Solo destacadas")</button>
+        </div>
+    </div>
+    @if (Filtradas.Count == 0)
+    {
+        <div class="reviews-empty" role="status"><i class="fas fa-circle-info" aria-hidden="true"></i>No encontramos reseñas con estos filtros.</div>
+    }
+    else if (vista == "Tarjetas")
+    {
+        <div class="review-cards">
+            @foreach (var c in Paginadas) { <ReviewCard @key="c" Resena="c" Destacada="CalificacionesDestacadas.Contains(c)" OnDestacar="SolicitarDestacar" OnDetalles="VerDetalles" OnEliminar="SolicitarEliminar" /> }
+        </div>
+    }
+    else
+    {
+        <div class="reviews-table-scroll"><table class="reviews-table">
+            <thead><tr>
+                <th scope="col" aria-sort="@(Direccion("Pelicula"))"><button type="button" class="review-sort" @onclick="@(() => Ordenar("Pelicula"))">Película<i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                <th scope="col" aria-sort="@(Direccion("Usuario"))"><button type="button" class="review-sort" @onclick="@(() => Ordenar("Usuario"))">Usuario<i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                <th scope="col" aria-sort="@(Direccion("Calificacion"))"><button type="button" class="review-sort" @onclick="@(() => Ordenar("Calificacion"))">Calificación<i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                <th scope="col" aria-sort="@(Direccion("Fecha"))"><button type="button" class="review-sort" @onclick="@(() => Ordenar("Fecha"))">Fecha<i class="fas fa-sort" aria-hidden="true"></i></button></th>
+                <th scope="col">Comentario</th><th scope="col">Acciones</th>
+            </tr></thead><tbody>
+            @foreach (var c in Paginadas)
+            {
+                <tr @key="c"><td><strong class="review-table-movie">@c.NombrePelicula</strong>@if (CalificacionesDestacadas.Contains(c)) { <span class="review-table-featured">Destacada</span> }</td><td>@c.EmailUsuario</td><td><ReviewRating Value="c.Calificacion" /></td><td>@c.FechaCalificacion.ToString("dd/MM/yyyy")</td>
+                <td class="review-table-comment">@Comentario(c)@if (c.Comentario?.Length > 100) { <button type="button" class="review-expand" aria-expanded="@(expandidos.Contains(c) ? "true" : "false")" @onclick="() => ToggleComentario(c)">@(expandidos.Contains(c) ? "Ver menos" : "Ver más")</button> }</td>
+                <td><ReviewActions Resena="c" Destacada="CalificacionesDestacadas.Contains(c)" OnDestacar="SolicitarDestacar" OnDetalles="VerDetalles" OnEliminar="SolicitarEliminar" /></td></tr>
+            }
+            </tbody></table></div>
+    }
+    <Pagination CurrentPage="pagina" TotalPages="TotalPaginas" TotalItems="TotalItems" PageSize="porPagina" ShowPageSizeSelector="false" Label="Paginación de reseñas" OnPageChanged="CambiarPagina" />
+</section>
+
+@if (detalle != null)
+{
+    <AppDialog Title="Detalles de la reseña" Class="review-details-dialog" CloseLabel="Cerrar detalles de la reseña" OnClose="CerrarDetalles">
+        <ChildContent>
+            <div class="review-details">
+                <h3>@detalle.NombrePelicula</h3><ReviewRating Value="detalle.Calificacion" />
+                <dl class="review-metadata"><dt>Usuario</dt><dd>@detalle.EmailUsuario</dd><dt>Fecha</dt><dd>@detalle.FechaCalificacion.ToString("dd/MM/yyyy HH:mm")</dd></dl>
+                <h4>Comentario</h4><p class="review-detail-comment">@(string.IsNullOrWhiteSpace(detalle.Comentario) ? "Sin comentario." : detalle.Comentario)</p>
+                <div class="review-detail-feature"><span>@(CalificacionesDestacadas.Contains(detalle) ? "Reseña destacada" : "Sin destacar")</span><button type="button" class="btn btn-primary" @onclick="() => SolicitarDestacar(detalle)"><i class="fas fa-star" aria-hidden="true"></i>@(CalificacionesDestacadas.Contains(detalle) ? "Quitar destacado" : "Destacar reseña")</button></div>
+            </div>
+        </ChildContent>
+        <Footer><button type="button" class="btn btn-danger" @onclick="() => SolicitarEliminar(detalle)"><i class="fas fa-trash" aria-hidden="true"></i>Eliminar</button><button type="button" class="btn btn-primary" @onclick="CerrarDetalles">Cerrar</button></Footer>
+    </AppDialog>
+}
+@if (destacar != null)
+{
+    <AppDialog Title="@(quitarDestacado ? "¿Quitar el destacado?" : "¿Destacar esta reseña?")" Class="review-feature-dialog" CloseLabel="Cerrar confirmación de destacado" OnClose="CancelarDestacado">
+        <ChildContent><div class="review-confirmation"><span class="review-confirmation-symbol"><i class="fas fa-star" aria-hidden="true"></i></span><p>@(quitarDestacado ? "Esta reseña dejará de aparecer entre las destacadas." : "Esta reseña aparecerá entre las destacadas.")</p><strong>@destacar.NombrePelicula</strong><span>@destacar.EmailUsuario</span></div></ChildContent>
+        <Footer><button type="button" class="btn btn-secondary" data-dialog-autofocus @onclick="CancelarDestacado">Cancelar</button><button type="button" class="btn btn-primary" @onclick="ConfirmarDestacado">@(quitarDestacado ? "Quitar destacado" : "Destacar reseña")</button></Footer>
+    </AppDialog>
+}
+@if (eliminar != null)
+{
+    <AppDialog Title="¿Eliminar esta reseña?" Class="review-delete-dialog" CloseLabel="Cerrar confirmación de eliminación" OnClose="CancelarEliminar">
+        <ChildContent><div class="review-confirmation"><p>Se eliminará el comentario y su calificación.</p><strong>@eliminar.NombrePelicula</strong><span>@eliminar.EmailUsuario</span></div></ChildContent>
+        <Footer><button type="button" class="btn btn-secondary" data-dialog-autofocus @onclick="CancelarEliminar">Cancelar</button><button type="button" class="btn btn-primary" @onclick="ConfirmarEliminar">Eliminar reseña</button></Footer>
+    </AppDialog>
+}
+
+@code {
+    [Parameter] public List<CalificacionPelicula> Calificaciones { get; set; } = new();
+    [Parameter] public EventCallback<CalificacionPelicula> OnEliminar { get; set; }
+    [Parameter] public EventCallback<CalificacionPelicula> OnDestacar { get; set; }
+    [Parameter] public HashSet<CalificacionPelicula> CalificacionesDestacadas { get; set; } = new();
+    [Parameter] public int TotalItems { get; set; }
+    [Parameter] public EventCallback<ConsultaPagina> OnConsulta { get; set; }
+    [Parameter] public int ElementosPorPaginaInicial { get; set; } = 10;
+    private readonly HashSet<CalificacionPelicula> expandidos = new();
+    private string vista = "Tabla", orden = "Fecha";
+    private bool ascendente, soloDestacadas, quitarDestacado;
+    private int pagina = 1;
+    private CalificacionPelicula? detalle, destacar, eliminar;
+    private int porPagina => Math.Max(1, ElementosPorPaginaInicial);
+    private List<CalificacionPelicula> Filtradas => Calificaciones;
+    private int TotalPaginas => Math.Max(1,(int)Math.Ceiling(TotalItems/(double)porPagina));
+    private IEnumerable<CalificacionPelicula> Paginadas => Calificaciones;
+    private string Direccion(string campo) => orden == campo ? (ascendente ? "ascending" : "descending") : "none";
+    private Task Consultar() => OnConsulta.InvokeAsync(new() { Pagina = pagina, Tamano = porPagina, Campo = orden, Orden = ascendente ? "antiguas" : "recientes", Destacadas = soloDestacadas });
+    private async Task Ordenar(string campo) { ascendente = orden == campo ? !ascendente : true; orden = campo; pagina = 1; await Consultar(); }
+    private async Task CambiarPagina(int valor) { pagina = valor; await Consultar(); }
+    private async Task ToggleFiltro() { soloDestacadas = !soloDestacadas; pagina = 1; await Consultar(); }
+    private string Comentario(CalificacionPelicula c) => string.IsNullOrWhiteSpace(c.Comentario) ? "Sin comentario." : expandidos.Contains(c) || c.Comentario.Length <= 100 ? c.Comentario : c.Comentario[..100] + "…";
+    private void ToggleComentario(CalificacionPelicula c) { if (!expandidos.Add(c)) expandidos.Remove(c); }
+    private void VerDetalles(CalificacionPelicula c) => detalle = c;
+    private void CerrarDetalles() => detalle = null;
+    private void SolicitarDestacar(CalificacionPelicula c) { destacar = c; quitarDestacado = CalificacionesDestacadas.Contains(c); }
+    private void CancelarDestacado() => destacar = null;
+    private async Task ConfirmarDestacado()
+    {
+        if (destacar == null) return;
+        var c = destacar;
+        c.Destacada = !quitarDestacado;
+        destacar = null;
+        await OnDestacar.InvokeAsync(c);
+        pagina = Math.Clamp(pagina, 1, TotalPaginas);
+    }
+    private void SolicitarEliminar(CalificacionPelicula c) => eliminar = c;
+    private void CancelarEliminar() => eliminar = null;
+    private async Task ConfirmarEliminar()
+    {
+        if (eliminar == null) return;
+        var c = eliminar; eliminar = null; if (ReferenceEquals(detalle, c)) detalle = null;
+        await OnEliminar.InvokeAsync(c);
+        pagina = Math.Clamp(pagina, 1, TotalPaginas);
+    }
+}

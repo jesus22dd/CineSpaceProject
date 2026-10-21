@@ -1,0 +1,49 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<button type="button" class="location-trigger" popovertarget="cinema-location-panel" aria-label="Ubicación de CineSpace" title="Ubicación de CineSpace" aria-expanded="false" aria-controls="cinema-location-panel" @ref="trigger">
+    <i class="fas fa-location-dot" aria-hidden="true"></i>
+    <span class="location-name">CineSpace</span>
+    <i class="fas fa-chevron-down location-chevron" aria-hidden="true"></i>
+</button>
+<div id="cinema-location-panel" class="location-panel" popover="auto" role="region" aria-label="Ubicación de CineSpace" @ref="panel">
+    <div class="location-heading">
+        <span class="location-symbol"><i class="fas fa-location-dot" aria-hidden="true"></i></span>
+        <div><strong>CineSpace</strong><span>Ubicación de ejemplo</span></div>
+    </div>
+    <p class="location-address">Plaza Murillo<br />La Paz, Bolivia</p>
+    <a class="location-map-link" href="@GoogleMapsUrl" target="_blank" rel="noopener noreferrer" @onclick="Cerrar">
+        <i class="fas fa-map-location-dot" aria-hidden="true"></i>
+        Abrir Google Maps
+        <i class="fas fa-arrow-up-right-from-square external-icon" aria-hidden="true"></i>
+    </a>
+</div>
+
+@code {
+    private const string GoogleMapsUrl = "https://www.google.com/maps/search/?api=1&query=Plaza%20Murillo%2C%20La%20Paz%2C%20Bolivia";
+    private ElementReference trigger, panel;
+    private IJSObjectReference? module;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/navigation.js");
+        await module.InvokeVoidAsync("connectAccountMenu", trigger, panel);
+    }
+
+    private async Task Cerrar()
+    {
+        if (module != null) await module.InvokeVoidAsync("closeAccountMenu", panel);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (module == null) return;
+        try
+        {
+            await module.InvokeVoidAsync("disconnectAccountMenu", panel);
+            await module.DisposeAsync();
+        }
+        catch (JSDisconnectedException) { }
+    }
+}

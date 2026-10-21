@@ -1,0 +1,5 @@
+.payment-progress { width:min(340px,calc(100% - 32px)); margin:auto; padding:32px 24px; border:1px solid var(--cinema-line); border-radius:12px; background:var(--cinema-surface); color:var(--cinema-ink); text-align:center; outline:none; }
+.payment-progress::backdrop { background:rgb(0 0 0 / 60%); }
+h2 { font-size:24px; line-height:1.25; color:var(--cinema-heading); margin:0; }
+
+.session-spinner { margin-bottom:18px; }

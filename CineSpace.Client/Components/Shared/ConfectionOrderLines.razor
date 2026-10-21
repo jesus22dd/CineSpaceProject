@@ -1,0 +1,7 @@
+<div class="order-lines">
+    @foreach (var linea in Lineas)
+    {
+        <div class="order-line"><span class="order-line-quantity">@linea.Cantidad×</span><div><strong>@linea.Producto</strong><small>@linea.Categoria · @linea.PrecioUnitario.ToString("N2") Bs c/u</small></div><span class="order-line-subtotal">@((linea.Cantidad * linea.PrecioUnitario).ToString("N2")) Bs</span></div>
+    }
+</div>
+@code { [Parameter] public IReadOnlyList<LineaVentaConfiteria> Lineas { get; set; } = Array.Empty<LineaVentaConfiteria>(); }

@@ -1,0 +1,63 @@
+@namespace CineSpace.Client.Components.Worker
+@using CineSpace.Shared.Models
+@using CineSpace.Client.Components.Shared
+@inject PeliculaService Peliculas
+@implements IDisposable
+
+<section class="movie-artwork" aria-labelledby="artwork-title" aria-busy="@(cargando ? "true" : "false")">
+    <div class="artwork-heading"><div><h3 id="artwork-title">Elige las imágenes de la película</h3><p>Selecciona una tarjeta para usarla o amplíala antes de decidir.</p></div><button type="button" class="btn btn-secondary" disabled="@cargando" @onclick="()=>Cargar(true)">Actualizar imágenes</button></div>
+    <div class="artwork-tabs" role="group" aria-label="Tipo de imagen">
+        <button type="button" aria-pressed="@(!panoramicas ? "true" : "false")" @onclick="()=>CambiarTipo(false)">Pósters <span>@galeria.Posters.Count</span></button>
+        <button type="button" aria-pressed="@(panoramicas ? "true" : "false")" @onclick="()=>CambiarTipo(true)">Panorámicas <span>@galeria.Panoramicas.Count</span></button>
+    </div>
+    @if(cargando) { <p class="artwork-status" role="status">Cargando imágenes de TMDB…</p> }
+    else if(error.Length>0) { <p class="alert alert-danger" role="alert">@error</p><button type="button" class="btn btn-secondary" @onclick="()=>Cargar(true)">Reintentar</button> }
+    else if(Imagenes.Count==0) { <p class="artwork-status" role="status">TMDB no tiene @(panoramicas ? "imágenes panorámicas" : "pósters") para esta película. Puedes conservar la imagen actual o introducir una URL manual.</p> }
+    else
+    {
+        <div class="artwork-grid @(panoramicas ? "is-landscape" : "")">
+        @foreach(var (imagen, indice) in Imagenes.Skip((pagina-1)*PorPagina).Take(PorPagina).Select((imagen,indice)=>(imagen,indice+(pagina-1)*PorPagina+1)))
+        {
+            var seleccionado=EsSeleccionada(imagen);
+            <article class="artwork-card" @key="imagen.Ruta">
+                <button type="button" class="artwork-choice" aria-label="@($"Seleccionar {(panoramicas ? "panorámica" : "póster")} {indice}")" aria-pressed="@(seleccionado ? "true" : "false")" @onclick="()=>Elegir(imagen)">
+                    <img src="@CineSpace.Client.Services.PeliculaService.UrlImagen(imagen.Ruta,panoramicas ? "w300" : "w342")" alt="@($"{(panoramicas ? "Panorámica" : "Póster")} {indice}")" loading="lazy" onerror="this.onerror=null;this.src='images/poster-placeholder.svg';" />
+                    <span class="artwork-state">@if(seleccionado){<i class="fas fa-check" aria-hidden="true"></i>}@(seleccionado ? "Seleccionada" : "Seleccionar")</span>
+                </button>
+                <div class="artwork-details"><span>@Idioma(imagen.Idioma)<small>@imagen.Ancho × @imagen.Alto</small></span><button type="button" class="artwork-enlarge" aria-label="@($"Ampliar {(panoramicas ? "panorámica" : "póster")} {indice}")" @onclick="()=>vistaPrevia=imagen"><i class="fas fa-expand" aria-hidden="true"></i></button></div>
+            </article>
+        }
+        </div>
+        <div class="artwork-pagination"><button type="button" class="btn btn-secondary" disabled="@(pagina==1)" @onclick="()=>pagina--">Anterior</button><span role="status">@pagina de @TotalPaginas</span><button type="button" class="btn btn-secondary" disabled="@(pagina>=TotalPaginas)" @onclick="()=>pagina++">Siguiente</button></div>
+    }
+</section>
+@if(vistaPrevia!=null)
+{
+    <AppDialog Title="Vista previa de imagen" OnClose="()=>vistaPrevia=null">
+        <ChildContent><img class="artwork-preview" src="@CineSpace.Client.Services.PeliculaService.UrlImagen(vistaPrevia.Ruta,panoramicas ? "w1280" : "w780")" alt="Vista ampliada de la imagen de la película" /><p>@Idioma(vistaPrevia.Idioma) · @vistaPrevia.Ancho × @vistaPrevia.Alto</p></ChildContent>
+        <Footer><button type="button" class="btn btn-secondary" data-dialog-autofocus @onclick="()=>vistaPrevia=null">Cerrar</button><button type="button" class="btn btn-primary" @onclick="ElegirVistaPrevia">Usar esta imagen</button></Footer>
+    </AppDialog>
+}
+@code {
+    [Parameter] public int TmdbId {get;set;}
+    [Parameter] public string PosterUrl {get;set;}="";
+    [Parameter] public string PanoramicaUrl {get;set;}="";
+    [Parameter] public EventCallback<string> OnPoster {get;set;}
+    [Parameter] public EventCallback<string> OnPanoramica {get;set;}
+    private GaleriaPelicula galeria=new(Array.Empty<ImagenPelicula>(),Array.Empty<ImagenPelicula>());
+    private ImagenPelicula? vistaPrevia;
+    private int origen,pagina=1,version;
+    private bool cargando,panoramicas,disposed;
+    private string error="";
+    private IReadOnlyList<ImagenPelicula> Imagenes=>panoramicas ? galeria.Panoramicas : galeria.Posters;
+    private int PorPagina=>panoramicas ? 4 : 6;
+    private int TotalPaginas=>Math.Max(1,(int)Math.Ceiling(Imagenes.Count/(double)PorPagina));
+    protected override async Task OnParametersSetAsync() { if(origen==TmdbId)return;origen=TmdbId;galeria=new(Array.Empty<ImagenPelicula>(),Array.Empty<ImagenPelicula>());vistaPrevia=null;pagina=1;await Cargar(); }
+    private async Task Cargar(bool actualizar=false) { var solicitud=++version;var id=TmdbId;cargando=true;error="";try { var resultado=await Peliculas.ObtenerGaleriaAsync(id,actualizar);if(!disposed&&solicitud==version){galeria=resultado;pagina=Math.Clamp(pagina,1,TotalPaginas);} }catch(ArgumentException ex){if(!disposed&&solicitud==version)error=ex.Message;}finally{if(!disposed&&solicitud==version)cargando=false;} }
+    private void CambiarTipo(bool valor) { panoramicas=valor;pagina=1; }
+    private bool EsSeleccionada(ImagenPelicula imagen)=>CineSpace.Client.Services.PeliculaService.UrlImagen(panoramicas ? PanoramicaUrl : PosterUrl,panoramicas ? "w1280" : "w500")==CineSpace.Client.Services.PeliculaService.UrlImagen(imagen.Ruta,panoramicas ? "w1280" : "w500");
+    private Task Elegir(ImagenPelicula imagen)=>panoramicas ? OnPanoramica.InvokeAsync(CineSpace.Client.Services.PeliculaService.UrlImagen(imagen.Ruta,"w1280")) : OnPoster.InvokeAsync(CineSpace.Client.Services.PeliculaService.UrlImagen(imagen.Ruta));
+    private async Task ElegirVistaPrevia() { if(vistaPrevia==null)return;await Elegir(vistaPrevia);vistaPrevia=null; }
+    private static string Idioma(string? idioma)=>idioma switch {"es"=>"Español","en"=>"Inglés",null or ""=>"Sin idioma",_=>idioma.ToUpperInvariant()};
+    public void Dispose() { disposed=true;version++; }
+}

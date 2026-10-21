@@ -1,0 +1,33 @@
+.seat-summary { min-width: 0; padding: 24px; background: var(--cinema-surface); border-radius: 12px; }
+.seat-selection-heading h4 { margin: 0; color: var(--cinema-heading); font-size: 23px; }
+.seat-selection-heading p { margin: 8px 0 0; color: var(--cinema-muted); font-size: 13px; line-height: 1.5; }
+.seat-selection-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.seat-clear { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 6px; min-height: 32px; padding: 6px 10px; border: 0; border-radius: 0; background: var(--cinema-on-action); color: var(--cinema-wine); font-size: 12px; font-weight: 600; line-height: 1.2; }
+.seat-clear i { font-size: 12px; }
+.seat-clear:hover:enabled { background: var(--cinema-paper); }
+.seat-clear:disabled { opacity: .55; cursor: default; }
+.selected-seat-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 0; padding: 0; list-style: none; }
+.selected-seat-list li { display: inline-flex; align-items: stretch; min-height: 44px; overflow: hidden; border-radius: 6px; background: var(--cinema-raised); color: var(--cinema-ink); }
+.selected-seat-label { display: grid; place-items: center; min-width: 48px; padding: 8px 10px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.selected-seat-list button { display: grid; place-items: center; width: 44px; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-left: 1px solid var(--cinema-line); border-radius: 0; background: var(--cinema-accent); color: var(--cinema-on-action); }
+.selected-seat-list button:hover { background: var(--cinema-accent-hover); }
+.selected-seat-list i { font-size: 16px; }
+.seat-summary, .seat-summary button { box-shadow: none; text-shadow: none; }
+.seat-summary button:focus:not(:focus-visible) { outline: none; }
+.seat-summary button:focus-visible { outline: 2px solid var(--cinema-muted); outline-offset: -3px; box-shadow: none; }
+.seat-summary .seat-clear:focus-visible { outline-color: var(--cinema-wine); }
+.seat-cost { display: grid; gap: 16px; margin: 24px 0; }
+.seat-cost > div { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+.seat-cost dt { color: var(--cinema-muted); font-weight: 400; font-size: 12px; }
+.seat-cost dd { margin: 0; color: var(--cinema-heading); font-size: 13px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.seat-cost .seat-offer dt, .seat-cost .seat-offer dd { color: var(--cinema-link); font-size: 11px; }
+.seat-cost .seat-total { padding-top: 20px; border-top: 1px solid var(--cinema-line); }
+.seat-total dd { font: 500 28px 'Outfit',sans-serif; }
+.seat-total small { font-size: 12px; }
+.seat-summary .booking-actions { display: flex; flex-direction: column; align-items: stretch; margin: 0; padding: 0; border: 0; gap: 10px; }
+.seat-summary .booking-actions .btn { min-height: 44px; width: 100%; justify-content: center; }
+.seat-summary .booking-actions .btn-primary { justify-content: space-between; }
+@media(min-width:1100px) { .seat-summary { padding: 0; border-radius: 0; } }
+@media(max-width:600px) { .seat-summary { padding: 20px 16px; } .seat-cost dt { font-size: 13px; } }
+
+.seat-selection-heading h4[tabindex="-1"]:focus { outline: none; }

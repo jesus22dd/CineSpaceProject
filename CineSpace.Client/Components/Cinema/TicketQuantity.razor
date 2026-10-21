@@ -1,0 +1,37 @@
+@namespace CineSpace.Client.Components.Cinema
+@inject SalaService Salas
+
+<section class="booking-tickets" aria-labelledby="booking-tickets-title">
+    <header><h3 id="booking-tickets-title" tabindex="-1">¿Cuántos tickets necesitas?</h3><p>Primero elige la cantidad. En el siguiente paso seleccionarás tus butacas.</p></header>
+    <div class="ticket-screening"><div><strong>@PeliculaActual.Titulo</strong><span>@PeliculaActual.FechaFuncion?.ToString("dd/MM/yyyy") · @HorarioSeleccionado · @Salas.ObtenerNombreSala(PeliculaActual.NumeroSala) · @Salas.NombreExperiencia(PeliculaActual.ExperienciaFuncion ?? 0)</span></div><span>@Disponibles butacas disponibles</span></div>
+    <div class="ticket-checkout">
+      <div class="ticket-options">
+        <section class="ticket-pass" aria-labelledby="ticket-general-label">
+            <div class="ticket-pass-copy">
+                <span class="ticket-brand"><i class="fas fa-ticket" aria-hidden="true"></i>CineSpace · Entrada general</span>
+                <h4 id="ticket-general-label">@Salas.ObtenerNombreSala(PeliculaActual.NumeroSala)</h4>
+                <dl class="ticket-details"><div><dt>Tipo de sala</dt><dd>@Salas.NombreTipoSala(Salas.ObtenerTipoSala(PeliculaActual.NumeroSala))</dd></div><div><dt>Experiencia</dt><dd>@Salas.NombreExperiencia(PeliculaActual.ExperienciaFuncion ?? 0)</dd></div></dl>
+                <p>@Salas.ObtenerSala(PeliculaActual.NumeroSala).PrecioFinal.ToString("N2") <span>Bs por ticket</span></p>
+            </div>
+            <div class="ticket-pass-stub"><span>Cantidad de tickets</span><div class="ticket-stepper"><button type="button" aria-label="Quitar un ticket" disabled="@(Cantidad == 0)" @onclick="() => Cambiar(Cantidad - 1)"><i class="fas fa-minus" aria-hidden="true"></i></button><input type="number" inputmode="numeric" aria-label="Cantidad de tickets" min="0" max="@Math.Max(0,Disponibles)" value="@Cantidad" @onchange="Escribir" /><button type="button" aria-label="Añadir un ticket" disabled="@(Cantidad >= Disponibles)" @onclick="() => Cambiar(Cantidad + 1)"><i class="fas fa-plus" aria-hidden="true"></i></button></div></div>
+        </section>
+      </div>
+      <aside class="ticket-summary" aria-labelledby="ticket-summary-title">
+        <h4 id="ticket-summary-title">Resumen</h4>
+        <div class="ticket-total"><p role="status"><strong>@Cantidad @(Cantidad == 1 ? "ticket" : "tickets")</strong><span>@(Cantidad == 0 ? "Añade al menos un ticket para continuar." : $"Podrás seleccionar exactamente {Cantidad} {(Cantidad == 1 ? "butaca" : "butacas")}.")</span></p><p><span>Total</span><strong>@((Salas.ObtenerSala(PeliculaActual.NumeroSala).PrecioFinal * Cantidad).ToString("N2")) <small>Bs</small></strong></p></div>
+        @if(Disponibles == 0){<p class="alert alert-warning" role="alert">Esta función está agotada. Vuelve para elegir otro horario.</p>}
+        <div class="booking-actions"><button type="button" class="btn btn-secondary" @onclick="OnVolver">Cambiar función</button><button type="button" class="btn btn-primary" disabled="@(!ReservaEntradas.CantidadValida(Cantidad,0,Disponibles))" @onclick="OnContinuar">Elegir butacas<i class="fas fa-arrow-right" aria-hidden="true"></i></button></div>
+      </aside>
+    </div>
+</section>
+@code {
+    [Parameter,EditorRequired] public Pelicula PeliculaActual {get;set;} = new();
+    [Parameter] public string? HorarioSeleccionado {get;set;}
+    [Parameter] public int Disponibles {get;set;}
+    [Parameter] public int Cantidad {get;set;}
+    [Parameter] public EventCallback<int> OnCantidadChanged {get;set;}
+    [Parameter] public EventCallback OnContinuar {get;set;}
+    [Parameter] public EventCallback OnVolver {get;set;}
+    private Task Cambiar(int cantidad) => OnCantidadChanged.InvokeAsync(Math.Clamp(cantidad,0,Math.Max(0,Disponibles)));
+    private Task Escribir(ChangeEventArgs e) => Cambiar(int.TryParse(e.Value?.ToString(),out var valor) ? valor : 0);
+}

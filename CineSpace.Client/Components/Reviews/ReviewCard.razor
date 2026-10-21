@@ -1,0 +1,13 @@
+<article class="review-card">
+    <div class="review-card-heading"><h3 title="@Resena.NombrePelicula">@Resena.NombrePelicula</h3><div class="review-card-score"><ReviewRating Value="Resena.Calificacion" />@if (Destacada) { <span class="review-featured-label">Destacada</span> }</div></div>
+    <div class="review-card-body"><p class="review-author">@Resena.EmailUsuario</p><p class="review-comment @(expandido ? "is-expanded" : "")">@(string.IsNullOrWhiteSpace(Resena.Comentario) ? "Sin comentario." : Resena.Comentario)</p>@if (Resena.Comentario?.Length > 140) { <button type="button" class="review-read-more" aria-expanded="@(expandido ? "true" : "false")" @onclick="() => expandido = !expandido">@(expandido ? "Ver menos" : "Leer comentario")</button> }</div>
+    <div class="review-card-footer"><time datetime="@Resena.FechaCalificacion.ToString("yyyy-MM-dd")">@Resena.FechaCalificacion.ToString("dd/MM/yyyy")</time><ReviewActions Resena="Resena" Destacada="Destacada" OnDestacar="OnDestacar" OnDetalles="OnDetalles" OnEliminar="OnEliminar" /></div>
+</article>
+@code {
+    [Parameter, EditorRequired] public CalificacionPelicula Resena { get; set; } = new();
+    [Parameter] public bool Destacada { get; set; }
+    [Parameter] public EventCallback<CalificacionPelicula> OnDestacar { get; set; }
+    [Parameter] public EventCallback<CalificacionPelicula> OnDetalles { get; set; }
+    [Parameter] public EventCallback<CalificacionPelicula> OnEliminar { get; set; }
+    private bool expandido;
+}

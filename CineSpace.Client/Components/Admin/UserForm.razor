@@ -1,0 +1,140 @@
+@using CineSpace.Shared.Models
+@using CineSpace.Client.Services
+@inject UsuarioService UsuarioService
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>@(ModoEdicion ? "Editar" : "Nuevo") Usuario</h5>
+    </div>
+    <div class="card-body">
+        <form @onsubmit="GuardarUsuario" @onsubmit:preventDefault aria-busy="@guardando"><fieldset class="auth-fields" disabled="@guardando">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="nombre" class="form-label">Nombre</label>
+                    <input type="text" class="form-control" id="nombre" value="@usuario.Nombre"
+                           @oninput="@(e => HandleNombreInput(e))" required />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="apellido" class="form-label">Apellido</label>
+                    <input type="text" class="form-control" id="apellido" value="@usuario.Apellido"
+                           @oninput="@(e => HandleApellidoInput(e))" required />
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="email" class="form-label">Email</label>
+                <input type="email" class="form-control" id="email" @bind="usuario.Email" required />
+            </div>
+            <div class="mb-3">
+                <label for="ci" class="form-label">CI/NIT</label>
+                <input type="text" class="form-control" id="ci" @bind="usuario.CI" required />
+            </div>
+
+            @if (!ModoEdicion)
+            {
+                <div class="mb-3">
+                    <label for="password" class="form-label">Contraseña</label>
+                    <input type="password" class="form-control" id="password" @bind="usuario.Password" required />
+                </div>
+            }
+
+            <div class="mb-3">
+                <label for="rol" class="form-label">Rol</label>
+                <select class="form-select" id="rol" @bind="usuario.Rol">
+                    <option value="@RolUsuario.Cliente">Cliente</option>
+                    <option value="@RolUsuario.Trabajador">Trabajador</option>
+                    <option value="@RolUsuario.Administrador">Administrador</option>
+                </select>
+            </div>
+
+            @if (!string.IsNullOrEmpty(mensajeError))
+            {
+                <div class="alert alert-danger" role="alert">
+                    @mensajeError
+                </div>
+            }
+
+            <div class="d-flex justify-content-between mt-4">
+                <button type="button" class="btn btn-secondary" @onclick="@(() => OnCancelar.InvokeAsync())">
+                    Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary" disabled="@guardando">@if (guardando) { <span class="button-spinner" aria-hidden="true"></span> }
+                    @(ModoEdicion ? "Actualizar" : "Guardar")
+                </button>
+            </div>
+        </fieldset></form>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Usuario Usuario { get; set; } = new Usuario();
+
+    [Parameter]
+    public bool ModoEdicion { get; set; } = false;
+
+    [Parameter]
+    public EventCallback<Usuario> OnGuardar { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancelar { get; set; }
+
+    private Usuario usuario = new Usuario();
+    private string mensajeError = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        // Clonar el usuario para evitar modificar directamente el parámetro
+        usuario = new Usuario
+            {
+                Id = Usuario.Id,
+                Email = Usuario.Email,
+                Nombre = Usuario.Nombre,
+                Apellido = Usuario.Apellido,
+                CI = Usuario.CI,
+                Password = Usuario.Password,
+                Rol = Usuario.Rol
+            };
+    }
+
+    private bool guardando;
+    private async Task GuardarUsuario()
+    {
+        if (guardando) return;
+        mensajeError = string.Empty;
+
+        // Validaciones básicas
+        if (string.IsNullOrWhiteSpace(usuario.Nombre) ||
+            string.IsNullOrWhiteSpace(usuario.Apellido) ||
+            string.IsNullOrWhiteSpace(usuario.Email) ||
+            string.IsNullOrWhiteSpace(usuario.CI))
+        {
+            mensajeError = "Por favor complete todos los campos obligatorios.";
+            return;
+        }
+
+        if (!ModoEdicion && string.IsNullOrWhiteSpace(usuario.Password))
+        {
+            mensajeError = "La contraseña es obligatoria para nuevos usuarios.";
+            return;
+        }
+
+        // Todo está bien, notificar al componente padre
+        guardando = true;
+        try { await OnGuardar.InvokeAsync(usuario); } finally { guardando = false; }
+    }
+    private void HandleNombreInput(ChangeEventArgs e)
+    {
+        if (e.Value != null)
+        {
+            usuario.Nombre = e.Value?.ToString()?.ToUpperInvariant() ?? "";
+        }
+    }
+
+    private void HandleApellidoInput(ChangeEventArgs e)
+    {
+        if (e.Value != null)
+        {
+            usuario.Apellido = e.Value?.ToString()?.ToUpperInvariant() ?? "";
+        }
+    }
+}

@@ -1,0 +1,39 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+<div class="order-scan-controls"><button type="button" class="btn btn-secondary" disabled="@leyendo" @onclick="Alternar"><i class="fas @(activa ? "fa-stop" : "fa-camera")" aria-hidden="true"></i>@(activa ? "Detener cámara" : "Escanear con cámara")</button><label class="btn btn-secondary order-scan-file"><i class="fas fa-image" aria-hidden="true"></i>@(leyendo ? "Leyendo QR…" : "Leer imagen QR")<InputFile @key="claveArchivo" accept="image/png,image/jpeg,image/webp" OnChange="LeerImagen" disabled="@leyendo" aria-label="@($"Leer imagen QR de un {Objeto}")" /></label></div>
+@if (!string.IsNullOrEmpty(error)) { <div class="alert alert-warning mt-3" role="alert">@error</div> }
+@if (activa) { <div class="order-scan-preview"><video @ref="video" autoplay muted playsinline aria-label="Vista previa del lector QR"></video><p>Acerca el QR del @Objeto a la cámara. El lector se detendrá cuando lo reconozca.</p></div> }
+@code {
+    [Parameter] public EventCallback<string> OnCodigo { get; set; }
+    [Parameter] public EventCallback OnIniciarLectura { get; set; }
+    [Parameter] public string Objeto { get; set; } = "pedido";
+    private IJSObjectReference? modulo;
+    private DotNetObjectReference<OrderQrScanner>? referencia;
+    private ElementReference video;
+    private bool activa, iniciar, leyendo, disposed;
+    private int claveArchivo;
+    private string error = "";
+    private async Task<IJSObjectReference> Modulo() => modulo ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/order-qr-scanner.js");
+    private async Task Alternar() { error = ""; if (activa) await Detener(); else { await OnIniciarLectura.InvokeAsync(); activa = true; iniciar = true; } }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!iniciar || disposed) return;
+        iniciar = false;
+        try { referencia ??= DotNetObjectReference.Create(this); await (await Modulo()).InvokeVoidAsync("startCamera", video, referencia); }
+        catch (JSException ex) { error = ex.Message.Split('\n')[0]; activa = false; StateHasChanged(); }
+    }
+    private async Task Detener() { if (modulo != null) await modulo.InvokeVoidAsync("stopCamera", video); activa = false; iniciar = false; }
+    [JSInvokable] public async Task CodigoLeido(string codigo) { activa = false; iniciar = false; await OnCodigo.InvokeAsync(codigo); StateHasChanged(); }
+    [JSInvokable] public void CamaraDetenida() { activa = false; iniciar = false; StateHasChanged(); }
+    private async Task LeerImagen(InputFileChangeEventArgs e)
+    {
+        if (leyendo) return;
+        leyendo = true; error = "";
+        await OnIniciarLectura.InvokeAsync();
+        try { await Detener(); if (e.File.Size > 6 * 1024 * 1024 || e.File.ContentType is not "image/png" and not "image/jpeg" and not "image/webp") throw new ArgumentException("Usa una imagen PNG, JPG o WebP de hasta 6 MB."); using var stream = e.File.OpenReadStream(6 * 1024 * 1024); using var memoria = new MemoryStream(); await stream.CopyToAsync(memoria); var codigo = await (await Modulo()).InvokeAsync<string?>("readImage", $"data:{e.File.ContentType};base64,{Convert.ToBase64String(memoria.ToArray())}"); if (string.IsNullOrEmpty(codigo)) error = "No encontramos un QR en esa imagen. Usa una foto más nítida o introduce el código."; else await OnCodigo.InvokeAsync(codigo); }
+        catch (ArgumentException ex) { error = ex.Message; }
+        catch { error = "No pudimos leer esa imagen. Prueba otra o introduce el código."; }
+        finally { leyendo = false; claveArchivo++; }
+    }
+    public async ValueTask DisposeAsync() { disposed = true; if (modulo != null) { try { await modulo.InvokeVoidAsync("stopCamera", video); await modulo.DisposeAsync(); } catch (JSDisconnectedException) { } } referencia?.Dispose(); }
+}

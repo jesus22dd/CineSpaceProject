@@ -1,0 +1,197 @@
+@inherits LayoutComponentBase
+@inject UsuarioService UsuarioService
+@inject TrabajadorService TrabajadorService
+@inject NavigationManager Navigation
+@inject AuthDialogService AuthDialog
+@inject LogoutDialogService LogoutDialog
+@inject SessionTransitionService Transicion
+@inject IJSRuntime JS
+@inject PedidosConfiteriaService Pedidos
+@using CineSpace.Client.Components.Shared
+@using Microsoft.AspNetCore.Components.Sections
+@implements IAsyncDisposable
+
+<a class="skip-link" href="@(Navigation.Uri.Split('#')[0] + "#main-content")">Saltar al contenido</a>
+<div class="page @(EsMostrarNavMenu() ? "has-management-nav" : "") @(NavMenuExpanded ? "is-nav-open" : "") @(TieneCarritoLateral ? "has-confection-cart" : "")" @onkeydown="HandleKeys">
+    <header class="site-header">
+        @if (EsMostrarNavMenu())
+        {
+            <button type="button" class="menu-toggle-btn" @onclick="ToggleNavMenu" aria-label="@(NavMenuExpanded ? "Contraer menú" : "Ampliar menú")" title="@(NavMenuExpanded ? "Contraer menú" : "Ampliar menú")" aria-expanded="@(NavMenuExpanded ? "true" : "false")" aria-controls="main-navigation" @ref="menuTrigger">
+                <i class="fas fa-bars" aria-hidden="true"></i>
+            </button>
+        }
+        <div class="header-brand-group" inert="@(NavMenuExpanded && !desktop ? "" : null)">
+        <a class="brand" href="/" aria-label="Cine Space, inicio">
+            <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="5" width="26" height="22" rx="5" /><path d="M11 5v22M21 5v22M3 12h8M3 20h8M21 12h8M21 20h8" /></svg>
+            <span>Cine<span class="brand-space">Space</span></span>
+        </a>
+        </div>
+        <nav class="public-navigation" aria-label="Navegación principal" inert="@(NavMenuExpanded && !desktop ? "" : null)">
+            <LocationMenu />
+            <div class="public-section-links">
+                <NavLink class="catalogue-link" href="/" Match="NavLinkMatch.All">Cartelera</NavLink>
+                <NavLink class="catalogue-link" href="/confiteria">Confitería</NavLink>
+            </div>
+            <ThemeToggle />
+            @if (!EstaAutenticado)
+            {
+                <button type="button" class="header-login" @onclick="AbrirLogin" aria-haspopup="dialog" aria-label="Iniciar sesión" title="Iniciar sesión"><span class="login-label">Iniciar sesión</span><i class="fas fa-right-to-bracket login-icon" aria-hidden="true"></i></button>
+            }
+            else
+            {
+                <AccountMenu />
+            }
+        </nav>
+    </header>
+    <div class="app-frame @(NavMenuExpanded ? "is-nav-open" : "")">
+        @if (EsMostrarNavMenu())
+        {
+            <aside id="main-navigation" class="sidebar @(NavMenuExpanded ? "is-open" : "is-compact")" aria-label="@(UsuarioService.EsAdministrador() ? "Navegación de administración" : "Navegación del equipo")" inert="@(!desktop && !NavMenuExpanded ? "" : null)" @ref="sidebarElement">
+                <div class="sidebar-content">
+                <div class="sidebar-heading">
+                    <div class="sidebar-heading-copy"><h2>Gestión del cine</h2><p>@(UsuarioService.EsAdministrador() ? "Administración" : "Equipo CineSpace")</p></div>
+                </div>
+                <NavMenu Expanded="NavMenuExpanded" OnToggleNavMenu="NavigationSelected" OnExpandNavMenu="ExpandNavMenu" />
+                </div>
+            </aside>
+            <button type="button" class="menu-backdrop @(NavMenuExpanded ? "is-visible" : "")" @onclick="CloseNavMenu" aria-label="Contraer menú" aria-hidden="@(!NavMenuExpanded ? "true" : null)" disabled="@(!NavMenuExpanded)" tabindex="-1"></button>
+        }
+        <main id="main-content" tabindex="-1" inert="@(NavMenuExpanded && !desktop ? "" : null)">
+            <article class="content" @key="(EstaAutenticado, RutaContenido)">@Body</article>
+            <SiteFooter EstaAutenticado="EstaAutenticado" OnIniciarSesion="AbrirLogin" />
+        </main>
+    </div>
+    <div inert="@(NavMenuExpanded && !desktop ? "" : null)"><SectionOutlet SectionName="seat-summary" /></div>
+    @if (TieneCarritoLateral)
+    {
+        <aside class="confectionery-edge-cart" aria-label="Carrito de confitería"><ConfectionMiniCart /></aside>
+    }
+</div>
+@if (AuthDialog.Abierto)
+{
+    <CineSpace.Client.Components.Auth.AuthDialog PeliculaId="AuthDialog.PeliculaId" OnCerrar="CerrarLogin" />
+}
+@if (LogoutDialog.Abierto)
+{
+    <CineSpace.Client.Components.Auth.LogoutDialog />
+}
+@if (Transicion.Visible)
+{
+    <CineSpace.Client.Components.Auth.SessionTransition />
+}
+
+@code {
+    private bool NavMenuExpanded;
+    private bool TieneCarritoLateral => RutaContenido == "/confiteria" && Pedidos.CantidadCarrito > 0;
+    private void CarritoChanged() => _ = InvokeAsync(StateHasChanged);
+    private bool desktop, desktopNavigationExpanded = true, managementNavigationAvailable;
+    private ElementReference menuTrigger, sidebarElement;
+    private IJSObjectReference? navigationModule;
+    private DotNetObjectReference<MainLayout>? reference;
+    private string RutaContenido => new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
+    private string rutaAnterior = "";
+    private bool volverArriba;
+    protected override void OnInitialized()
+    {
+        managementNavigationAvailable = EsMostrarNavMenu();
+        rutaAnterior = RutaContenido;
+        AuthDialog.Changed += AuthChanged;
+        LogoutDialog.Changed += AuthChanged;
+        Transicion.Changed += AuthChanged;
+        Navigation.LocationChanged += LocationChanged;
+        Pedidos.Changed += CarritoChanged;
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            navigationModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/navigation.js");
+            reference = DotNetObjectReference.Create(this);
+            desktop = await navigationModule.InvokeAsync<bool>("connectViewport", reference);
+            desktopNavigationExpanded = await navigationModule.InvokeAsync<bool>("getNavigationExpanded");
+            NavMenuExpanded = desktop && managementNavigationAvailable && desktopNavigationExpanded;
+            StateHasChanged();
+        }
+        if (volverArriba && navigationModule != null)
+        {
+            volverArriba = false;
+            await navigationModule.InvokeVoidAsync("resetPageScroll");
+        }
+    }
+    [JSInvokable] public Task ViewportChanged(bool isDesktop) => InvokeAsync(async () =>
+    {
+        bool wasExpanded = NavMenuExpanded;
+        desktop = isDesktop;
+        NavMenuExpanded = desktop && managementNavigationAvailable && desktopNavigationExpanded;
+        StateHasChanged();
+        if (wasExpanded && !NavMenuExpanded && navigationModule != null)
+            await navigationModule.InvokeVoidAsync("focusTrigger", menuTrigger);
+    });
+    private void AuthChanged() => _ = InvokeAsync(() =>
+    {
+        bool available = EsMostrarNavMenu();
+        if (available != managementNavigationAvailable)
+        {
+            managementNavigationAvailable = available;
+            NavMenuExpanded = available && desktop && desktopNavigationExpanded;
+        }
+        StateHasChanged();
+    });
+    private void AbrirLogin() => AuthDialog.Abrir();
+    private void CerrarLogin() => AuthDialog.Cerrar();
+    private void LocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        if (rutaAnterior != RutaContenido) { rutaAnterior = RutaContenido; volverArriba = true; }
+        AuthDialog.CambiarRuta();
+        if (!desktop) NavMenuExpanded = false;
+        _ = InvokeAsync(StateHasChanged);
+    }
+    public async ValueTask DisposeAsync()
+    {
+        AuthDialog.Changed -= AuthChanged;
+        LogoutDialog.Changed -= AuthChanged;
+        Transicion.Changed -= AuthChanged;
+        Navigation.LocationChanged -= LocationChanged;
+        Pedidos.Changed -= CarritoChanged;
+        if (navigationModule != null)
+        {
+            try { await navigationModule.InvokeVoidAsync("disconnectViewport"); await navigationModule.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+        reference?.Dispose();
+    }
+    private bool EstaAutenticado => UsuarioService.ObtenerUsuarioActual() != null || TrabajadorService.EstaAutenticado();
+    private bool EsMostrarNavMenu() => UsuarioService.EsAdministrador() || TrabajadorService.EstaAutenticado();
+    private async Task ToggleNavMenu()
+    {
+        NavMenuExpanded = !NavMenuExpanded;
+        if (desktop)
+        {
+            desktopNavigationExpanded = NavMenuExpanded;
+            if (navigationModule != null) await navigationModule.InvokeVoidAsync("saveNavigationExpanded", NavMenuExpanded);
+        }
+        if (!desktop && NavMenuExpanded && navigationModule != null)
+        {
+            // Wait for the visible drawer before moving keyboard focus into it.
+            await InvokeAsync(StateHasChanged);
+            await navigationModule.InvokeVoidAsync("focusNavigation", sidebarElement, menuTrigger);
+        }
+    }
+    private async Task CloseNavMenu()
+    {
+        NavMenuExpanded = false;
+        if (desktop)
+        {
+            desktopNavigationExpanded = false;
+            if (navigationModule != null) await navigationModule.InvokeVoidAsync("saveNavigationExpanded", false);
+        }
+        if (navigationModule != null) await navigationModule.InvokeVoidAsync("focusTrigger", menuTrigger);
+    }
+    private Task NavigationSelected() => desktop || !NavMenuExpanded ? Task.CompletedTask : CloseNavMenu();
+    private Task ExpandNavMenu() => NavMenuExpanded ? Task.CompletedTask : ToggleNavMenu();
+    private async Task HandleKeys(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape" && NavMenuExpanded && !desktop) await CloseNavMenu();
+    }
+}
+

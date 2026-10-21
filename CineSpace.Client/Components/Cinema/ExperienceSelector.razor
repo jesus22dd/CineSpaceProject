@@ -1,0 +1,30 @@
+@namespace CineSpace.Client.Components.Cinema
+@using CineSpace.Shared.Models
+@inject SalaService SalaService
+
+<h3>Elige tu experiencia</h3>
+<p class="text-muted">@PeliculaActual.Titulo · Después podrás elegir la fecha, la sala y la función.</p>
+<div class="card p-4 mb-4">
+    <div class="row">
+    @foreach(var grupo in Funciones.GroupBy(f=>f.ExperienciaId).OrderBy(g=>SalaService.NombreExperiencia(g.Key)))
+    {
+        var elegida=grupo.Key==ExperienciaSeleccionada;
+        var precios=grupo.Select(f=>SalaService.ObtenerSala(f.NumeroSala).PrecioFinal).ToList();
+        <div class="col-sm-6 col-lg-4 mb-3"><button type="button" class="experience-choice @(elegida ? "is-selected":"")" aria-pressed="@(elegida ? "true":"false")" @onclick="()=>OnExperienciaSeleccionada.InvokeAsync(grupo.Key)">
+            <span class="experience-choice-heading"><strong>@SalaService.NombreExperiencia(grupo.Key)</strong><span>@(precios.Distinct().Count()>1?"Desde ":"")@precios.Min().ToString("N2") Bs</span></span>
+            <span class="experience-description">@SalaService.DescripcionExperiencia(grupo.Key)</span><span class="experience-description">@grupo.Select(f=>f.NumeroSala).Distinct().Count() @(grupo.Select(f=>f.NumeroSala).Distinct().Count()==1?"sala disponible":"salas disponibles")</span>
+            <span class="experience-state"><i class="@(elegida ? "fas fa-check-circle":"far fa-circle")" aria-hidden="true"></i>@(elegida?"Seleccionada":"Seleccionar")</span>
+        </button></div>
+    }
+    </div>
+    @if(Funciones.Count==0) { <p role="status">No hay funciones disponibles para esta película.</p> }
+    <div class="booking-actions"><button type="button" class="btn btn-secondary" @onclick="OnVolver">Atrás</button><button type="button" class="btn btn-primary" disabled="@(!Funciones.Any(f=>f.ExperienciaId==ExperienciaSeleccionada))" @onclick="OnContinuar">Continuar</button></div>
+</div>
+@code {
+    [Parameter,EditorRequired] public Pelicula PeliculaActual {get;set;}=new();
+    [Parameter] public IReadOnlyList<FuncionCine> Funciones {get;set;}=Array.Empty<FuncionCine>();
+    [Parameter] public int ExperienciaSeleccionada {get;set;}
+    [Parameter] public EventCallback<int> OnExperienciaSeleccionada {get;set;}
+    [Parameter] public EventCallback OnContinuar {get;set;}
+    [Parameter] public EventCallback OnVolver {get;set;}
+}

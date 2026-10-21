@@ -1,0 +1,38 @@
+.screening-dates { padding: 24px 0; border-top: 1px solid var(--cinema-line); border-bottom: 1px solid var(--cinema-line); margin: 8px 0 24px; }
+.screening-dates h3 { margin: 0 0 20px; font-size: 21px; }
+.date-range-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.date-field { position: relative; min-width: 0; }
+.date-range-fields input { min-width: 0; width: 100%; font-variant-numeric: tabular-nums; }
+.date-entry { display: flex; min-width: 0; }
+.date-entry input { border-radius: 6px 0 0 6px; min-height: 44px; }
+.date-entry input::-webkit-calendar-picker-indicator { display: none; }
+.date-entry .btn { flex: 0 0 48px; min-width: 48px; min-height: 44px; border-radius: 0 6px 6px 0; padding: 8px 12px; }
+.date-entry .btn:focus { box-shadow: none; }
+.date-entry .btn:focus-visible { outline: 2px solid var(--cinema-focus); outline-offset: 2px; }
+.date-range-shortcuts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+.date-range-presets { display: flex; gap: 8px; }
+.date-range-shortcuts span { flex: 1 1 220px; font-size: 12px; color: var(--cinema-muted); }
+.date-range-shortcuts button { min-height: 36px; padding: 6px 12px; border: 1px solid var(--cinema-control-border); border-radius: 4px; background: var(--cinema-input); color: var(--cinema-heading); font-size: 12px; }
+.date-calendar { position: absolute; z-index: 40; top: calc(100% + 6px); right: 0; width: min(100%,336px); max-height: calc(100dvh - 140px); overflow-y: auto; padding: 12px; border: 1px solid var(--cinema-picker-line); border-radius: 6px; background: var(--cinema-picker-surface); color: var(--cinema-picker-ink); color-scheme: light; box-shadow: 0 8px 20px rgb(0 0 0 / .16); }
+.calendar-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.calendar-heading strong { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.date-calendar button { border: 0; background: transparent; color: var(--cinema-picker-ink); border-radius: 4px; }
+.calendar-heading button { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; }
+.calendar-navigation { display: grid; grid-template-columns: 36px minmax(0,1fr) 74px 36px; gap: 4px; align-items: center; margin-bottom: 8px; }
+.calendar-navigation button { height: 40px; padding: 0; }
+.calendar-navigation select { width: 100%; min-width: 0; height: 40px; padding: 0 4px; border: 0; border-radius: 4px; background: var(--cinema-picker-surface); color: var(--cinema-picker-ink); font-size: 13px; text-transform: capitalize; }
+.range-calendar { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.range-calendar caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.range-calendar th { text-align: center; font-size: 12px; color: var(--cinema-picker-muted); font-weight: 600; padding: 8px 0; }
+.range-calendar td { padding: 2px 0; text-align: center; }
+.range-calendar td.in-range { background: var(--cinema-picker-hover); }
+.range-calendar button { display: block; width: 100%; height: 44px; padding: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+.range-calendar button.range-endpoint { background: var(--cinema-picker-selected); color: var(--cinema-picker-on-selected); font-weight: 700; }
+.range-calendar button[aria-current=date] { text-decoration: underline; text-underline-offset: 4px; }
+.date-calendar button:hover:not(:disabled),.calendar-navigation select:hover { background: var(--cinema-picker-hover); color: var(--cinema-picker-ink); }
+.range-calendar button.range-endpoint:hover:not(:disabled) { background: var(--cinema-picker-selected); color: var(--cinema-picker-on-selected); }
+.date-calendar button:disabled { color: var(--cinema-picker-muted); opacity: .45; cursor: default; }
+.date-calendar :is(button,select):focus-visible { outline: 2px solid var(--cinema-picker-selected); outline-offset: -2px; }
+.date-range-shortcuts button:focus-visible { outline: 2px solid var(--cinema-focus); outline-offset: 1px; }
+@media(max-width:600px) { .date-range-fields { grid-template-columns: 1fr; } .date-calendar { width: 100%; max-width: 336px; } }
+@media(max-width:360px) { .date-calendar { padding: 8px; } .calendar-navigation { grid-template-columns: 28px minmax(0,1fr) 64px 28px; gap: 2px; } .calendar-navigation select { font-size: 12px; padding: 0 2px; } }

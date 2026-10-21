@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#642633" />
+    <script src="/js/theme.js"></script>
+    <title>Cine Space</title>
+    <base href="/" />
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="fonts/fonts.css" />
+    <link rel="stylesheet" href="/css/app.css" />
+    <link rel="stylesheet" href="/css/catalogue-admin.css" />
+    <link rel="stylesheet" href="/css/confection-checkout.css" />
+    <link rel="stylesheet" href="/css/CineStyle.css" />
+    <link rel="stylesheet" href="/css/invoice.css" />
+    <link rel="stylesheet" href="/css/admin-styles.css" />
+    <link rel="stylesheet" href="/css/banners.css" />
+    <link rel="stylesheet" href="/CineSpace.Client.styles.css" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css" />
+    
+    <script src="js/invoice-pdf.js"></script>
+    <link rel="stylesheet" href="/css/room-catalogues.css" />
+</head>
+<body>
+    <div id="app"><div class="boot-shell"><header class="site-header"><a class="brand" href="/" aria-label="CineSpace, inicio"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="5" width="26" height="22" rx="5"/><path d="M11 5v22M21 5v22M3 12h8M3 20h8M21 12h8M21 20h8"/></svg><span>Cine<span class="brand-space">Space</span></span></a><nav class="public-navigation" aria-label="Navegación principal"><a href="/">Cartelera</a><a href="/confiteria">Confitería</a><a href="/login">Iniciar sesión</a></nav></header><main class="page-placeholder" role="status"><span class="session-spinner" aria-hidden="true"></span><p>Preparando tu próxima función…</p></main></div></div>
+    <div id="blazor-error-ui">
+        No se pudo completar la acción. Recarga la página para volver a intentarlo.
+        <a href="." class="reload">Recargar</a>
+        <button class="dismiss" aria-label="Cerrar aviso">&times;</button>
+    </div>
+    <script src="js/workflow.js"></script>
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script>
+        function downloadImage(dataUrl, filename) {
+            const element = document.createElement('a');
+            element.setAttribute('href', dataUrl);
+            element.setAttribute('download', filename);
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+
+        function downloadFileFromBase64(base64, fileName) {
+            const blob = base64ToBlob(base64, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            const link = document.createElement('a');
+            link.href = window.URL.createObjectURL(blob);
+            link.download = fileName;
+            link.click();
+            window.URL.revokeObjectURL(link.href);
+        }
+
+        function base64ToBlob(base64, type) {
+            const byteCharacters = atob(base64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            return new Blob([byteArray], { type: type });
+        }
+    </script>
+</body>
+</html>

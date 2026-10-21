@@ -1,0 +1,74 @@
+@using CineSpace.Client.Components.Shared
+@namespace CineSpace.Client.Components.Reviews
+@using CineSpace.Shared.Models
+@using CineSpace.Client.Services
+@using CineSpace.Client.Pages
+@inject PeliculaService PeliculaService
+@inject UsuarioService UsuarioService
+
+<div class="card shadow mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Filtros de Búsqueda</h5>
+        <button class="btn btn-sm @(isCollapsed ? "btn-primary" : "btn-secondary")"
+                @onclick="ToggleCollapse">
+            <i class="fa @(isCollapsed ? "fa-chevron-down" : "fa-chevron-up")"></i>
+        </button>
+    </div>
+
+    @if (!isCollapsed)
+    {
+        <form class="card-body" role="search" @onsubmit="AplicarFiltros" @onsubmit:preventDefault>
+            <div class="admin-review-filters">
+                <div class="review-filter-field"><label for="usuarioFilter">Usuario (email)</label><div class="catalogue-search is-live" role="search"><i class="fas fa-search catalogue-search-symbol" aria-hidden="true"></i><input type="search" id="usuarioFilter" class="form-control" placeholder="Buscar por email…" @bind="filtro.EmailUsuario" @bind:event="oninput" /></div></div>
+                <AdminSelect Id="peliculaFilter" Etiqueta="Película" Valor="@filtro.PeliculaId" Opciones="OpcionesPeliculas" Activo="@(!string.IsNullOrEmpty(filtro.PeliculaId))" Completo="true" ValorChanged="valor => filtro.PeliculaId = valor" />
+                <div class="review-filter-field"><span>Calificación</span><div class="review-filter-range"><AdminSelect Id="reviews-rating-min" Etiqueta="Desde" Valor="@filtro.CalificacionMinima.ToString()" Opciones="Calificaciones" Activo="@(filtro.CalificacionMinima != 0)" Completo="true" ValorChanged="valor => filtro.CalificacionMinima = int.Parse(valor)" /><AdminSelect Id="reviews-rating-max" Etiqueta="Hasta" Valor="@filtro.CalificacionMaxima.ToString()" Opciones="Calificaciones" Activo="@(filtro.CalificacionMaxima != 0)" Completo="true" ValorChanged="valor => filtro.CalificacionMaxima = int.Parse(valor)" /></div></div>
+                <div class="review-filter-field"><span>Período</span><div class="review-filter-range"><div><label for="review-date-from">Desde</label><input id="review-date-from" type="date" class="form-control" @bind="filtro.FechaInicio" /></div><div><label for="review-date-to">Hasta</label><input id="review-date-to" type="date" class="form-control" @bind="filtro.FechaFin" /></div></div></div>
+            </div>
+            <div class="review-filter-actions"><ClearFiltersButton Activo="aplicado" OnClear="LimpiarFiltros" /><button type="submit" class="btn btn-primary"><i class="fas fa-search" aria-hidden="true"></i>Buscar</button></div>
+        </form>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public EventCallback<ReviewsManagement.FiltroCalificacion> OnFiltroAplicado { get; set; }
+
+    private bool isCollapsed = false, aplicado;
+    private bool HayFiltros => !string.IsNullOrWhiteSpace(filtro.EmailUsuario) || !string.IsNullOrEmpty(filtro.PeliculaId) || filtro.CalificacionMinima != 0 || filtro.CalificacionMaxima != 0 || filtro.FechaInicio != null || filtro.FechaFin != null;
+    private IReadOnlyList<AdminSelectOption> OpcionesPeliculas => new[] { new AdminSelectOption("", "Todas las películas") }.Concat(peliculas.Select(pelicula => new AdminSelectOption(pelicula.Id.ToString(), pelicula.Titulo))).ToList();
+    private static IReadOnlyList<AdminSelectOption> Calificaciones => new[] { new AdminSelectOption("0", "Todas") }.Concat(Enumerable.Range(1, 5).Select(numero => new AdminSelectOption(numero.ToString(), numero == 1 ? "1 estrella" : $"{numero} estrellas"))).ToList();
+    private ReviewsManagement.FiltroCalificacion filtro = new();
+    private List<Pelicula> peliculas = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Cargar lista de películas para el filtro
+        try
+        {
+            peliculas = await PeliculaService.OpcionesAsync();
+        }
+        catch
+        {
+            // Si hay un error, dejar la lista vacía
+            peliculas = new List<Pelicula>();
+        }
+    }
+
+    private void ToggleCollapse()
+    {
+        isCollapsed = !isCollapsed;
+    }
+
+    private async Task AplicarFiltros()
+    {
+        aplicado = HayFiltros;
+        await OnFiltroAplicado.InvokeAsync(filtro);
+    }
+
+    private async Task LimpiarFiltros()
+    {
+        aplicado = false;
+        filtro = new ReviewsManagement.FiltroCalificacion();
+        await OnFiltroAplicado.InvokeAsync(filtro);
+    }
+}

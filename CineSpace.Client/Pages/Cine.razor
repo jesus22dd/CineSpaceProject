@@ -1,0 +1,606 @@
+@page "/"
+@page "/cine"
+@using CineSpace.Shared.Models
+@using CineSpace.Client.Services
+@using CineSpace.Client.Components.Cinema
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject PeliculaService PeliculaService
+@inject AsientoService AsientoService
+@inject UsuarioService UsuarioService
+@inject TrabajadorService TrabajadorService
+@inject TicketSalesService TicketSalesService
+@inject SalaService SalaService
+@inject FuncionesService Funciones
+@inject NavigationManager NavigationManager
+@inject AuthDialogService AuthDialog
+@implements IAsyncDisposable
+
+<PageTitle>Cartelera y reservas - Cine Space</PageTitle>
+<NavigationLock OnBeforeInternalNavigation="ConfirmarSalidaCompra" />
+@if (comprando && etapaPago > 0) { <PaymentProgress Etapa="etapaPago" /> }
+
+@if (mostrarSalidaCompra)
+{
+    <PurchaseExitDialog OnContinuar="() => ResolverSalidaCompra(false)" OnAbandonar="() => ResolverSalidaCompra(true)" />
+}
+
+<div class="container cinema-page" data-booking-step="@((int)pasoActual + 1)" @ref="inicioReserva">
+    @if (pasoActual != PasoReserva.SeleccionGenero && pasoActual != PasoReserva.MostrarFactura)
+    {
+        <section class="booking-progress" aria-label="Avance de tu reserva">
+        <p class="booking-progress-summary" role="status" aria-live="polite"><span>Paso @((int)pasoActual + 1) de @nombresPasos.Length</span><strong>@nombresPasos[(int)pasoActual]</strong></p>
+        <ol class="booking-steps">
+            @for (var index = 0; index < nombresPasos.Length; index++)
+            {
+                <li class="@(index == (int)pasoActual ? "is-current" : index < (int)pasoActual ? "is-complete" : "")"
+                    aria-current="@(index == (int)pasoActual ? "step" : null)">
+                    <span class="step-index" aria-hidden="true">@if (index < (int)pasoActual) { <i class="fas fa-check"></i> } else { @(index + 1) }</span>
+                    <span class="step-label"><span class="step-name">@nombresPasos[index]</span><span class="step-state">@(index == (int)pasoActual ? "En curso" : index < (int)pasoActual ? "Listo" : "Pendiente")</span></span>
+                </li>
+            }
+        </ol>
+        </section>
+    }
+    @if (cargandoPeliculas)
+    {
+        <div class="empty-state" role="status"><i class="fas fa-film" aria-hidden="true"></i><h2>Preparando la cartelera…</h2><p>En un momento podrás elegir tu próxima película.</p></div>
+    }
+    else
+    {
+    <div class="@(pasoActual == PasoReserva.SeleccionGenero ? "" : "booking-content")">
+    @switch (pasoActual)
+    {
+        case PasoReserva.SeleccionGenero:
+            <GenreSelection Peliculas="@peliculas"
+                            OnPeliculaSeleccionada="SeleccionarPelicula" />
+            break;
+
+        case PasoReserva.SeleccionFuncion:
+            <MovieBookingDetails Pelicula="peliculaActual!" Funciones="Funciones.Disponibles(peliculaActual!.Id)" Seleccionada="@funcionSeleccionada?.Id" OnSeleccionar="SeleccionarFuncion" OnContinuar="ProcederAEntradas" OnVolver="VolverAlPasoAnterior" />
+            break;
+        case PasoReserva.SeleccionEntradas:
+            <TicketQuantity PeliculaActual="peliculaActual!" HorarioSeleccionado="@horarioSeleccionado" Disponibles="ButacasDisponibles" Cantidad="cantidadTickets" OnCantidadChanged="ActualizarCantidadTickets" OnContinuar="ProcederASeleccionAsientos" OnVolver="VolverAlPasoAnterior" />
+            break;
+        case PasoReserva.SeleccionAsientos:
+            <SeatSelector PeliculaActual="peliculaActual" HorarioSeleccionado="@horarioSeleccionado" AsientosSeleccionados="asientosSeleccionados" AsientosOcupados="asientosOcupados" MaximoAsientos="@(cantidadTickets)" AvisoSeleccion="@avisoButacas" OnAsientoToggle="ToggleSeleccionAsiento" OnVaciar="VaciarSeleccionButacas" OnContinuar="ProcederADatosPersonales" OnVolver="VolverAlPasoAnterior" />
+            break;
+
+        case PasoReserva.DatosPersonales:
+            <CustomerInfo NombreCliente="@nombreCliente"
+                          DocumentoCliente="@documentoCliente"
+                          EmailCliente="@emailCliente"
+                          TelefonoCliente="@telefonoCliente"
+                          MetodoPago="@metodoPago"
+                          PermiteEfectivo="PuedeEfectivo" Total="@(SalaService.ObtenerSala(peliculaActual!.NumeroSala).PrecioFinal * cantidadTickets)"
+                          OnNombreChanged="ActualizarNombreCliente"
+                          OnDocumentoChanged="ActualizarDocumentoCliente"
+                          OnEmailChanged="ActualizarEmailCliente"
+                          OnTelefonoChanged="ActualizarTelefonoCliente"
+                          OnMetodoPagoChanged="ActualizarMetodoPago"
+                          OnContinuar="ComprarEntrada" Procesando="comprando"
+                          OnVolver="VolverAlPasoAnterior" />
+            break;
+
+        case PasoReserva.MostrarFactura:
+            <Invoice NumeroFactura="@numeroFactura"
+                     CodigoValidacion="@codigoValidacion"
+                     NombreCliente="@nombreCliente"
+                     DocumentoCliente="@documentoCliente"
+                     EmailCliente="@emailCliente"
+                     TelefonoCliente="@telefonoCliente"
+                     PeliculaActual="@peliculaActual"
+                     HorarioSeleccionado="@horarioSeleccionado"
+                     NumeroSala="@numeroSala"
+                     AsientosSeleccionados="@asientosSeleccionados"
+                     Cantidad="@cantidadTickets"
+                     MetodoPago="@metodoPago"
+                     OnDescargarFactura="DescargarFactura"
+                     OnNuevaCompra="NuevaCompra" />
+            break;
+    }
+    </div>
+    }
+
+    @if (!string.IsNullOrEmpty(mensaje))
+    {
+        <div class="alert @(mensajeEsError ? "alert-danger" : "alert-info") mt-3" role="alert">@mensaje</div>
+    }
+
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "pelicula")]
+    public int? PeliculaId { get; set; }
+    [SupplyParameterFromQuery(Name="funcion")] public string? FuncionRetorno { get; set; }
+
+    private readonly string[] nombresPasos = { "Película", "Función", "Tickets", "Butacas", "Datos" };
+    private bool cargandoPeliculas, comprando;
+    private int etapaPago;
+    private readonly CancellationTokenSource cancelacionCompra = new();
+    private int ButacasDisponibles => funcionSeleccionada == null ? 0 : Funciones.ButacasDisponibles(funcionSeleccionada.Id);
+    private ElementReference inicioReserva;
+    private IJSObjectReference? navegacionPasos;
+    private PasoReserva? pasoMostrado;
+    private bool disposed;
+    private bool rutaInicializada;
+    private int? peliculaDeRuta;
+    private string? correoDeRuta;
+    private bool mostrarSalidaCompra;
+    private TaskCompletionSource<bool>? decisionSalidaCompra;
+    // NUEVO: Variable para el usuario actual
+    private Usuario? usuarioActual;
+    private string? CorreoCuenta => UsuarioService.ObtenerUsuarioActual()?.Email ?? TrabajadorService.ObtenerTrabajadorActual()?.Email;
+    private bool EstaAutenticado => !string.IsNullOrWhiteSpace(CorreoCuenta);
+    private bool PuedeEfectivo => TrabajadorService.ObtenerTrabajadorActual() != null || UsuarioService.ObtenerUsuarioActual()?.Rol is RolUsuario.Administrador or RolUsuario.Trabajador;
+
+    // Enumeración de pasos (debe definirse fuera o utilizarse la misma del resto del código)
+    private enum PasoReserva
+    {
+        SeleccionGenero,
+        SeleccionFuncion,
+        SeleccionEntradas,
+        SeleccionAsientos,
+        DatosPersonales,
+        MostrarFactura
+    }
+
+    // User data
+    private string nombreUsuario = string.Empty;
+    private string emailUsuario = string.Empty;
+    private string ciUsuario = string.Empty;
+
+    // Reservation process
+    private PasoReserva pasoActual = PasoReserva.SeleccionGenero;
+    private string? generoSeleccionado = null;
+    private Pelicula? peliculaActual = null;
+    private FuncionCine? funcionSeleccionada;
+    private string? horarioSeleccionado = null;
+    private int experienciaSeleccionada = TipoExperiencia.D2; // Nueva propiedad
+    private string metodoPago = "Tarjeta";
+    private int cantidadTickets = 0;
+    private string? mensaje = null;
+    private bool mensajeEsError = false;
+    private List<Pelicula> peliculas = new();
+    private readonly SeleccionButacas seleccionButacas = new();
+    private HashSet<string> asientosSeleccionados => seleccionButacas.CopiarAsientos();
+    private string avisoButacas = "";
+    private HashSet<string> asientosOcupados = new();
+
+    // Client data
+    private string? nombreCliente = null;
+    private string? documentoCliente = null;
+    private string? emailCliente = null;
+    private string? telefonoCliente = null;
+
+    // Invoice data
+    private string numeroFactura = string.Empty;
+    private string codigoValidacion = string.Empty;
+    private int numeroSala = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Inicializar todas las variables de estado
+        generoSeleccionado = null;
+        peliculaActual = null;
+        funcionSeleccionada = null;
+        horarioSeleccionado = null;
+        experienciaSeleccionada = TipoExperiencia.D2; // Inicializar en 2D
+        metodoPago = "Tarjeta";
+        cantidadTickets = 0;
+        mensaje = null;
+        mensajeEsError = false;
+        peliculas = new List<Pelicula>();
+        LimpiarButacas();
+        asientosOcupados = new HashSet<string>();
+        nombreCliente = null;
+        documentoCliente = null;
+        emailCliente = null;
+        telefonoCliente = null;
+        numeroFactura = string.Empty;
+        numeroSala = 0;
+
+        usuarioActual = UsuarioService.ObtenerUsuarioActual();
+
+        if (usuarioActual != null && !PuedeEfectivo)
+        {
+            nombreUsuario = $"{usuarioActual.Nombre} {usuarioActual.Apellido}";
+            emailUsuario = usuarioActual.Email;
+            ciUsuario = usuarioActual.CI;
+            nombreCliente = nombreUsuario;
+            documentoCliente = ciUsuario;
+            emailCliente = emailUsuario;
+            telefonoCliente = string.Empty;
+        }
+        emailUsuario = CorreoCuenta ?? "";
+        cargandoPeliculas = true;
+        await FiltrarPeliculasPorGenero("Todas");
+        if (PeliculaId.HasValue)
+        {
+            var seleccionada = peliculas.FirstOrDefault(p => p.Id == PeliculaId.Value) ?? await PeliculaService.ObtenerAsync(PeliculaId.Value);
+            if (seleccionada != null) await SeleccionarPelicula(seleccionada);
+            await RecuperarReservaPendiente();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!cargandoPeliculas && !disposed && pasoMostrado != pasoActual)
+        {
+            var pasoRenderizado = pasoActual;
+            pasoMostrado = pasoRenderizado;
+            if (navegacionPasos == null)
+            {
+                var modulo = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/navigation.js");
+                if (disposed) { await modulo.DisposeAsync(); return; }
+                navegacionPasos = modulo;
+            }
+            if (!disposed && pasoRenderizado == pasoActual)
+                await navegacionPasos.InvokeVoidAsync("startBookingStep", inicioReserva, (int)pasoRenderizado + 1);
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // A layout refresh (for example, rotating a phone) must preserve the purchase step.
+        var correoActual = CorreoCuenta;
+        if (rutaInicializada && peliculaDeRuta == PeliculaId && correoDeRuta == correoActual) return;
+        rutaInicializada = true;
+        peliculaDeRuta = PeliculaId;
+        correoDeRuta = correoActual;
+        if (!cargandoPeliculas && PeliculaId.HasValue && peliculaActual?.Id != PeliculaId.Value)
+        {
+            var seleccionada = peliculas.FirstOrDefault(p => p.Id == PeliculaId.Value) ?? await PeliculaService.ObtenerAsync(PeliculaId.Value);
+            if (seleccionada != null) await SeleccionarPelicula(seleccionada);
+            await RecuperarReservaPendiente();
+        }
+        else if(correoActual == null && usuarioActual != null)
+        {
+            usuarioActual = null; peliculaActual = null; await SeleccionarFuncion(null); pasoActual = PasoReserva.SeleccionGenero;
+        }
+    }
+
+    private int ObtenerPorcentajeProceso() => ((int)pasoActual - 1) * 100 / 6;
+
+    // NUEVO: Método para ir al perfil
+    private void IrAPerfil()
+    {
+        NavigationManager.NavigateTo("/perfil");
+    }
+
+    private async Task FiltrarPeliculasPorGenero(string genero)
+    {
+        cargandoPeliculas = true;
+        generoSeleccionado = genero;
+        peliculaActual = null; // Limpiar película seleccionada
+        horarioSeleccionado = null; // Limpiar horario seleccionado
+        experienciaSeleccionada = TipoExperiencia.D2; // Reiniciar a 2D
+        try
+        {
+            await Funciones.InicializarAsync();
+            var fichas = !string.IsNullOrEmpty(generoSeleccionado) ? await PeliculaService.ObtenerPeliculasPorGenero(generoSeleccionado) : new List<Pelicula>();
+            peliculas = fichas;
+            mensaje = null;
+        }
+        catch
+        {
+            mensaje = "No se pudo cargar la cartelera. Selecciona otro género para volver a intentarlo.";
+            mensajeEsError = true;
+        }
+        finally
+        {
+            cargandoPeliculas = false;
+        }
+        StateHasChanged();
+    }
+
+    private async Task RecuperarReservaPendiente()
+    {
+        if (!EstaAutenticado || !PeliculaId.HasValue || peliculaActual == null)return;
+        var id = AuthDialog.ConsumirReserva(PeliculaId.Value) ?? FuncionRetorno; FuncionRetorno = null;
+        if(id == null)return;
+        var funcion = Funciones.Obtener(id);
+        if(funcion == null || funcion.PeliculaId != peliculaActual.Id)return;
+        await SeleccionarFuncion(funcion); ProcederAEntradas();
+    }
+    private void PrepararCliente()
+    {
+        usuarioActual = UsuarioService.ObtenerUsuarioActual();
+        emailUsuario = CorreoCuenta ?? "";
+        if (usuarioActual == null || PuedeEfectivo) return;
+        nombreUsuario = $"{usuarioActual.Nombre} {usuarioActual.Apellido}"; emailUsuario = usuarioActual.Email; ciUsuario = usuarioActual.CI;
+        nombreCliente = nombreUsuario; documentoCliente = ciUsuario; emailCliente = emailUsuario;
+    }
+    private async Task SeleccionarPelicula(Pelicula peli)
+    {
+        PrepararCliente(); peliculaActual = peli.Copiar(); await Funciones.CargarPeliculaAsync(peli.Id); await SeleccionarFuncion(null);
+        pasoActual = PasoReserva.SeleccionFuncion; mensaje = null; StateHasChanged();
+    }
+    private async Task SeleccionarFuncion(FuncionCine? funcion)
+    {
+        if (funcion != null && (funcion.Id == funcionSeleccionada?.Id || funcion.PeliculaId != peliculaActual?.Id)) return;
+        if (funcion is not null) await Funciones.CargarOcupadosAsync(funcion.Id);
+        funcionSeleccionada = funcion; horarioSeleccionado = funcion?.Inicio.ToString("HH:mm");
+        experienciaSeleccionada = funcion?.ExperienciaId ?? -1;
+        if(peliculaActual != null) { peliculaActual.NumeroSala = funcion?.NumeroSala ?? 0; peliculaActual.ExperienciaFuncion = funcion?.ExperienciaId; peliculaActual.FechaFuncion = funcion?.Inicio; }
+        LimpiarButacas(); asientosOcupados.Clear(); cantidadTickets = 0; mensaje = null;
+    }
+    private async Task VolverAlPasoAnterior()
+    {
+        switch(pasoActual)
+        {
+            case PasoReserva.SeleccionFuncion: peliculaActual = null; await SeleccionarFuncion(null); pasoActual = PasoReserva.SeleccionGenero; break;
+            case PasoReserva.SeleccionEntradas: pasoActual = PasoReserva.SeleccionFuncion; break;
+            case PasoReserva.SeleccionAsientos: pasoActual = PasoReserva.SeleccionEntradas; break;
+            case PasoReserva.DatosPersonales: pasoActual = PasoReserva.SeleccionAsientos; break;
+        }
+        mensaje = null;
+    }
+    private void ProcederAEntradas()
+    {
+        var actual = Funciones.Obtener(funcionSeleccionada?.Id);
+        if(actual == null || actual.Inicio <= DateTime.Now || Funciones.ButacasDisponibles(actual.Id) == 0) { mensaje = "La función ya no está disponible. Elige otro horario."; mensajeEsError = true; return; }
+        if (!EstaAutenticado) { AuthDialog.AbrirReserva(peliculaActual!.Id,actual.Id); return; }
+        funcionSeleccionada = actual; PrepararCliente(); pasoActual = PasoReserva.SeleccionEntradas; mensaje = null;
+    }
+    private async Task ProcederASeleccionAsientos()
+    {
+        if (funcionSeleccionada == null || !ReservaEntradas.CantidadValida(cantidadTickets,0,ButacasDisponibles)) { mensaje = "Revisa la cantidad de tickets y las butacas disponibles para esta función."; mensajeEsError = true; return; }
+        await Funciones.CargarOcupadosAsync(funcionSeleccionada.Id); asientosOcupados = Funciones.Ocupados(funcionSeleccionada.Id); seleccionButacas.Excluir(asientosOcupados);
+        pasoActual = PasoReserva.SeleccionAsientos; mensaje = null;
+    }
+    private void ToggleSeleccionAsiento(string asientoId)
+    {
+        if(pasoActual != PasoReserva.SeleccionAsientos || peliculaActual == null || asientosOcupados.Contains(asientoId) || !SalaService.ObtenerTodosLosAsientos(peliculaActual.NumeroSala).Contains(asientoId))return;
+        var retirada = seleccionButacas.Alternar(asientoId,cantidadTickets);
+        avisoButacas = retirada == null ? "" : $"Butaca {retirada} reemplazada por {asientoId}.";
+        mensaje = null;
+    }
+    private void LimpiarButacas() { seleccionButacas.Limpiar(); avisoButacas = ""; }
+    private void VaciarSeleccionButacas() { LimpiarButacas(); mensaje = null; }
+    private void ActualizarCantidadTickets(int cant)
+    {
+        var nueva = Math.Clamp(cant,0,Math.Max(0,ButacasDisponibles));
+        if(nueva != cantidadTickets)LimpiarButacas();cantidadTickets = nueva; mensaje = null;
+    }
+
+    private void ActualizarNombreCliente(string nombre)
+    {
+        nombreCliente = nombre;
+        StateHasChanged();
+    }
+
+    private void ActualizarDocumentoCliente(string doc)
+    {
+        documentoCliente = doc;
+        StateHasChanged();
+    }
+
+    private void ActualizarEmailCliente(string email)
+    {
+        emailCliente = email;
+        StateHasChanged();
+    }
+
+    private void ActualizarTelefonoCliente(string tel)
+    {
+        telefonoCliente = tel;
+        StateHasChanged();
+    }
+
+    private void ActualizarMetodoPago(string metodo)
+    {
+        if (!PagosReserva.MetodoPermitido(metodo, PuedeEfectivo)) return;
+        metodoPago = metodo;
+        StateHasChanged();
+    }
+
+    private void ProcederADatosPersonales()
+    {
+        if (!ReservaEntradas.ButacasCompletas(cantidadTickets,0,asientosSeleccionados.Count)) { mensaje = "Selecciona una butaca por cada ticket para continuar."; mensajeEsError = true; return; }
+        try { Funciones.ValidarCompra(funcionSeleccionada?.Id ?? "",asientosSeleccionados); }
+        catch(ArgumentException ex) { asientosOcupados = Funciones.Ocupados(funcionSeleccionada?.Id ?? ""); seleccionButacas.Excluir(asientosOcupados); mensaje = ex.Message; mensajeEsError = true; return; }
+        pasoActual = PasoReserva.DatosPersonales; mensaje = null;
+    }
+
+    private string solicitudCompra = Guid.NewGuid().ToString("N");
+    private async Task ComprarEntrada()
+    {
+        if(comprando || disposed)return;comprando = true;
+        var cancelacion = cancelacionCompra.Token;
+        try
+        {
+            if (string.IsNullOrEmpty(nombreCliente) || string.IsNullOrEmpty(documentoCliente))
+            {
+                mensaje = "⚠️ Por favor completa los datos personales obligatorios.";
+                mensajeEsError = true;
+                StateHasChanged();
+                return;
+            }
+
+            if(!EstaAutenticado)throw new ArgumentException("Inicia sesión para completar la compra.");
+            if(!PagosReserva.MetodoPermitido(metodoPago, PuedeEfectivo))throw new ArgumentException("Elige un método de pago permitido para tu cuenta.");
+            if(!ReservaEntradas.ButacasCompletas(cantidadTickets,0,asientosSeleccionados.Count))throw new ArgumentException("Los tickets deben coincidir con las butacas elegidas.");
+            Funciones.ValidarCompra(funcionSeleccionada?.Id ?? "", asientosSeleccionados);
+            await MostrarEtapaPago(1, cancelacion);
+            await MostrarEtapaPago(2, cancelacion);
+            if (!EstaAutenticado || !PagosReserva.MetodoPermitido(metodoPago, PuedeEfectivo)) throw new ArgumentException("Inicia sesión y verifica tu método de pago.");
+            // Generar número de factura y sala
+            numeroSala = peliculaActual?.NumeroSala ?? 0;
+
+            // Obtener el tipo de sala y experiencia
+            var tipoExperiencia = funcionSeleccionada?.ExperienciaId ?? throw new ArgumentException("Elige una función válida.");
+            var tipoSala = SalaService.ObtenerTipoSalaParaExperiencia(numeroSala, tipoExperiencia);
+
+            // Obtener la distribución de asientos por categoría
+            var asientosPorCategoria = AsientoService.AgruparAsientosPorCategoria(
+                numeroSala,
+                asientosSeleccionados.ToList()
+            );
+
+            // Los campos históricos conservan el respaldo compatible; todas las entradas
+            // de esta compra usan una sola cantidad y el precio final de la sala.
+            var asientosMayoresPorCategoria = asientosPorCategoria.ToDictionary(par => par.Key, par => par.Value.Count);
+            var asientosMenoresPorCategoria = new Dictionary<CategoriaAsiento, int>();
+            var precioEntrada = SalaService.ObtenerSala(numeroSala).PrecioFinal;
+            var preciosMayoresPorCategoria = asientosPorCategoria.ToDictionary(par => par.Key, _ => precioEntrada);
+            var preciosMenoresPorCategoria = new Dictionary<CategoriaAsiento, decimal>();
+            // Crear venta completa con toda la información
+            var nuevaVenta = new VentaTicket
+                {
+                    Solicitud = solicitudCompra,
+                    FechaVenta = DateTime.Now,
+                    FuncionId = funcionSeleccionada?.Id,
+                    FechaFuncion = funcionSeleccionada?.Inicio,
+                    PeliculaId = peliculaActual?.Id ?? 0,
+                    Pelicula = peliculaActual?.Titulo ?? "Sin título",
+                    Genero = peliculaActual?.Genero ?? "Sin género",
+                    Generos = peliculaActual?.ListaGeneros.ToList() ?? new(),
+                    NumeroSala = numeroSala,
+                    TipoSala = tipoSala,
+                    TipoSalaNombre = SalaService.NombreTipoSala(tipoSala),
+                    TipoExperiencia = tipoExperiencia,
+                    ExperienciaNombre = SalaService.NombreExperiencia(tipoExperiencia),
+                    TicketsMayores = cantidadTickets,
+                    TicketsMenores = 0,
+                    Horario = horarioSeleccionado ?? "",
+                    Asientos = asientosSeleccionados.ToList(),
+                    NumeroFactura = numeroFactura,
+                    Cliente = nombreCliente ?? "",
+                    DocumentoCliente = documentoCliente ?? "",
+                    MetodoPago = metodoPago,
+                    EsPagoSimulado = metodoPago != "Efectivo",
+                    EmailUsuario = emailUsuario, // NUEVO: Guardar el email del usuario
+                // Añadir información detallada de categorías y precios
+                    AsientosMayoresPorCategoria = asientosMayoresPorCategoria,
+                    AsientosMenoresPorCategoria = asientosMenoresPorCategoria,
+                    PreciosMayoresPorCategoria = preciosMayoresPorCategoria,
+                    PreciosMenoresPorCategoria = preciosMenoresPorCategoria
+                };
+
+            // Registrar la venta
+            var confirmada = await Funciones.RegistrarCompraAsync(nuevaVenta);
+            codigoValidacion = confirmada.CodigoValidacion; numeroFactura = confirmada.NumeroFactura;
+
+            await MostrarEtapaPago(3, cancelacion);
+            // Avanzar al siguiente paso
+            pasoActual = PasoReserva.MostrarFactura;
+            mensaje = null;
+            StateHasChanged();
+        }
+        catch (OperationCanceledException) when (disposed) { }
+        catch (Exception ex)
+        {
+            // Capturar y mostrar cualquier error
+            mensaje = $"Error al procesar la compra: {ex.Message}";
+            mensajeEsError = true;
+            if(funcionSeleccionada != null) { await Funciones.CargarOcupadosAsync(funcionSeleccionada.Id); asientosOcupados = Funciones.Ocupados(funcionSeleccionada.Id); seleccionButacas.Excluir(asientosOcupados); if(!ReservaEntradas.ButacasCompletas(cantidadTickets,0,asientosSeleccionados.Count))pasoActual = PasoReserva.SeleccionAsientos; }
+            StateHasChanged();
+        }
+        finally { comprando = false; etapaPago = 0; if (!disposed) StateHasChanged(); }
+    }
+
+    private async Task MostrarEtapaPago(int etapa, CancellationToken cancelacion)
+    {
+        etapaPago = etapa;
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(1500, cancelacion);
+    }
+
+    private async Task DescargarFactura()
+    {
+        try
+        {
+            var fileName = $"Factura_{numeroFactura.Replace("-", "_")}.pdf";
+            await JSRuntime.InvokeVoidAsync("descargarFacturaPDF", "facturaImprimir", fileName);
+            mensaje = "Factura descargada correctamente.";
+            mensajeEsError = false;
+        }
+        catch
+        {
+            mensaje = "No se pudo descargar el PDF. Vuelve a intentarlo.";
+            mensajeEsError = true;
+        }
+        StateHasChanged();
+    }
+
+    private async Task ConfirmarSalidaCompra(LocationChangingContext context)
+    {
+        if (comprando) { context.PreventNavigation(); return; }
+        var destino = new Uri(new Uri(NavigationManager.BaseUri), context.TargetLocation);
+        var ruta = NavigationManager.ToBaseRelativePath(destino.GetLeftPart(UriPartial.Path)).TrimEnd('/');
+        var vuelveACartelera = (ruta == "" || ruta == "cine") && destino.Query == "" && destino.Fragment == "";
+        if (!vuelveACartelera || !EstaAutenticado ||
+            pasoActual == PasoReserva.SeleccionGenero) return;
+        if (pasoActual == PasoReserva.MostrarFactura)
+        {
+            await ReiniciarCompra();
+            return;
+        }
+
+        var decision = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        decisionSalidaCompra = decision;
+        mostrarSalidaCompra = true;
+        await InvokeAsync(StateHasChanged);
+        using var cancelacion = context.CancellationToken.Register(() => decision.TrySetResult(false));
+        try
+        {
+            var abandonar = await decision.Task;
+            if (!abandonar || context.CancellationToken.IsCancellationRequested) context.PreventNavigation();
+            else await ReiniciarCompra();
+        }
+        finally
+        {
+            if (decisionSalidaCompra == decision)
+            {
+                decisionSalidaCompra = null;
+                mostrarSalidaCompra = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private void ResolverSalidaCompra(bool abandonar) => decisionSalidaCompra?.TrySetResult(abandonar);
+
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+        cancelacionCompra.Cancel();
+        cancelacionCompra.Dispose();
+        decisionSalidaCompra?.TrySetResult(false);
+        if (navegacionPasos != null)
+        {
+            try { await navegacionPasos.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+    }
+
+    private Task NuevaCompra() => ReiniciarCompra();
+
+    private async Task ReiniciarCompra()
+    {
+        solicitudCompra = Guid.NewGuid().ToString("N");
+        // Reiniciar todas las variables de estado
+        generoSeleccionado = null;
+        peliculaActual = null;
+        funcionSeleccionada = null;
+        horarioSeleccionado = null;
+        experienciaSeleccionada = TipoExperiencia.D2;
+        metodoPago = "Tarjeta";
+        cantidadTickets = 0;
+        mensaje = null;
+        mensajeEsError = false;
+        LimpiarButacas();
+        asientosOcupados = new HashSet<string>();
+        nombreCliente = nombreUsuario;
+        documentoCliente = ciUsuario;
+        emailCliente = emailUsuario;
+        telefonoCliente = string.Empty;
+        numeroFactura = string.Empty;
+        codigoValidacion = string.Empty;
+        numeroSala = 0;
+        pasoActual = PasoReserva.SeleccionGenero;
+        await FiltrarPeliculasPorGenero("Todas");
+        StateHasChanged();
+    }
+}

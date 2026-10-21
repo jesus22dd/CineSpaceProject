@@ -1,0 +1,56 @@
+<div class="data-pagination">
+    @if (ShowPageInfo)
+    {
+        <p role="status">Mostrando @FirstItem–@LastItem de @Math.Max(0, TotalItems)</p>
+    }
+    <nav aria-label="@Label">
+        <button type="button" class="pagination-control pagination-direction" aria-label="Anterior" disabled="@(SafePage <= 1)" @onclick="() => ChangePage(SafePage - 1)"><i class="fas fa-chevron-left" aria-hidden="true"></i><span>Anterior</span></button>
+        @foreach (var item in Numbers)
+        {
+            if (item.HasValue)
+            {
+                var number = item.Value;
+                <button type="button" class="pagination-control pagination-number" aria-label="Ir a página @number" aria-current="@(number == SafePage ? "page" : null)" @onclick="() => ChangePage(number)">@number</button>
+            }
+            else
+            {
+                <span class="pagination-ellipsis" aria-hidden="true">…</span>
+            }
+        }
+        <button type="button" class="pagination-control pagination-direction" aria-label="Siguiente" disabled="@(SafePage >= SafeTotal)" @onclick="() => ChangePage(SafePage + 1)"><span>Siguiente</span><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+        <span class="pagination-count">Página @SafePage de @SafeTotal</span>
+    </nav>
+    @if (ShowPageSizeSelector)
+    {
+        <label class="pagination-size">Por página <select class="form-select" value="@PageSize" @onchange="PageSizeChanged">@foreach (var size in PageSizes) { <option value="@size">@size</option> }</select></label>
+    }
+</div>
+
+@code {
+    [Parameter] public int CurrentPage { get; set; } = 1;
+    [Parameter] public int TotalPages { get; set; } = 1;
+    [Parameter] public int TotalItems { get; set; }
+    [Parameter] public int PageSize { get; set; } = 10;
+    [Parameter] public int[] PageSizes { get; set; } = new[] { 5, 10, 20, 50, 100 };
+    [Parameter] public string Size { get; set; } = "";
+    [Parameter] public string Label { get; set; } = "Paginación";
+    [Parameter] public bool ShowPageInfo { get; set; } = true;
+    [Parameter] public bool ShowPageSizeSelector { get; set; } = true;
+    [Parameter] public EventCallback<int> OnPageChanged { get; set; }
+    [Parameter] public EventCallback<int> OnPageSizeChanged { get; set; }
+    private int SafeTotal => Math.Max(1, TotalPages);
+    private int SafePage => Math.Clamp(CurrentPage, 1, SafeTotal);
+    private int FirstItem => TotalItems <= 0 ? 0 : (SafePage - 1) * Math.Max(1, PageSize) + 1;
+    private int LastItem => Math.Min(SafePage * Math.Max(1, PageSize), Math.Max(0, TotalItems));
+    private IEnumerable<int?> Numbers
+    {
+        get
+        {
+            var pages = new[] { 1, SafeTotal, SafePage - 1, SafePage, SafePage + 1 }.Where(p => p >= 1 && p <= SafeTotal).Distinct().OrderBy(p => p);
+            var previous = 0;
+            foreach (var page in pages) { if (previous > 0 && page - previous > 1) yield return null; yield return page; previous = page; }
+        }
+    }
+    private Task ChangePage(int page) => OnPageChanged.InvokeAsync(Math.Clamp(page, 1, SafeTotal));
+    private Task PageSizeChanged(ChangeEventArgs e) => int.TryParse(e.Value?.ToString(), out var size) && PageSizes.Contains(size) ? OnPageSizeChanged.InvokeAsync(size) : Task.CompletedTask;
+}

@@ -1,0 +1,60 @@
+@using CineSpace.Client.Components.Shared
+@inject CatalogosService Catalogos
+
+<fieldset class="movie-genres">
+    <legend>Géneros</legend>
+    <div class="genre-rows">
+        @foreach (var nombre in Valor)
+        {
+            <div class="genre-selected" @key="nombre">
+                <input class="form-control" value="@nombre" readonly aria-label="@($"Género añadido: {nombre}")" />
+                <button type="button" class="btn btn-secondary genre-remove" aria-label="@($"Quitar {nombre}")" @onclick="() => Quitar(nombre)"><i class="fas fa-times" aria-hidden="true"></i><span>Quitar</span></button>
+            </div>
+        }
+        @if (Opciones.Count > 0)
+        {
+            <SearchSelect @key="revision" @ref="buscador" Id="movie-genre" Etiqueta="Género" OcultarEtiqueta="true" DescripcionId="movie-genres-help" Valor="candidato" ValorChanged="Elegir" Opciones="Opciones">
+                <AccionFinal><button type="button" class="btn btn-primary genre-add" disabled="@(candidato == "0")" @onclick="Agregar"><span>Añadir</span></button></AccionFinal>
+            </SearchSelect>
+        }
+    </div>
+    <p id="movie-genres-help" class="genre-help">@(Opciones.Count == 0 ? "Ya añadiste todos los géneros disponibles." : "Busca un género y pulsa Añadir. Puedes elegir varios.")</p>
+    <p class="genre-status visually-hidden" role="status">@aviso</p>
+    @if (error.Length > 0) { <p class="genre-error" role="alert">@error</p> }
+</fieldset>
+
+@code {
+    [Parameter] public IReadOnlyList<string> Valor { get; set; } = Array.Empty<string>();
+    [Parameter] public EventCallback<List<string>> ValorChanged { get; set; }
+    private string candidato = "0", aviso = "", error = "";
+    private int revision;
+    private SearchSelect? buscador;
+    private bool enfocar;
+    private IReadOnlyList<SearchSelectOption> Opciones => Catalogos.Generos
+        .Where(g => !Valor.Contains(g.Nombre, StringComparer.OrdinalIgnoreCase)).OrderByDescending(g => g.Id)
+        .Select(g => new SearchSelectOption(g.Id.ToString(), g.Nombre)).ToArray();
+    private void Elegir(string valor) { candidato = valor; error = ""; }
+    private async Task Agregar()
+    {
+        var opcion = Opciones.FirstOrDefault(g => g.Valor == candidato);
+        if (opcion == null) return;
+        await ValorChanged.InvokeAsync(Valor.Append(opcion.Texto).ToList());
+        aviso = $"{opcion.Texto} añadido."; Reiniciar();
+    }
+    private async Task Quitar(string nombre)
+    {
+        await ValorChanged.InvokeAsync(Valor.Where(g => g != nombre).ToList());
+        aviso = $"{nombre} retirado."; Reiniciar();
+    }
+    private void Reiniciar() { candidato = "0"; error = ""; revision++; enfocar = true; }
+    public bool Validar()
+    {
+        error = candidato != "0" ? "Pulsa Añadir para incluir el género seleccionado." : Valor.Count == 0 ? "Añade al menos un género a la película." : "";
+        if (error.Length > 0) { enfocar = true; StateHasChanged(); }
+        return error.Length == 0;
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (enfocar && buscador != null && Opciones.Count > 0) { enfocar = false; await buscador.EnfocarAsync(); }
+    }
+}

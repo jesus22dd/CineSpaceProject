@@ -1,0 +1,110 @@
+@namespace CineSpace.Client.Components.Cinema
+@using CineSpace.Shared.Models
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject BannersService Banners
+@inject PeliculaService PeliculasService
+
+@if (destacadas.Count > 0)
+{
+    <section class="movie-carousel" aria-roledescription="carrusel" aria-label="Películas destacadas" @ref="carouselElement">
+        <div class="carousel-stage" @onpointerdown="PointerDown" @onpointerup="PointerUp">
+            @for (var index = 0; index < destacadas.Count; index++)
+            {
+                var destacado = destacadas[index];
+                var activa = index == actual;
+                <BannerVisual @key="(destacado.Pelicula.Id, destacado.Banner.Id)" Pelicula="destacado.Pelicula" Banner="destacado.Banner" Activa="activa" OnReservar="OnReservar" OnImagenFallida="RecuperarFallida" />
+            }
+        </div>
+        @if (destacadas.Count > 1)
+        {
+            <div class="carousel-controls">
+                <div class="carousel-pagination" role="group" aria-label="Elegir película destacada">
+                    @for (var index = 0; index < destacadas.Count; index++)
+                    {
+                        var slideIndex = index;
+                        <button type="button" class="carousel-dot @(actual == slideIndex ? "is-current" : "")" aria-label="Ver @destacadas[slideIndex].Pelicula.Titulo"
+                                aria-current="@(actual == slideIndex ? "true" : null)" @onclick="() => IrA(slideIndex)"><span></span></button>
+                    }
+                </div>
+                <div class="carousel-center">
+                    <button type="button" class="carousel-control carousel-playback" @onclick="CambiarReproduccion" aria-label="@(reproduciendo ? "Pausar carrusel" : "Reproducir carrusel")" title="@(reproduciendo ? "Pausar carrusel" : "Reproducir carrusel")"><i class="fas @(reproduciendo ? "fa-pause" : "fa-play")" aria-hidden="true"></i></button>
+                </div>
+                <button type="button" class="carousel-control carousel-previous" @onclick="Anterior" aria-label="Película anterior"><i class="fas fa-chevron-left" aria-hidden="true"></i></button>
+                <button type="button" class="carousel-control carousel-next" @onclick="Siguiente" aria-label="Película siguiente"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+            </div>
+        }
+        <p class="visually-hidden" aria-live="@(reproduciendo ? "off" : "polite")">@destacadas[actual].Pelicula.Titulo, película @(actual + 1) de @destacadas.Count.</p>
+    </section>
+}
+
+@code {
+    [Parameter] public List<Pelicula> Peliculas { get; set; } = new();
+    [Parameter] public EventCallback<Pelicula> OnReservar { get; set; }
+    private List<BannerDestacado> destacadas = new();
+    private readonly HashSet<int> intentadas = new();
+    private bool disposed;
+    private int actual;
+    private bool reproduciendo = true;
+    private double pointerStart;
+    private ElementReference carouselElement;
+    private ElementReference observedElement;
+    private IJSObjectReference? module;
+    private DotNetObjectReference<MovieCarousel>? reference;
+    protected override async Task OnInitializedAsync() { Banners.Changed += Cambios; await Banners.InicializarAsync(); }
+    private void Actualizar()
+    {
+        destacadas = Banners.Destacados(Peliculas);
+        if (actual >= destacadas.Count) actual = 0;
+    }
+    private void Cambios() => _ = InvokeAsync(() => { if (!disposed) { Actualizar(); StateHasChanged(); } });
+    protected override async Task OnParametersSetAsync()
+    {
+        Actualizar();
+        if (!Banners.UsaSeleccionManual(Peliculas)) await Task.WhenAll(destacadas.Where(d => string.IsNullOrEmpty(d.Banner.Imagen) && intentadas.Add(d.Pelicula.Id)).Select(d => Recuperar(d.Pelicula)).ToArray());
+        if (!disposed) Actualizar();
+    }
+    private Task RecuperarFallida(Pelicula pelicula) => !Banners.UsaSeleccionManual(Peliculas) && intentadas.Add(pelicula.Id) ? Recuperar(pelicula, BannersService.UrlFondo(Banners.Fondo(pelicula))) : Task.CompletedTask;
+    private async Task Recuperar(Pelicula pelicula, string? excluir = null)
+    {
+        if (pelicula.ImagenManual) return;
+        try { var fondos = await PeliculasService.ObtenerFondosAsync(pelicula.Id); foreach (var fondo in fondos.Where(f => f.Url != excluir).Take(3)) { if (disposed) return; try { await JS.InvokeAsync<object>("cineBannerImages.inspect", fondo.Url); } catch { continue; } if (disposed) return; pelicula.ImagenPanoramicaUrl = fondo.Ruta;  return; } }
+        catch { /* The existing poster layout remains usable while TMDB is unavailable. */ }
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (destacadas.Count < 2 && module != null) { await module.InvokeVoidAsync("disconnectCarousel", observedElement); await module.DisposeAsync(); module = null; reference?.Dispose(); reference = null; }
+        if (module == null && destacadas.Count >= 2) {
+            module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/catalogue.js"); reference = DotNetObjectReference.Create(this); observedElement = carouselElement;
+            reproduciendo = await module.InvokeAsync<bool>("observeCarousel", carouselElement, reference); StateHasChanged();
+        }
+    }
+    [JSInvokable] public Task AvanzarAutomaticamente() => InvokeAsync(() => { Siguiente(); StateHasChanged(); });
+    [JSInvokable] public Task ReducirMovimiento() => InvokeAsync(() => { reproduciendo = false; StateHasChanged(); });
+    private void Siguiente() { if (destacadas.Count > 0) actual = (actual + 1) % destacadas.Count; }
+    private void Anterior() { if (destacadas.Count > 0) actual = (actual - 1 + destacadas.Count) % destacadas.Count; }
+    private void IrA(int index) => actual = index;
+    private async Task CambiarReproduccion()
+    {
+        reproduciendo = !reproduciendo;
+        if (module != null) await module.InvokeVoidAsync("setCarouselPlayback", carouselElement, reproduciendo);
+    }
+    private void PointerDown(PointerEventArgs args) { if (args.PointerType == "touch") pointerStart = args.ClientX; }
+    private void PointerUp(PointerEventArgs args)
+    {
+        if (args.PointerType != "touch") return;
+        var distancia = args.ClientX - pointerStart;
+        if (distancia > 50) Anterior();
+        else if (distancia < -50) Siguiente();
+    }
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true; Banners.Changed -= Cambios;
+        if (module != null)
+        {
+            try { await module.InvokeVoidAsync("disconnectCarousel", observedElement); await module.DisposeAsync(); } catch (JSDisconnectedException) { }
+        }
+        reference?.Dispose();
+    }
+}
+

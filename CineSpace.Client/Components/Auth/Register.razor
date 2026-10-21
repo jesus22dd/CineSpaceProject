@@ -1,0 +1,149 @@
+@using CineSpace.Shared.Models
+@using CineSpace.Client.Services
+@inject UsuarioService UsuarioService
+@inject NavigationManager NavigationManager
+
+<div class="auth-form-content">
+    <h2 id="auth-title">Crear cuenta</h2>
+    <p class="form-intro" id="auth-intro">Crea tu cuenta para elegir tu próxima función.</p>
+    <form class="register-form" @onsubmit="Registrarse" @onsubmit:preventDefault aria-busy="@registrando">
+        <fieldset class="auth-fields" disabled="@registrando">
+        <div class="register-pair">
+            <div class="mb-3">
+                <label for="registerNombre" class="form-label">Nombre</label>
+                <input type="text" class="form-control" id="registerNombre" @bind="registerNombre" @bind:event="oninput" @bind:after="GuardarBorrador" autocomplete="given-name" required />
+            </div>
+            <div class="mb-3">
+                <label for="registerApellido" class="form-label">Apellido</label>
+                <input type="text" class="form-control" id="registerApellido" @bind="registerApellido" @bind:event="oninput" @bind:after="GuardarBorrador" autocomplete="family-name" required />
+            </div>
+        </div>
+        <div class="mb-3">
+            <label for="registerEmail" class="form-label">Correo electrónico</label>
+            <input type="email" class="form-control" id="registerEmail" @bind="registerEmail" @bind:event="oninput" @bind:after="GuardarBorrador" autocomplete="email" placeholder="tu@correo.com" required />
+        </div>
+        <div class="mb-3">
+            <label for="registerCI" class="form-label">CI / NIT</label>
+            <input type="text" class="form-control" id="registerCI" @bind="registerCI" @bind:event="oninput" @bind:after="GuardarBorrador" required />
+        </div>
+        <div class="register-pair register-passwords">
+            <div class="mb-3">
+                <label for="registerPassword" class="form-label">Contraseña</label>
+                <input type="password" class="form-control" id="registerPassword" @bind="registerPassword" @bind:event="oninput" @bind:after="GuardarBorrador" autocomplete="new-password" required />
+            </div>
+            <div class="mb-3">
+                <label for="registerConfirm" class="form-label">Confirmar contraseña</label>
+                <input type="password" class="form-control" id="registerConfirm" @bind="registerConfirmPassword" @bind:event="oninput" @bind:after="GuardarBorrador" autocomplete="new-password" required />
+            </div>
+        </div>
+        <GoogleAccess />
+        <button type="submit" class="btn btn-primary w-100" disabled="@registrando">@if (registrando) { <span class="button-spinner" aria-hidden="true"></span> }@(registrando ? "Creando cuenta…" : "Crear mi cuenta")</button>
+        </fieldset>
+    </form>
+</div>
+
+@code {
+    [Parameter]
+    public string? RegisterNombre { get; set; }
+    [Parameter]
+    public EventCallback<string?> RegisterNombreChanged { get; set; }
+    [Parameter]
+    public string? RegisterApellido { get; set; }
+    [Parameter]
+    public EventCallback<string?> RegisterApellidoChanged { get; set; }
+    [Parameter]
+    public string? RegisterEmail { get; set; }
+    [Parameter]
+    public EventCallback<string?> RegisterEmailChanged { get; set; }
+    [Parameter]
+    public string? RegisterCI { get; set; }
+    [Parameter]
+    public EventCallback<string?> RegisterCIChanged { get; set; }
+    [Parameter]
+    public string? RegisterPassword { get; set; }
+    [Parameter]
+    public EventCallback<string?> RegisterPasswordChanged { get; set; }
+    [Parameter]
+    public string? RegisterConfirmPassword { get; set; }
+    [Parameter]
+    public EventCallback<string?> RegisterConfirmPasswordChanged { get; set; }
+    [Parameter]
+    public EventCallback<(string mensaje, bool esError)> OnRegisterResult { get; set; }
+    [Parameter]
+    public EventCallback OnSwitchToLogin { get; set; }
+
+    private string? registerNombre;
+    private string? registerApellido;
+    private string? registerEmail;
+    private string? registerCI;
+    private string? registerPassword;
+    private string? registerConfirmPassword;
+    private async Task GuardarBorrador()
+    {
+        await RegisterNombreChanged.InvokeAsync(registerNombre);
+        await RegisterApellidoChanged.InvokeAsync(registerApellido);
+        await RegisterEmailChanged.InvokeAsync(registerEmail);
+        await RegisterCIChanged.InvokeAsync(registerCI);
+        await RegisterPasswordChanged.InvokeAsync(registerPassword);
+        await RegisterConfirmPasswordChanged.InvokeAsync(registerConfirmPassword);
+    }
+
+    protected override void OnInitialized()
+    {
+        registerNombre = RegisterNombre;
+        registerApellido = RegisterApellido;
+        registerEmail = RegisterEmail;
+        registerCI = RegisterCI;
+        registerPassword = RegisterPassword;
+        registerConfirmPassword = RegisterConfirmPassword;
+    }
+
+    private bool registrando;
+    private async Task Registrarse()
+    {
+        if (registrando) return;
+        if (string.IsNullOrEmpty(registerNombre) || string.IsNullOrEmpty(registerApellido) ||
+            string.IsNullOrEmpty(registerEmail) || string.IsNullOrEmpty(registerCI) ||
+            string.IsNullOrEmpty(registerPassword) || string.IsNullOrEmpty(registerConfirmPassword))
+        {
+            await OnRegisterResult.InvokeAsync(("Por favor completa todos los campos.", true));
+            return;
+        }
+
+        if (registerPassword != registerConfirmPassword)
+        {
+            await OnRegisterResult.InvokeAsync(("Las contraseñas no coinciden.", true));
+            return;
+        }
+
+        var nuevoUsuario = new Usuario
+            {
+                Email = registerEmail,
+                Password = registerPassword,
+                Nombre = registerNombre,
+                Apellido = registerApellido,
+                CI = registerCI
+            };
+
+        registrando = true;
+        try {
+        var resultado = await UsuarioService.RegistrarUsuario(nuevoUsuario);
+        var exito = resultado.exito;
+        var mensajeRegistro = resultado.mensaje;
+
+        // Actualizar parámetros bidireccionales
+        await RegisterNombreChanged.InvokeAsync(registerNombre);
+        await RegisterApellidoChanged.InvokeAsync(registerApellido);
+        await RegisterEmailChanged.InvokeAsync(registerEmail);
+        await RegisterCIChanged.InvokeAsync(registerCI);
+        await RegisterPasswordChanged.InvokeAsync(registerPassword);
+        await RegisterConfirmPasswordChanged.InvokeAsync(registerConfirmPassword);
+        await OnRegisterResult.InvokeAsync((mensajeRegistro, !exito));
+        if (exito)
+        {
+            await OnSwitchToLogin.InvokeAsync();
+            await OnRegisterResult.InvokeAsync((mensajeRegistro, false));
+        }
+        } finally { registrando = false; }
+    }
+}

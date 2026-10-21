@@ -1,0 +1,173 @@
+@using CineSpace.Shared.Models
+@using System.Globalization
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<AppDialog Title="@Titulo" Class="@(!entrada ? "time-picker-clock" : "")" CloseLabel="Cancelar cambio de tiempo" OnClose="OnCerrar" @ref="dialogo">
+    <ChildContent>
+        <div class="time-entry-modes @(!entrada ? "in-clock-mode" : "")" role="group" aria-label="Forma de introducir el tiempo"><button type="button" class="@(entrada ? "is-active" : "")" aria-pressed="@entrada.ToString().ToLowerInvariant()" @onclick="() => CambiarModo(true)"><i class="fas fa-keyboard" aria-hidden="true"></i>Escribir</button><button type="button" class="@(!entrada ? "is-active" : "")" aria-pressed="@((!entrada).ToString().ToLowerInvariant())" @onclick="() => CambiarModo(false)"><i class="far fa-clock" aria-hidden="true"></i>Reloj</button></div>
+        @if (entrada)
+        {
+            <div class="time-input-fields" @onkeydown="TecladoEntrada" data-time-columns-open="@(columnasAbiertas ? "true" : "false")" @ref="entradaElemento">
+                @if (EsHora)
+                {
+                    <label for="schedule-time-entry">Hora de inicio</label>
+                    <div class="time-entry-control">
+                        <input id="schedule-time-entry" class="form-control" type="time" step="60" value="@horaEntrada" @oninput="CambiarHora" />
+                        <button type="button" class="time-dropdown-toggle" aria-label="Elegir hora sin escribir" title="Elegir hora sin escribir" aria-haspopup="dialog" aria-expanded="@(columnasAbiertas ? "true" : "false")" aria-controls="@columnasId" @onclick="AlternarColumnas"><i class="far fa-clock" aria-hidden="true"></i></button>
+                    </div>
+                }
+                else
+                {
+                    <div class="time-duration-fields"><div><label for="schedule-hours">Horas</label><input id="schedule-hours" class="form-control" type="number" min="0" max="@(Maximo / 60)" @bind="hora" @bind:event="oninput" /></div><span aria-hidden="true">:</span><div><label for="schedule-minutes">Minutos</label><input id="schedule-minutes" class="form-control" type="number" min="0" max="59" @bind="minuto" @bind:event="oninput" /></div><button type="button" class="time-dropdown-toggle" aria-label="Elegir duración sin escribir" title="Elegir duración sin escribir" aria-haspopup="dialog" aria-expanded="@(columnasAbiertas ? "true" : "false")" aria-controls="@columnasId" @onclick="AlternarColumnas"><i class="far fa-clock" aria-hidden="true"></i></button></div>
+                }
+                @if (columnasAbiertas)
+                {
+                    <div id="@columnasId" class="time-columns-picker" popover="manual" role="dialog" aria-label="@(EsHora ? "Elegir hora con las columnas" : "Elegir duración con las columnas")">
+                        <div class="time-columns @(EsHora ? "has-period" : "")">
+                            <div class="time-column"><span id="@(columnasId + "-hours")">@(EsHora ? "Hora" : "Horas")</span><div class="time-column-options" role="listbox" aria-labelledby="@(columnasId + "-hours")">
+                                @foreach (var valor in EsHora ? Enumerable.Range(1, 12) : Enumerable.Range(0, Maximo / 60 + 1))
+                                {
+                                    var numero = valor; var seleccionada = numero == (EsHora ? (hora % 12 == 0 ? 12 : hora % 12) : hora);
+                                    <button type="button" role="option" aria-label="@($"{numero:00} horas")" aria-selected="@(seleccionada ? "true" : "false")" tabindex="@(seleccionada ? 0 : -1)" data-time-hour="@numero" @onclick="() => ElegirHoraColumna(numero)">@numero.ToString("00")</button>
+                                }
+                            </div></div>
+                            <div class="time-column"><span id="@(columnasId + "-minutes")">Minutos</span><div class="time-column-options" role="listbox" aria-labelledby="@(columnasId + "-minutes")">
+                                @foreach (var valor in Enumerable.Range(0, 60))
+                                {
+                                    var numero = valor; var seleccionada = numero == minuto;
+                                    <button type="button" role="option" aria-label="@($"{numero:00} minutos")" aria-selected="@(seleccionada ? "true" : "false")" tabindex="@(seleccionada ? 0 : -1)" data-time-minute="@numero" disabled="@(!EsHora && hora * 60 + numero > Maximo)" @onclick="() => ElegirMinutoColumna(numero)">@numero.ToString("00")</button>
+                                }
+                            </div></div>
+                            @if (EsHora)
+                            {
+                                <div class="time-column time-column-period"><span id="@(columnasId + "-period")">Período</span><div class="time-column-options" role="listbox" aria-labelledby="@(columnasId + "-period")"><button type="button" role="option" aria-label="AM" aria-selected="@(hora < 12 ? "true" : "false")" tabindex="@(hora < 12 ? 0 : -1)" @onclick="() => Periodo(false)">AM</button><button type="button" role="option" aria-label="PM" aria-selected="@(hora >= 12 ? "true" : "false")" tabindex="@(hora >= 12 ? 0 : -1)" @onclick="() => Periodo(true)">PM</button></div></div>
+                            }
+                        </div>
+                        <div class="time-columns-actions"><button type="button" @onclick="() => CerrarColumnas(true)">Cancelar</button><button type="button" class="time-columns-done" disabled="@(!string.IsNullOrEmpty(Error))" @onclick="() => CerrarColumnas(false)">Listo</button></div>
+                    </div>
+                }
+                <p class="time-input-help">@(EsHora ? "Escribe en formato de 24 horas o elige con el icono del reloj." : $"{ProgramacionFunciones.Duracion(Total)} en total. También puedes elegir con el reloj.")</p>
+            </div>
+        }
+        else
+        {
+            <div class="time-clock-layout">
+            <div class="time-clock-face">
+            <div class="time-dial" tabindex="0" role="group" aria-label="@(fase == "hours" ? "Reloj de horas" : "Reloj de minutos")" data-mode="@fase" data-clock-time="@(EsHora ? "true" : "false")" data-hour-max="@(Maximo / 60)" data-value="@ValorDial" @ref="reloj">
+                <svg class="time-dial-hand" viewBox="0 0 240 240" aria-hidden="true"><line class="dial-needle" x1="120" y1="120" x2="120" y2="17" transform="@($"rotate({Angulo} 120 120)")" /><circle cx="120" cy="120" r="4" /></svg>
+                @foreach (var valor in ValoresDial)
+                {
+                    var numero = valor;
+                    <button @key="@($"{fase}-{numero}")" type="button" class="time-dial-number" style="@Posicion(numero)" data-clock-value="@numero" aria-label="@($"{numero} {(fase == "hours" ? "horas" : "minutos")}")" aria-pressed="@((numero == ValorDial).ToString().ToLowerInvariant())" disabled="@(!EsHora && fase == "minutes" && hora * 60 + numero > Maximo)" @onclick="() => Elegir(numero, true)">@numero.ToString(fase == "minutes" ? "00" : "0")</button>
+                }
+                <span class="time-dial-marker" style="@Posicion(ValorDial)" aria-hidden="true">@ValorDial.ToString(fase == "minutes" ? "00" : "0")</span>
+            </div>
+            <p class="time-clock-help">Flechas para ajustar · Enter para confirmar la hora</p>
+            </div>
+            <div class="time-clock-controls">
+                <div class="time-clock-readout" aria-label="Tiempo seleccionado">
+                    <button type="button" class="@(fase == "hours" ? "is-current" : "")" aria-label="Elegir horas" aria-pressed="@((fase == "hours").ToString().ToLowerInvariant())" @onclick='() => fase = "hours"'>@(EsHora ? (hora % 12 == 0 ? 12 : hora % 12).ToString("00") : hora.ToString("00"))<small>@(EsHora ? "hora" : "horas")</small></button><span>:</span><button type="button" class="@(fase == "minutes" ? "is-current" : "")" aria-label="Elegir minutos" aria-pressed="@((fase == "minutes").ToString().ToLowerInvariant())" @onclick='() => fase = "minutes"'>@minuto.ToString("00")<small>minutos</small></button>
+                    @if (EsHora) { <div class="time-period" role="group" aria-label="Mañana o tarde"><button type="button" aria-pressed="@((hora < 12).ToString().ToLowerInvariant())" @onclick="() => Periodo(false)">AM</button><button type="button" aria-pressed="@((hora >= 12).ToString().ToLowerInvariant())" @onclick="() => Periodo(true)">PM</button></div> }
+                </div>
+                <p class="time-clock-instruction" role="status">@(fase == "hours" ? "Elige la hora; después, los minutos." : "Elige los minutos o arrastra la aguja.")</p>
+            </div>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(Error)) { <div class="alert alert-danger time-picker-error" role="alert">@Error</div> }
+    </ChildContent>
+    <Footer><button type="button" class="btn btn-secondary" @onclick="Cancelar">Cancelar</button><button type="button" class="btn btn-primary time-picker-apply" disabled="@(!string.IsNullOrEmpty(Error))" @onclick="Aplicar">Aplicar</button></Footer>
+</AppDialog>
+
+@code {
+    [Parameter] public string Titulo { get; set; } = "Elegir tiempo";
+    [Parameter] public int Valor { get; set; }
+    [Parameter] public bool EsHora { get; set; }
+    [Parameter] public int Minimo { get; set; }
+    [Parameter] public int Maximo { get; set; } = 1439;
+    [Parameter] public EventCallback<int> OnAplicar { get; set; }
+    [Parameter] public EventCallback OnCerrar { get; set; }
+    private int hora, minuto;
+    private string horaEntrada = "14:00", fase = "hours";
+    private bool entrada = true, iniciado, conectado, columnasConectadas, columnasAbiertas, colocarColumnas, restaurarSelector;
+    private int horaAnterior, minutoAnterior;
+    private string entradaAnterior = "";
+    private readonly string columnasId = "time-columns-" + Guid.NewGuid().ToString("N");
+    private AppDialog? dialogo;
+    private ElementReference reloj, relojConectado, entradaElemento, entradaConectada;
+    private IJSObjectReference? modulo;
+    private DotNetObjectReference<ScheduleTimePicker>? referencia;
+    private int Total => hora * 60 + minuto;
+    private int ValorDial => fase == "minutes" ? minuto : EsHora ? (hora % 12 == 0 ? 12 : hora % 12) : hora;
+    private int Angulo => ValorDial * (fase == "minutes" ? 6 : 30);
+    private IEnumerable<int> ValoresDial => fase == "minutes" ? Enumerable.Range(0, 12).Select(n => n * 5) : EsHora ? Enumerable.Range(1, 12) : Enumerable.Range(0, Maximo / 60 + 1);
+    private string Error => EsHora && entrada && !ProgramacionFunciones.LeerHora(horaEntrada, out _) ? "Escribe una hora válida." : hora < 0 || minuto is < 0 or > 59 ? "Usa horas válidas y minutos entre 0 y 59." : Total < Minimo || Total > Maximo ? EsHora ? "La hora debe estar entre 00:00 y 23:59." : $"El tiempo debe estar entre {ProgramacionFunciones.Duracion(Minimo)} y {ProgramacionFunciones.Duracion(Maximo)}." : string.Empty;
+    protected override void OnParametersSet() { if (iniciado) return; hora = Valor / 60; minuto = Valor % 60; horaEntrada = ProgramacionFunciones.Hora(Valor); iniciado = true; }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        modulo ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/time-picker.js");
+        referencia ??= DotNetObjectReference.Create(this);
+        if (entrada && conectado) { await modulo.InvokeVoidAsync("disconnectTimeDial", relojConectado); conectado = false; }
+        if (!entrada && !conectado) { referencia ??= DotNetObjectReference.Create(this); relojConectado = reloj; await modulo.InvokeVoidAsync("connectTimeDial", reloj, referencia); conectado = true; }
+        if (!entrada && columnasConectadas) { await modulo.InvokeVoidAsync("disconnectTimeColumns", entradaConectada); columnasConectadas = false; }
+        if (entrada && !columnasConectadas) { entradaConectada = entradaElemento; await modulo.InvokeVoidAsync("connectTimeColumns", entradaElemento, referencia); columnasConectadas = true; }
+        if (colocarColumnas && columnasAbiertas) { colocarColumnas = false; await modulo.InvokeVoidAsync("positionTimeColumns", entradaElemento); }
+        if (restaurarSelector && entrada) { restaurarSelector = false; await modulo.InvokeVoidAsync("focusTimeColumnsToggle", entradaElemento); }
+    }
+    private string Posicion(int valor)
+    {
+        if (!EsHora && fase == "hours" && valor == 12) return "left:50%;top:24%";
+        var angulo = valor * (fase == "minutes" ? 6 : 30) * Math.PI / 180;
+        return $"left:{(50 + 43 * Math.Sin(angulo)).ToString("F3", CultureInfo.InvariantCulture)}%;top:{(50 - 43 * Math.Cos(angulo)).ToString("F3", CultureInfo.InvariantCulture)}%";
+    }
+    private void CambiarHora(ChangeEventArgs e)
+    {
+        horaEntrada = e.Value switch
+        {
+            DateTime fecha => fecha.ToString("HH:mm", CultureInfo.InvariantCulture),
+            TimeOnly tiempo => tiempo.ToString("HH:mm", CultureInfo.InvariantCulture),
+            _ => e.Value?.ToString() ?? ""
+        };
+        if (ProgramacionFunciones.LeerHora(horaEntrada, out var total)) { hora = total / 60; minuto = total % 60; horaEntrada = ProgramacionFunciones.Hora(total); }
+    }
+    private void Periodo(bool tarde) { hora = hora % 12 + (tarde ? 12 : 0); horaEntrada = ProgramacionFunciones.Hora(Total); }
+    private void CambiarModo(bool escribir) { entrada = escribir; columnasAbiertas = false; colocarColumnas = restaurarSelector = false; }
+    private void AlternarColumnas()
+    {
+        if (columnasAbiertas) { CerrarColumnas(false); return; }
+        horaAnterior = hora; minutoAnterior = minuto; entradaAnterior = horaEntrada;
+        hora = Math.Clamp(hora, 0, EsHora ? 23 : Maximo / 60);
+        minuto = Math.Clamp(minuto, 0, EsHora ? 59 : Math.Min(59, Maximo - hora * 60));
+        horaEntrada = ProgramacionFunciones.Hora(Total);
+        columnasAbiertas = colocarColumnas = true;
+    }
+    private void ElegirHoraColumna(int valor)
+    {
+        hora = EsHora ? valor % 12 + (hora >= 12 ? 12 : 0) : valor;
+        if (!EsHora) minuto = Math.Min(minuto, Math.Max(0, Maximo - hora * 60));
+        horaEntrada = ProgramacionFunciones.Hora(Total);
+    }
+    private void ElegirMinutoColumna(int valor) { minuto = valor; horaEntrada = ProgramacionFunciones.Hora(Total); }
+    private void CerrarColumnas(bool cancelar, bool restaurarFoco = true)
+    {
+        if (cancelar) { hora = horaAnterior; minuto = minutoAnterior; horaEntrada = entradaAnterior; }
+        columnasAbiertas = colocarColumnas = false; restaurarSelector = restaurarFoco;
+    }
+    [JSInvokable] public Task CerrarSelectorColumnas(bool cancelar) => InvokeAsync(() => { CerrarColumnas(cancelar, cancelar); StateHasChanged(); });
+    private void Elegir(int valor, bool siguiente)
+    {
+        if (fase == "hours")
+        {
+            hora = EsHora ? valor % 12 + (hora >= 12 ? 12 : 0) : Math.Clamp(valor, 0, Maximo / 60);
+            if (!EsHora) minuto = Math.Min(minuto, Math.Max(0, Maximo - hora * 60));
+            if (siguiente) fase = "minutes";
+        }
+        else minuto = Math.Clamp(valor, 0, EsHora ? 59 : Math.Min(59, Math.Max(0, Maximo - hora * 60)));
+        horaEntrada = ProgramacionFunciones.Hora(Total);
+    }
+    [JSInvokable] public Task ElegirDesdeReloj(int valor, bool siguiente) => InvokeAsync(() => { Elegir(valor, siguiente); StateHasChanged(); });
+    private Task Cancelar() => dialogo?.CerrarDialogo() ?? Task.CompletedTask;
+    private async Task Aplicar() { if (!string.IsNullOrEmpty(Error)) return; var valor = Total; await Cancelar(); await OnAplicar.InvokeAsync(valor); }
+    private Task TecladoEntrada(KeyboardEventArgs e) => e.Key == "Enter" && !columnasAbiertas ? Aplicar() : Task.CompletedTask;
+    public async ValueTask DisposeAsync() { if (modulo != null) { try { if (conectado) await modulo.InvokeVoidAsync("disconnectTimeDial", relojConectado); if (columnasConectadas) await modulo.InvokeVoidAsync("disconnectTimeColumns", entradaConectada); await modulo.DisposeAsync(); } catch (JSDisconnectedException) { } } referencia?.Dispose(); }
+}

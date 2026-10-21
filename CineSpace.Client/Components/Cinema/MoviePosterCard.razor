@@ -1,0 +1,29 @@
+@namespace CineSpace.Client.Components.Cinema
+@using System.Globalization
+
+<article class="upcoming-card @(EsPreventa ? "presale-card" : "")" aria-label="@Titulo">
+    <div class="upcoming-poster">
+        <img src="@(string.IsNullOrWhiteSpace(ImagenUrl) ? "images/poster-placeholder.svg" : CineSpace.Client.Services.PeliculaService.UrlImagen(ImagenUrl))" alt="Póster de @Titulo" width="500" height="750" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='images/poster-placeholder.svg';" />
+        @if (EsPreventa) { <span class="presale-badge"><i class="fas fa-ticket" aria-hidden="true"></i>Preventa</span> }
+    </div>
+    <div class="upcoming-card-content">
+        <h3 title="@Titulo">@Titulo</h3>
+        <div class="upcoming-card-meta">
+            <span>@Genero</span>
+            @if (Fecha.HasValue) { <time datetime="@Fecha.Value.ToString("yyyy-MM-dd")">@Fecha.Value.ToString("dd MMM yyyy", CultureInfo.GetCultureInfo("es-ES"))</time> }
+        </div>
+        @if (EsPreventa)
+        {
+            <button type="button" class="btn btn-primary presale-reserve" aria-label="Reservar preventa de @Titulo" @onclick="OnReservar">Reservar<i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+        }
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public string Titulo { get; set; } = string.Empty;
+    [Parameter] public string Genero { get; set; } = string.Empty;
+    [Parameter] public string ImagenUrl { get; set; } = string.Empty;
+    [Parameter] public DateOnly? Fecha { get; set; }
+    [Parameter] public bool EsPreventa { get; set; }
+    [Parameter] public EventCallback OnReservar { get; set; }
+}

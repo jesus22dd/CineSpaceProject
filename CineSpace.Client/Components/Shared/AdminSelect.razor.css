@@ -1,0 +1,8 @@
+.admin-select { width: 200px; max-width: 100%; min-width: 0; }
+.admin-select.is-full-width { width: 100%; }
+.admin-select select { width: 100%; height: 44px; min-height: 44px; min-width: 0; padding: 8px 34px 8px 12px; border: 1px solid var(--cinema-line); border-radius: 6px; background-color: var(--cinema-input); color: var(--cinema-heading); font-size: 14px; font-weight: 400; text-overflow: ellipsis; }
+.admin-select select:hover { border-color: var(--cinema-muted); }
+.admin-select.has-selection select { background-color: var(--cinema-accent); border-color: var(--cinema-accent); color: var(--cinema-on-action); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3E%3C/svg%3E"); }
+.admin-select select:focus-visible { box-shadow: none; outline: 2px solid var(--cinema-focus); outline-offset: 2px; }
+.admin-select option { color: var(--cinema-heading); background: var(--cinema-input); }
+@media(max-width: 600px) { .admin-select { width: 100%; } }

@@ -1,0 +1,22 @@
+@namespace CineSpace.Client.Components.Cinema
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<section class="confection-categories" aria-label="Categorías de confitería">
+    <div class="confection-category-heading"><h2>Elige tu antojo</h2>@if (desborda) { <div class="category-controls"><button type="button" aria-label="Categorías anteriores" aria-controls="confection-categories-track" disabled="@(!anterior)" @onclick="() => Mover(-1)"><i class="fas fa-chevron-left" aria-hidden="true"></i></button><button type="button" aria-label="Categorías siguientes" aria-controls="confection-categories-track" disabled="@(!siguiente)" @onclick="() => Mover(1)"><i class="fas fa-chevron-right" aria-hidden="true"></i></button></div> }</div>
+    <ul id="confection-categories-track" class="confection-category-track" @ref="track"><li><button type="button" class="genre-category @(Seleccionada == 0 ? "is-selected" : "")" aria-pressed="@(Seleccionada == 0 ? "true" : "false")" @onclick="() => OnSeleccionar.InvokeAsync(0)"><i class="fas fa-cookie-bite" aria-hidden="true"></i><span>Todos</span></button></li>@foreach (var categoria in Categorias) { <li @key="categoria.Id"><button type="button" class="genre-category @(Seleccionada == categoria.Id ? "is-selected" : "")" aria-pressed="@(Seleccionada == categoria.Id ? "true" : "false")" @onclick="() => OnSeleccionar.InvokeAsync(categoria.Id)"><i class="fas @Icono(categoria.Nombre)" aria-hidden="true"></i><span>@categoria.Nombre</span></button></li> }</ul>
+</section>
+@code {
+    [Parameter] public IReadOnlyList<EtiquetaCatalogo> Categorias { get; set; } = Array.Empty<EtiquetaCatalogo>();
+    [Parameter] public int Seleccionada { get; set; }
+    [Parameter] public EventCallback<int> OnSeleccionar { get; set; }
+    private ElementReference track;
+    private IJSObjectReference? modulo;
+    private DotNetObjectReference<ConfectionCategories>? referencia;
+    private bool anterior, siguiente, desborda;
+    protected override async Task OnAfterRenderAsync(bool firstRender) { if (!firstRender) return; modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/genre-carousel.js"); referencia = DotNetObjectReference.Create(this); await modulo.InvokeVoidAsync("connectGenres", track, referencia); }
+    [JSInvokable] public void ActualizarGeneros(int primero, int ultimo, bool atras, bool adelante, bool overflow) { anterior = atras; siguiente = adelante; desborda = overflow; StateHasChanged(); }
+    private async Task Mover(int direccion) { if (modulo != null) await modulo.InvokeVoidAsync("moveGenres", track, direccion); }
+    private static string Icono(string nombre) { var n = nombre.ToLowerInvariant(); return n.Contains("bebida") || n.Contains("refresco") ? "fa-glass-whiskey" : n.Contains("nacho") ? "fa-cheese" : n.Contains("dulce") || n.Contains("chocolat") ? "fa-candy-cane" : n.Contains("infantil") || n.Contains("niño") ? "fa-child" : n.Contains("compart") || n.Contains("pareja") || n.Contains("famil") ? "fa-user-group" : "fa-cookie-bite"; }
+    public async ValueTask DisposeAsync() { if (modulo != null) { try { await modulo.InvokeVoidAsync("disconnectGenres", track); await modulo.DisposeAsync(); } catch (JSDisconnectedException) { } } referencia?.Dispose(); }
+}

@@ -1,0 +1,10 @@
+.session-notice { position: fixed; inset: calc(96px + env(safe-area-inset-top, 0px)) 0 auto; width: min(320px, calc(100% - 32px)); max-width: none; padding: 14px 20px; margin: 0 auto; border: 0; border-radius: 12px; background: var(--cinema-surface); color: var(--cinema-heading); box-shadow: 0 8px 24px rgb(53 40 45 / 16%); }
+.session-notice::backdrop { background: transparent; }
+.session-notice:focus { outline: none; }
+.session-notice-content { display: flex; align-items: center; justify-content: center; gap: 12px; }
+#session-notice-title { font: 500 16px 'Outfit', sans-serif; line-height: 1.25; }
+.session-spinner { display: inline-block; width: 22px; height: 22px; flex-shrink: 0; border: 2px solid var(--cinema-gold-soft); border-top-color: var(--cinema-accent); border-right-color: var(--cinema-accent); border-radius: 50%; animation: session-spin 800ms linear infinite; }
+@keyframes session-spin { to { transform: rotate(360deg); } }
+@media (max-width: 767px) { .session-notice { top: calc(88px + env(safe-area-inset-top, 0px)); } }
+@media (prefers-reduced-motion: no-preference) { .session-notice[open] { animation: session-enter 160ms cubic-bezier(.16,1,.3,1); } @keyframes session-enter { from { opacity: .5; transform: translateY(-4px); } to { opacity: 1; transform: none; } } }
+@media (prefers-reduced-motion: reduce) { .session-spinner { animation: none; } }

@@ -1,0 +1,13 @@
+@namespace CineSpace.Client.Components.Shared
+
+<div class="view-toggle" role="group" aria-label="@Etiqueta">
+    <button type="button" class="@(Valor == "Tarjetas" ? "is-active" : "")" aria-label="Vista de tarjetas" title="Vista de tarjetas" aria-pressed="@(Valor == "Tarjetas" ? "true" : "false")" @onclick='() => Cambiar("Tarjetas")'><i class="fas fa-table-cells-large" aria-hidden="true"></i></button>
+    <button type="button" class="@(Valor == "Tabla" ? "is-active" : "")" aria-label="Vista de tabla" title="Vista de tabla" aria-pressed="@(Valor == "Tabla" ? "true" : "false")" @onclick='() => Cambiar("Tabla")'><i class="fas fa-list" aria-hidden="true"></i></button>
+</div>
+
+@code {
+    [Parameter] public string Etiqueta { get; set; } = "Cambiar vista";
+    [Parameter] public string Valor { get; set; } = "Tarjetas";
+    [Parameter] public EventCallback<string> ValorChanged { get; set; }
+    private Task Cambiar(string valor) => valor != Valor ? ValorChanged.InvokeAsync(valor) : Task.CompletedTask;
+}

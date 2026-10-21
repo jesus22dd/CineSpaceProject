@@ -1,0 +1,56 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<section class="screening-dates" aria-labelledby="screening-dates-title" @ref="elemento">
+    <h3 id="screening-dates-title">Fechas de las funciones</h3>
+    <div class="date-range-fields">
+        <div class="date-field">
+            <label for="screening-from" class="form-label">Desde</label>
+            <div class="date-entry"><input id="screening-from" class="form-control" type="date" value="@Desde.ToString("yyyy-MM-dd")" @onchange="CambiarDesde" required /><button type="button" class="btn btn-primary" aria-label="Elegir fecha inicial" title="Elegir fecha inicial" aria-haspopup="dialog" aria-expanded="@(abierto&&!elegirFin ? "true":"false")" aria-controls="screening-calendar" @onclick="()=>Alternar(false)"><i class="far fa-calendar" aria-hidden="true"></i></button></div>
+            @if(abierto&&!elegirFin){@Calendario}
+        </div>
+        <div class="date-field">
+            <label for="screening-to" class="form-label">Hasta</label>
+            <div class="date-entry"><input id="screening-to" class="form-control" type="date" min="@Desde.ToString("yyyy-MM-dd")" value="@Hasta.ToString("yyyy-MM-dd")" @onchange="CambiarHasta" required /><button type="button" class="btn btn-primary" aria-label="Elegir fecha final" title="Elegir fecha final" aria-haspopup="dialog" aria-expanded="@(abierto&&elegirFin ? "true":"false")" aria-controls="screening-calendar" @onclick="()=>Alternar(true)"><i class="far fa-calendar" aria-hidden="true"></i></button></div>
+            @if(abierto&&elegirFin){@Calendario}
+        </div>
+    </div>
+    <div class="date-range-shortcuts"><span role="status">@Resumen(Desde,Hasta)</span><div class="date-range-presets"><button type="button" @onclick="()=>Rapido(7)">7 días</button><button type="button" @onclick="()=>Rapido(30)">30 días</button></div></div>
+</section>
+@code {
+    [Parameter] public DateTime Desde {get;set;}
+    [Parameter] public DateTime Hasta {get;set;}
+    [Parameter] public EventCallback<DateTime> DesdeChanged {get;set;}
+    [Parameter] public EventCallback<DateTime> HastaChanged {get;set;}
+    private static readonly System.Globalization.CultureInfo Cultura=System.Globalization.CultureInfo.GetCultureInfo("es-ES");
+    private bool abierto,elegirFin,enfocar;
+    private DateTime mes;
+    private ElementReference elemento;
+    private IJSObjectReference? modulo,control;
+    private DotNetObjectReference<ScreeningDateRange>? referencia;
+    private int Desfase=>((int)mes.DayOfWeek+6)%7;
+    private DateTime Seleccionada=>elegirFin ? Hasta.Date:Desde.Date;
+    private bool Bloqueada(DateTime fecha)=>elegirFin&&(fecha<Desde.Date||(fecha-Desde.Date).TotalDays>365);
+    private void Alternar(bool paraFin) { if(abierto&&elegirFin==paraFin){abierto=false;return;}elegirFin=paraFin;mes=new(Seleccionada.Year,Seleccionada.Month,1);abierto=enfocar=true; }
+    private async Task CerrarConFoco() { if(control!=null)await control.InvokeVoidAsync("focusTrigger");abierto=false; }
+    [JSInvokable] public Task Cerrar() { if(!abierto)return Task.CompletedTask;abierto=false;return InvokeAsync(StateHasChanged); }
+    private async Task Elegir(DateTime fecha) { if(Bloqueada(fecha))return;if(elegirFin)await HastaChanged.InvokeAsync(fecha);else {await DesdeChanged.InvokeAsync(fecha);if(Hasta<fecha)await HastaChanged.InvokeAsync(fecha);}await CerrarConFoco(); }
+    private void CambiarMes(ChangeEventArgs e) { if(int.TryParse(e.Value?.ToString(),out var n)&&n is >=1 and <=12)mes=new(mes.Year,n,1); }
+    private void CambiarAno(ChangeEventArgs e) { if(int.TryParse(e.Value?.ToString(),out var n)&&n is >=1 and <=9999)mes=new(n,mes.Month,1); }
+    private async Task Rapido(int dias) { abierto=false;await DesdeChanged.InvokeAsync(Desde.Date);await HastaChanged.InvokeAsync(Desde.Date.AddDays(dias-1)); }
+    private async Task CambiarDesde(ChangeEventArgs e) { abierto=false;if(DateTime.TryParseExact(e.Value?.ToString(),"yyyy-MM-dd",System.Globalization.CultureInfo.InvariantCulture,System.Globalization.DateTimeStyles.None,out var fecha)){await DesdeChanged.InvokeAsync(fecha);if(Hasta<fecha)await HastaChanged.InvokeAsync(fecha);} }
+    private async Task CambiarHasta(ChangeEventArgs e) { abierto=false;if(DateTime.TryParseExact(e.Value?.ToString(),"yyyy-MM-dd",System.Globalization.CultureInfo.InvariantCulture,System.Globalization.DateTimeStyles.None,out var fecha))await HastaChanged.InvokeAsync(fecha); }
+    private static string Resumen(DateTime desde,DateTime hasta)=>hasta<desde ? "La fecha final debe ser igual o posterior al inicio." : (hasta-desde).TotalDays>365 ? "El rango puede abarcar hasta un año." : $"{(hasta.Date-desde.Date).Days+1} {((hasta.Date-desde.Date).Days==0 ? "día programado":"días programados")} · {desde:dd/MM/yyyy} — {hasta:dd/MM/yyyy}";
+    protected override async Task OnAfterRenderAsync(bool firstRender) { if(firstRender){modulo=await JS.InvokeAsync<IJSObjectReference>("import","./js/screening-calendar.js");referencia=DotNetObjectReference.Create(this);control=await modulo.InvokeAsync<IJSObjectReference>("connect",elemento,referencia);}if(enfocar&&control!=null){enfocar=false;await control.InvokeVoidAsync("focusCalendar");} }
+    public async ValueTask DisposeAsync() { if(control!=null){try{await control.InvokeVoidAsync("dispose");await control.DisposeAsync();}catch(JSDisconnectedException){}}referencia?.Dispose();if(modulo!=null)await modulo.DisposeAsync(); }
+    private RenderFragment Calendario=>@<div id="screening-calendar" class="date-calendar" role="dialog" aria-modal="false" aria-label="@(elegirFin ? "Elegir fecha final":"Elegir fecha inicial")">
+        <div class="calendar-heading"><strong>@(elegirFin ? "Hasta":"Desde") · @Seleccionada.ToString("dd/MM/yyyy")</strong><button type="button" aria-label="Cerrar calendario" @onclick="CerrarConFoco"><i class="fas fa-times" aria-hidden="true"></i></button></div>
+        <div class="calendar-navigation"><button type="button" aria-label="Mes anterior" disabled="@(mes.Year==1&&mes.Month==1)" @onclick="()=>mes=mes.AddMonths(-1)"><i class="fas fa-chevron-left" aria-hidden="true"></i></button><select aria-label="Mes" value="@mes.Month" @onchange="CambiarMes">@for(var n=1;n<=12;n++){<option value="@n">@Cultura.DateTimeFormat.GetMonthName(n)</option>}</select><select class="calendar-year" aria-label="Año" value="@mes.Year" @onchange="CambiarAno">@for(var n=Math.Max(1,mes.Year-5);n<=Math.Min(9999,mes.Year+5);n++){<option value="@n">@n</option>}</select><button type="button" aria-label="Mes siguiente" disabled="@(mes.Year==9999&&mes.Month==12)" @onclick="()=>mes=mes.AddMonths(1)"><i class="fas fa-chevron-right" aria-hidden="true"></i></button></div>
+        <table class="range-calendar"><caption>@Cultura.DateTimeFormat.GetMonthName(mes.Month) @mes.Year</caption><thead><tr>@foreach(var dia in new[]{"L","M","X","J","V","S","D"}){<th scope="col">@dia</th>}</tr></thead><tbody>
+        @for(var semana=0;semana<(Desfase+DateTime.DaysInMonth(mes.Year,mes.Month)+6)/7;semana++)
+        {
+            <tr>@for(var columna=0;columna<7;columna++){var numero=semana*7+columna-Desfase+1;if(numero<1||numero>DateTime.DaysInMonth(mes.Year,mes.Month)){<td></td>}else{var fecha=new DateTime(mes.Year,mes.Month,numero);var extremo=fecha==Desde.Date||fecha==Hasta.Date;<td class="@(fecha>=Desde.Date&&fecha<=Hasta.Date ? "in-range":"")"><button type="button" class="@(extremo ? "range-endpoint":"")" disabled="@Bloqueada(fecha)" aria-label="@fecha.ToString("dddd dd 'de' MMMM 'de' yyyy",Cultura)" aria-pressed="@(fecha==Seleccionada ? "true":"false")" aria-current="@(fecha==DateTime.Today ? "date":null)" @onclick="()=>Elegir(fecha)">@numero</button></td>}}</tr>
+        }
+        </tbody></table>
+    </div>;
+}

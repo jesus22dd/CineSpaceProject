@@ -1,0 +1,10 @@
+@using CineSpace.Shared.Models
+<svg class="room-preview" viewBox="@($"0 0 {Columnas * 5 + 8} {Filas * 5 + 12}")" aria-hidden="true" focusable="false"><path class="preview-screen" d="@($"M4 3 H{Columnas * 5 + 4}")" /><path class="preview-seats" d="@trazo" /></svg>
+@code {
+    [Parameter] public ConfiguracionSala? Configuracion { get; set; }
+    [Parameter] public PlanoSala? Plano { get; set; }
+    private int Filas => Plano?.Filas ?? Configuracion?.NumeroFilas ?? 1;
+    private int Columnas => Plano?.Columnas ?? Configuracion?.AsientosPorFila ?? 1;
+    private string trazo = "";
+    protected override void OnParametersSet() => trazo = string.Join(" ", (Plano?.Asientos.AsEnumerable() ?? Configuracion?.ObtenerTodosLosAsientos() ?? Enumerable.Empty<string>()).Select(id => PlanoSala.Posicion(id, out var r, out var c) ? $"M{c * 5 + 4} {r * 5 + 9}h3v3h-3z" : ""));
+}

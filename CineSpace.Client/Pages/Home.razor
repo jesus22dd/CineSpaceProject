@@ -1,0 +1,16 @@
+@page "/login"
+@inject AuthDialogService AuthDialog
+@inject NavigationManager Navigation
+
+@code {
+    [SupplyParameterFromQuery(Name = "pelicula")] public int? PeliculaId { get; set; }
+    [SupplyParameterFromQuery(Name = "error")] public string? Error { get; set; }
+    private bool redirigido;
+    protected override void OnParametersSet()
+    {
+        if (redirigido) return;
+        redirigido = true;
+        AuthDialog.AbrirDesdeRuta(PeliculaId, Error switch { "cuenta-existente" => "Este correo ya tiene una cuenta. Inicia sesion con tu contraseña.", "cuenta-inactiva" => "Esta cuenta no esta habilitada.", "google" => "No pudimos completar el acceso con Google. Vuelve a intentarlo.", _ => null });
+        Navigation.NavigateTo("/", replace: true);
+    }
+}

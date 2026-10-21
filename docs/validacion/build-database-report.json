@@ -1,0 +1,1 @@
+{"database":"PostgreSQL 17.10 local","tables":30,"repeated_reconstruction":"passed","remote_schema_changes":false,"build_errors":0,"build_warnings":0,"release_publish":true,"docker_executed":false}

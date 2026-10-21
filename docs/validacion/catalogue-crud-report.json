@@ -1,0 +1,16 @@
+{
+  "passed": [
+    "tipos-sala create/edit/delete",
+    "experiencias create/edit/delete",
+    "categorias create/edit/delete",
+    "Manual movie with genres, images, trailer and distributor create/edit",
+    "Movie deletion preserves distributor reference rules",
+    "Cart quotation uses the current server price",
+    "Changed combo price requires a new cart review",
+    "Combo create/edit/delete",
+    "Banner create/edit/delete",
+    "Upcoming movie create/edit/delete",
+    "Irregular seat design create/edit/delete"
+  ],
+  "failed": []
+}

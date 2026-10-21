@@ -1,0 +1,42 @@
+# El repositorio de despliegue debe tener CineSpaceFS como raíz.
+services:
+  - type: web
+    name: cinespace
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_HTTP_PORTS
+        value: "8080"
+      - key: Deployment__BehindProxy
+        value: "true"
+      - key: ConnectionStrings__CineSpace
+        sync: false
+      - key: Supabase__ProjectRef
+        sync: false
+      - key: Supabase__Url
+        sync: false
+      - key: Supabase__SecretKey
+        sync: false
+      - key: Supabase__Bucket
+        sync: false
+      - key: Authentication__Google__ClientId
+        sync: false
+      - key: Authentication__Google__ClientSecret
+        sync: false
+      - key: Tmdb__ApiKey
+        sync: false
+      - key: BrevoSettings__ApiKey
+        sync: false
+      - key: BrevoSettings__FromEmail
+        sync: false
+      - key: BrevoSettings__FromName
+        sync: false
+      - key: Frontend__Url
+        sync: false
+      - key: Backend__PublicUrl
+        sync: false

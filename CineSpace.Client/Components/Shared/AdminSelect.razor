@@ -1,0 +1,22 @@
+@namespace CineSpace.Client.Components.Shared
+<div class="admin-select @(Completo ? "is-full-width" : "") @(Activo ? "has-selection" : "")">
+    <select id="@Id" class="form-select" aria-label="@Etiqueta" title="@Etiqueta" value="@Valor" @onchange="Cambiar">
+        @foreach (var opcion in Opciones)
+        {
+            <option value="@opcion.Value">@Texto(opcion)</option>
+        }
+    </select>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Id { get; set; } = "";
+    [Parameter, EditorRequired] public string Etiqueta { get; set; } = "";
+    [Parameter] public string Valor { get; set; } = "";
+    [Parameter] public IReadOnlyList<AdminSelectOption> Opciones { get; set; } = Array.Empty<AdminSelectOption>();
+    [Parameter] public EventCallback<string> ValorChanged { get; set; }
+    [Parameter] public bool Activo { get; set; }
+    [Parameter] public bool Completo { get; set; }
+    [Parameter] public bool OcultarEtiqueta { get; set; }
+    private static string Texto(AdminSelectOption opcion) => opcion.Label.StartsWith("Todos", StringComparison.OrdinalIgnoreCase) || opcion.Label.StartsWith("Todas", StringComparison.OrdinalIgnoreCase) ? "Todos" : opcion.Label;
+    private Task Cambiar(ChangeEventArgs args) => args.Value is string valor && Opciones.Any(opcion => opcion.Value == valor) ? ValorChanged.InvokeAsync(valor) : Task.CompletedTask;
+}

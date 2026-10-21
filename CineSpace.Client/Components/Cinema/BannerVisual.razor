@@ -1,0 +1,36 @@
+@namespace CineSpace.Client.Components.Cinema
+
+<div class="carousel-slide @(Activa ? "is-active" : "") @(SinPanoramica ? "uses-poster" : "") @(Banner.Etiqueta != EtiquetaBanner.SinEtiqueta ? "has-ribbon" : "") @(reservaVisible ? "is-reservation-open" : "")" data-banner-id="@Banner.Id" data-movie-id="@Pelicula.Id" role="group" aria-roledescription="diapositiva" aria-label="@Pelicula.Titulo" aria-hidden="@(Activa ? "false" : "true")" inert="@(!Activa ? "" : null)" @onkeydown="Tecla">
+    @if (Banner.Etiqueta != EtiquetaBanner.SinEtiqueta)
+    {
+        <div class="banner-ribbon tag-@Banner.Etiqueta.ToString().ToLowerInvariant()"><span>@Banner.Etiqueta.Nombre()</span></div>
+    }
+    <img class="carousel-image" src="@Imagen" alt="@($"Imagen de {Pelicula.Titulo}")" loading="@(Activa ? "eager" : "lazy")" decoding="async" width="1280" height="720" style="@(SinPanoramica ? null : $"object-position:50% {Banner.FocoVertical}%")" @onerror="ImagenFallida" />
+    <button type="button" class="banner-mobile-trigger" aria-label="@(reservaVisible ? $"Ocultar reserva de {Pelicula.Titulo}" : $"Mostrar reserva de {Pelicula.Titulo}")" aria-expanded="@(reservaVisible ? "true" : "false")" aria-controls="@ReservaId" @ref="disparador" @onpointerdown="IniciarToque" @onpointerup="TerminarToque" @onclick="AlternarReserva"></button>
+    <div class="carousel-caption">
+        <h2>@Pelicula.Titulo</h2>
+        <div id="@ReservaId" class="banner-reserve-actions"><button type="button" class="btn carousel-reserve" disabled="@Preview" @onclick="() => OnReservar.InvokeAsync(Pelicula)">Reservar entradas</button></div>
+    </div>
+</div>
+@code {
+    [Parameter, EditorRequired] public Pelicula Pelicula { get; set; } = new();
+    [Parameter, EditorRequired] public BannerInicio Banner { get; set; } = new();
+    [Parameter] public bool Activa { get; set; } = true;
+    [Parameter] public bool Preview { get; set; }
+    [Parameter] public EventCallback<Pelicula> OnReservar { get; set; }
+    [Parameter] public EventCallback<Pelicula> OnImagenFallida { get; set; }
+    private int fallo;
+    private bool reservaVisible, deslizando;
+    private double inicioX, inicioY;
+    private ElementReference disparador;
+    private string ReservaId => $"banner-reserve-{Banner.Id}-{Pelicula.Id}-{Preview}";
+    private string anterior = "";
+    private bool SinPanoramica => fallo > 0 || string.IsNullOrWhiteSpace(Banner.Imagen);
+    private string Imagen => fallo >= 2 ? "images/poster-placeholder.svg" : !SinPanoramica ? Banner.Imagen : !string.IsNullOrWhiteSpace(Pelicula.ImagenUrl) ? CineSpace.Client.Services.PeliculaService.UrlImagen(Pelicula.ImagenUrl) : "images/poster-placeholder.svg";
+    protected override void OnParametersSet() { if (!Activa) reservaVisible = false; if (anterior != Banner.Imagen) { anterior = Banner.Imagen; fallo = 0; reservaVisible = false; } }
+    private void IniciarToque(PointerEventArgs args) { inicioX = args.ClientX; inicioY = args.ClientY; deslizando = false; }
+    private void TerminarToque(PointerEventArgs args) => deslizando = Math.Abs(args.ClientX - inicioX) > 24 || Math.Abs(args.ClientY - inicioY) > 24;
+    private async Task AlternarReserva() { if (!Activa || deslizando) { deslizando = false; return; } reservaVisible = !reservaVisible; await disparador.FocusAsync(preventScroll: true); }
+    private async Task Tecla(KeyboardEventArgs args) { if (args.Key == "Escape" && reservaVisible) { reservaVisible = false; await disparador.FocusAsync(preventScroll: true); } }
+    private async Task ImagenFallida() { var recuperar = fallo == 0 && !string.IsNullOrWhiteSpace(Banner.Imagen); if (fallo < 2) fallo++; if (recuperar) await OnImagenFallida.InvokeAsync(Pelicula); }
+}

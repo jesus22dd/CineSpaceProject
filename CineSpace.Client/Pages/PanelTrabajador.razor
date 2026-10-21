@@ -1,0 +1,57 @@
+@page "/PanelTrabajador"
+@page "/admin/peliculas"
+@using CineSpace.Client.Components.Worker
+@using CineSpace.Client.Components.Shared
+@inject UsuarioService Usuarios
+@inject TrabajadorService Trabajadores
+@inject PeliculaService Peliculas
+@inject FuncionesService Funciones
+@inject CatalogosService Catalogos
+
+<PageTitle>Películas - Cine Space</PageTitle>
+@if(Permitido)
+{
+    <div class="management-heading"><div><h1>Películas</h1><p>Una ficha por película. Programa sus salas y experiencias desde Funciones.</p></div><div class="management-actions"><a class="btn btn-secondary" href="/admin/funciones">Gestionar funciones</a><button class="btn btn-secondary" @onclick="NuevaManual">Crear manualmente</button><button class="btn btn-primary" @onclick="()=>buscar=true">Buscar en TMDB</button></div></div>
+    @if(!string.IsNullOrWhiteSpace(mensaje)) { <p class="alert @(error ? "alert-danger":"alert-success")" role="status">@mensaje</p> }
+    @if(buscar) { <MovieSearch OnPeliculaSeleccionada="Seleccionar" OnCancelar="()=>buscar=false" /> }
+    else if(actual!=null) { <MovieForm Pelicula="actual" ModoEdicion="editando" OnGuardar="Guardar" OnCancelar="()=>actual=null" /> }
+    else { <MovieGrid Peliculas="lista" OnEditar="Editar" OnEliminar="p=>eliminar=p" /> }
+    @if(eliminar!=null)
+    {
+        <AppDialog Title="¿Eliminar la película?" OnClose="()=>eliminar=null"><ChildContent><p>Se eliminará la ficha de <strong>@eliminar.Titulo</strong>. Primero debes retirar sus funciones sin ventas.</p></ChildContent><Footer><button class="btn btn-secondary" data-dialog-autofocus @onclick="()=>eliminar=null">Cancelar</button><button class="btn btn-danger" disabled="@ocupado" @onclick="Eliminar">Eliminar película</button></Footer></AppDialog>
+    }
+}
+else { <p class="alert alert-danger">Esta sección requiere una sesión de administración o de trabajador.</p> }
+@code {
+    private bool Permitido=>Usuarios.EsAdministrador()||Trabajadores.EstaAutenticado();
+    private List<Pelicula> lista=new();
+    private Pelicula? actual,eliminar;
+    private bool buscar,editando,error,ocupado;
+    private string mensaje="";
+    protected override async Task OnInitializedAsync() { if(Permitido) await Cargar(); }
+    private async Task Cargar() { try { lista=await Peliculas.OpcionesAsync();await Funciones.InicializarAsync(); } catch(Exception ex) { mensaje=ex.Message;error=true; } }
+    private void NuevaManual() { buscar=false;editando=false;actual=new(){Titulo="",Genero="",ImagenUrl="",ImagenManual=true,HorariosDisponibles=new()};mensaje=""; }
+    private void Editar(Pelicula pelicula) { actual=pelicula.Copiar();editando=true;mensaje=""; }
+    private async Task Seleccionar(CineSpace.Shared.Models.TMDBMovie movie)
+    {
+        if(lista.Any(p=>p.Id==movie.id||p.TmdbId==movie.id)) { mensaje="Esta película ya existe. Edita su ficha o programa otras funciones.";error=true;buscar=false;return; }
+        try { actual=await Peliculas.ObtenerFichaTMDBAsync(movie.id); }
+        catch { actual=new(){Id=0,TmdbId=movie.id,Titulo=movie.title ?? "",ImagenUrl=movie.poster_path??"",ImagenPanoramicaUrl=movie.backdrop_path??"",Sinopsis=movie.overview??"",HorariosDisponibles=new()}; }
+        actual.Genero=Catalogos.Generos.FirstOrDefault()?.Nombre??"Drama";buscar=false;editando=false;mensaje="";
+    }
+    private async Task Guardar(Pelicula pelicula)
+    {
+        if(ocupado)return; ocupado=true;
+        try { await Peliculas.GuardarFichaAsync(pelicula);actual=null;mensaje="Película guardada. Ya puedes programar sus funciones.";error=false;await Cargar(); }
+        catch(Exception ex) { mensaje=ex.Message;error=true; }
+        finally { ocupado=false; }
+    }
+    private async Task Eliminar()
+    {
+        if(eliminar==null||ocupado)return;ocupado=true;
+        try { if(Funciones.TieneFunciones(eliminar.Id))throw new ArgumentException("Esta película tiene funciones. Retira primero las programaciones sin ventas; las que tienen ventas deben conservarse.");await Peliculas.EliminarPelicula(eliminar.Id);eliminar=null;mensaje="Película eliminada.";error=false;await Cargar(); }
+        catch(Exception ex) { mensaje=ex.Message;error=true;eliminar=null; }
+        finally { ocupado=false; }
+    }
+}
+

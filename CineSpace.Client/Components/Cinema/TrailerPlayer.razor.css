@@ -1,0 +1,10 @@
+.trailer-lightbox { width:min(94vw,calc(92dvh * 16 / 9)); max-width:none; max-height:92dvh; aspect-ratio:16/9; padding:0; margin:auto; border:0; border-radius:0; background:#000; color:#fff; box-shadow:none; overflow:visible; }
+.trailer-lightbox::backdrop { background:rgb(0 0 0 / .88); }
+.trailer-stage { position:relative; width:100%; height:100%; aspect-ratio:16/9; background:#000; }
+.booking-trailer-video { display:block; width:100%; height:100%; border:0; }
+.trailer-controls { position:absolute; top:8px; right:8px; display:flex; gap:4px; }
+.trailer-controls button { display:grid; place-items:center; width:44px; height:44px; border:0; border-radius:3px; background:rgb(0 0 0 / .72); color:#fff; box-shadow:none; }
+.trailer-controls button:hover { background:#333; }
+.trailer-controls button:focus-visible { outline:2px solid #fff; outline-offset:2px; }
+.trailer-stage:fullscreen { width:100vw; height:100dvh; aspect-ratio:auto; }
+@media (max-width:575px) { .trailer-controls { top:4px; right:4px; } }

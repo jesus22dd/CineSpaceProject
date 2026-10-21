@@ -1,0 +1,4 @@
+<span class="review-rating" role="img" aria-label="@($"{Value} de 5 estrellas")">
+    @for (var star = 1; star <= 5; star++) { <i class="@(star <= Value ? "fas" : "far") fa-star" aria-hidden="true"></i> }
+</span>
+@code { [Parameter] public int Value { get; set; } }

@@ -1,0 +1,48 @@
+.movie-booking { min-width:0; }
+.film-backdrop { height:200px; overflow:hidden; border-radius:8px; background:var(--cinema-surface); }
+.film-backdrop img { display:block; width:100%; height:100%; object-fit:cover; }
+.film-identity { display:grid; grid-template-columns:80px minmax(0,1fr) auto; gap:20px; align-items:center; padding:20px 0 24px; }
+.film-poster { width:80px; aspect-ratio:2/3; object-fit:contain; border-radius:4px; background:var(--cinema-surface); }
+.film-identity h1 { font-size:28px; line-height:1.2; margin:4px 0 8px; overflow-wrap:anywhere; }
+.film-eyebrow { color:var(--cinema-muted); font-size:12px; font-weight:600; margin:0; }
+.film-duration { color:var(--cinema-muted); font-size:13px; margin:0; }
+.film-booking-layout { display:grid; grid-template-columns:minmax(0, .85fr) minmax(0,1.65fr); gap:24px; align-items:start; }
+.film-information { padding:20px; border:1px solid var(--cinema-line); border-radius:6px; background:var(--cinema-surface); }
+.film-information h2,.film-screenings h2 { font-size:19px; margin:0 0 16px; }
+.film-synopsis { font-size:14px; line-height:1.65; margin:0 0 16px; }
+.film-genres { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:20px; }
+.film-genres span { padding:4px 8px; background:var(--cinema-choice-surface); color:var(--cinema-choice-ink); border-radius:3px; font-size:12px; }
+.film-information dl { margin:0; display:grid; gap:12px; }
+.film-information dl > div { display:grid; grid-template-columns:110px minmax(0,1fr); gap:8px; }
+.film-information dt { font-size:12px; color:var(--cinema-muted); font-weight:400; }
+.film-information dd { font-size:13px; font-weight:500; margin:0; overflow-wrap:anywhere; }
+.film-format-list { list-style:none; display:grid; justify-items:start; gap:6px; padding:0; margin:0; }
+.film-format-list li { max-width:100%; padding:4px 8px; border-radius:3px; background:var(--cinema-choice-surface); color:var(--cinema-choice-ink); }
+.screening-dates { display:grid; grid-template-columns:repeat(var(--screening-date-count,3),minmax(0,1fr)); gap:8px; }
+.screening-dates > button { display:flex; flex-direction:column; justify-content:center; gap:4px; min-width:0; height:64px; padding:8px 12px; margin:0; text-align:left; text-transform:capitalize; color:var(--cinema-choice-ink); background:var(--cinema-choice-surface); border:1px solid var(--cinema-choice-line); border-radius:5px; box-shadow:none; font-weight:600; font-size:14px; line-height:1.3; }
+.screening-dates small { display:block; font-size:12px; line-height:1.3; color:var(--cinema-choice-muted); font-weight:400; }
+.screening-dates .is-selected { border-color:#fff; background:#fff; color:#1a1a1a; }
+.screening-dates .is-selected small { color:#595959; }
+.screenings-date-label { font-size:12px; color:var(--cinema-muted); margin:12px 0 16px; text-transform:capitalize; }
+.screening-format + .screening-format { margin-top:20px; }
+.screening-format-heading { margin-bottom:8px; }
+.screening-format h3 { font-size:16px; margin:0; }
+.screening-room + .screening-room { margin-top:12px; }
+.screening-room-label { display:flex; flex-wrap:wrap; gap:4px 12px; margin:0 0 8px; font-size:12px; color:var(--cinema-muted); }
+.screening-room-label > span { color:var(--cinema-muted); }
+.screening-slots { display:grid; grid-template-columns:repeat(auto-fill,minmax(76px,1fr)); gap:8px; }
+.screening-slot { display:flex; align-items:center; justify-content:center; height:44px; min-width:0; padding:8px; color:var(--cinema-choice-ink); background:var(--cinema-choice-surface); border:1px solid var(--cinema-choice-line); border-radius:4px; box-shadow:none; }
+.screening-slot strong { font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; }
+.screening-slot:hover:not(:disabled) { background:var(--cinema-choice-hover); border-color:var(--cinema-choice-selected-line); }
+.screening-slot.is-selected,.screening-slot.is-selected:hover:not(:disabled) { background:#fff; border-color:#fff; color:#1a1a1a; }
+.screening-slot:disabled { opacity:.4; text-decoration:line-through; cursor:not-allowed; }
+.screening-slot:focus-visible,.screening-dates button:focus-visible { outline:2px solid var(--cinema-choice-selected-line); outline-offset:2px; box-shadow:none; }
+.screening-confirmation { display:flex; align-items:center; justify-content:space-between; gap:16px; padding-top:16px; margin-top:20px; border-top:1px solid var(--cinema-line); }
+.screening-confirmation p { display:grid; gap:4px; font-size:13px; margin:0; }
+.screening-confirmation p > span { color:var(--cinema-muted); font-size:12px; }
+.screening-confirmation button { flex-shrink:0; }
+.screenings-empty { display:grid; justify-items:start; gap:8px; padding:24px; background:var(--cinema-surface); border-radius:5px; }
+.screenings-empty p { margin:0; font-size:13px; color:var(--cinema-muted); }
+.screenings-empty i { color:var(--cinema-link); }
+.booking-actions { margin-top:24px; }
+@media(max-width:767px) { .film-backdrop { height:144px; }.film-identity { grid-template-columns:64px minmax(0,1fr); gap:12px; padding:16px 0 20px; }.film-poster { width:64px; }.film-identity h1 { font-size:23px; }.film-trailer { grid-column:1/-1; justify-self:start; }.film-booking-layout { grid-template-columns:minmax(0,1fr); gap:24px; }.film-information { padding:16px; }.film-synopsis { line-height:1.55; }.film-genres { margin-bottom:16px; }.film-information dl { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }.film-information dl > div { display:block; }.film-information dt { margin-bottom:4px; }.screening-confirmation { align-items:stretch; flex-direction:column; }.screening-dates > button { padding:8px; } }

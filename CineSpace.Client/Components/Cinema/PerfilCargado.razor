@@ -1,0 +1,365 @@
+@inject ApiCine Api
+@using CineSpace.Client.Components.Shared
+@page "/perfil/{Apartado?}"
+@implements IDisposable
+@using CineSpace.Client.Components.Admin
+@using CineSpace.Shared.Models
+@using CineSpace.Client.Services
+@inject UsuarioService UsuarioService
+@inject TrabajadorService TrabajadorService
+@inject TicketSalesService TicketSalesService
+@inject QRService QRService
+@inject AuthDialogService AuthDialog
+@inject NavigationManager NavigationManager
+
+<PageTitle>@Titulo — CineSpace</PageTitle>
+
+<div class="account-page">
+    @if (usuarioActual == null && trabajadorActual == null)
+    {
+        <h1>Tu cuenta de CineSpace</h1>
+        <p>Inicia sesión para consultar tus datos y tus entradas.</p>
+        <button type="button" class="btn btn-primary" @onclick="AbrirAcceso">Iniciar sesión</button>
+    }
+    else
+    {
+        <div class="account-page-heading"><div><h1>@Titulo</h1><p>@Descripcion</p></div><a class="account-explore" href="/"><i class="fas fa-arrow-left" aria-hidden="true"></i>Explorar películas</a></div>
+        <nav class="account-sections" aria-label="Secciones de tu cuenta">
+            <a href="/perfil" aria-current="@(Seccion == "cuenta" ? "page" : null)">Mi cuenta</a>
+            <a href="/perfil/seguridad" aria-current="@(Seccion == "seguridad" ? "page" : null)">Seguridad</a>
+            <a href="/perfil/compras" aria-current="@(Seccion == "compras" ? "page" : null)">Mis compras</a>
+            @if (usuarioActual != null)
+            {
+                <a href="/perfil/calificaciones" aria-current="@(Seccion == "calificaciones" ? "page" : null)">Mis calificaciones</a>
+            }
+        </nav>
+        @if (Seccion == "cuenta")
+        {
+            <section class="personal-information" aria-labelledby="personal-title">
+                <div class="personal-heading"><span class="personal-symbol"><i class="far fa-user" aria-hidden="true"></i></span><div><h2 id="personal-title">@NombreCompleto</h2><p>@RolCuenta</p></div></div>
+                <dl class="personal-data"><div><dt>Correo electrónico</dt><dd>@CorreoCuenta</dd></div><div><dt>Documento de identidad</dt><dd>@(usuarioActual?.CI ?? trabajadorActual?.CI)</dd></div></dl>
+                <a class="btn btn-secondary" href="/perfil/compras"><i class="fas fa-ticket-alt" aria-hidden="true"></i>Ver mis entradas</a>
+            </section>
+        }
+        @if (Seccion == "seguridad")
+        {
+            <section class="security-section" aria-labelledby="password-title">
+                <div><h2 id="password-title">Cambiar contraseña</h2><p>Usa al menos 10 caracteres, con mayúscula, minúscula, número y símbolo.</p></div>
+                @if(usuarioActual?.TienePassword != false) {
+                <form class="security-form" @onsubmit="CambiarPassword" @onsubmit:preventDefault>
+                    @if (!string.IsNullOrEmpty(mensajeSeguridad))
+                    {
+                        <div class="alert @(errorSeguridad ? "alert-danger" : "alert-success")" role="@(errorSeguridad ? "alert" : "status")">@mensajeSeguridad</div>
+                    }
+                    <label for="current-password">Contraseña actual</label><input id="current-password" class="form-control" type="password" autocomplete="current-password" required maxlength="128" @bind="passwordActual" />
+                    <label for="new-password">Nueva contraseña</label><input id="new-password" class="form-control" type="password" autocomplete="new-password" required minlength="10" maxlength="128" @bind="passwordNuevo" />
+                    <label for="confirm-password">Repite la nueva contraseña</label><input id="confirm-password" class="form-control" type="password" autocomplete="new-password" required minlength="10" maxlength="128" @bind="passwordConfirmacion" />
+                    <button type="submit" class="btn btn-primary">Guardar contraseña</button>
+                </form>
+                } else { <p>Tu acceso está vinculado a Google. Administra tu contraseña desde tu cuenta de Google.</p> }
+            </section>
+        }
+        @if (Seccion == "compras")
+        {
+        <!-- Historial de Compras -->
+        <div class="mb-4">
+
+
+            @if (historialCompras.Count == 0)
+            {
+                <div class="purchases-empty"><i class="fas fa-ticket-alt" aria-hidden="true"></i><h2>Tu próxima historia empieza aquí.</h2><p>Cuando compres tus entradas, encontrarás aquí tus boletos y códigos de acceso.</p><a class="btn btn-primary" href="/">Explorar cartelera</a></div>
+            }
+            else
+            {
+                <div class="purchase-toolbar">
+                    <p>@totalCompras @(historialCompras.Count == 1 ? "compra" : "compras")</p>
+                    <AdminSelect Id="purchase-order" Etiqueta="Orden" Valor="@ordenCompras" Opciones="OrdenesCompras" OcultarEtiqueta="true" ValorChanged="async valor => { ordenCompras = valor; await RestablecerPagina(); }" />
+                </div>
+                <div class="purchase-table-wrapper">
+                    <table class="table purchase-table" aria-label="Historial de compras">
+                        <thead>
+                            <tr>
+                                <th scope="col">Fecha</th>
+                                <th scope="col">Película</th>
+                                <th scope="col">Sala</th>
+                                <th scope="col">Asientos</th>
+                                <th scope="col">Código de acceso</th>
+                                <th scope="col">Total</th>
+                                <th scope="col">Entradas</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var compra in ComprasPagina)
+                            {
+                                <tr @key="compra.NumeroFactura">
+                                    <td data-label="Fecha" class="purchase-date"><time datetime="@compra.FechaVenta.ToString("s")">@compra.FechaVenta.ToString("dd/MM/yyyy HH:mm")</time></td>
+                                    <td class="purchase-film">
+                                        <strong>@compra.Pelicula</strong>
+                                        <small class="text-muted d-block">@compra.GenerosTexto | @AnaliticaVentas.NombreTipoSala(compra) | @AnaliticaVentas.NombreExperiencia(compra)</small>
+                                    </td>
+                                    <td data-label="Sala" class="purchase-room">Sala @compra.NumeroSala</td>
+                                    <td data-label="Asientos" class="purchase-seats">@string.Join(", ", compra.Asientos)</td>
+                                    <td data-label="Código de acceso" class="purchase-code">
+                                        <span class="badge bg-secondary">@compra.CodigoValidacion</span>
+                                    </td>
+                                    <td data-label="Total" class="purchase-total">Bs. @compra.TotalVenta</td>
+                                    <td class="purchase-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => MostrarQR(compra)" aria-label="Ver QR de @compra.Pelicula, factura @compra.NumeroFactura">
+                                            <i class="fa fa-qrcode" aria-hidden="true"></i> Ver QR
+                                        </button>
+                                        @if (usuarioActual != null && !compra.FueCalificada)
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-warning" @onclick="() => CalificarPelicula(compra)" aria-label="Calificar @compra.Pelicula, factura @compra.NumeroFactura">
+                                                <i class="fa fa-star" aria-hidden="true"></i> Calificar
+                                            </button>
+                                        }
+                                        else if (compra.FueCalificada)
+                                        {
+                                            <span class="purchase-rated"><i class="fas fa-check" aria-hidden="true"></i>Calificada</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <Pagination CurrentPage="paginaActual" TotalPages="TotalPaginas" TotalItems="totalCompras" PageSize="ComprasPorPagina" ShowPageSizeSelector="false" Label="Páginas del historial" OnPageChanged="CambiarPagina" />
+            }
+        </div>
+
+        <!-- Modal para mostrar QR -->
+        @if (mostrarModalQR && ventaSeleccionada != null)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Código QR - @ventaSeleccionada.Pelicula</h5>
+                            <button type="button" class="btn-close" @onclick="CerrarModalQR"></button>
+                        </div>
+                        <div class="modal-body text-center">
+                            <img src="@qrImagenUrl" alt="QR Code" class="img-fluid mb-3" />
+                            <p class="text-muted">Factura N°: @ventaSeleccionada.NumeroFactura</p>
+                            <div class="alert alert-secondary">
+                                <h5 class="mb-1">Código de Validación</h5>
+                                <h3 class="ticket-validation-value">@ventaSeleccionada.CodigoValidacion</h3>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-primary" @onclick="DescargarQR">
+                                <i class="fa fa-download"></i> Descargar QR
+                            </button>
+                            <button class="btn btn-secondary" @onclick="CerrarModalQR">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Modal para calificar película -->
+        @if (mostrarModalCalificacion && ventaSeleccionada != null)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Calificar: @ventaSeleccionada.Pelicula</h5>
+                            <button type="button" class="btn-close" @onclick="CerrarModalCalificacion"></button>
+                        </div>
+                        <div class="modal-body text-center">
+                            <div class="mb-3">
+                                @for (int i = 1; i <= 5; i++)
+                                {
+                                    int estrella = i;
+                                    <button type="button" class="rating-star @(estrella <= calificacionActual ? "is-selected" : "")" aria-label="@estrella @(estrella == 1 ? "estrella" : "estrellas")" aria-pressed="@(estrella == calificacionActual ? "true" : "false")" @onclick="() => SeleccionarCalificacion(estrella)"><i class="@(estrella <= calificacionActual ? "fas" : "far") fa-star" aria-hidden="true"></i></button>
+                                }
+                            </div>
+                            <textarea class="form-control mb-3" placeholder="Comentario (opcional)"
+                                      @bind="comentarioCalificacion"></textarea>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-primary" @onclick="GuardarCalificacion"
+                                    disabled="@(calificacionActual == 0)">
+                                Guardar Calificación
+                            </button>
+                            <button class="btn btn-secondary" @onclick="CerrarModalCalificacion">Cancelar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        }
+        @if (Seccion == "calificaciones")
+        {
+        <section class="ratings-section" aria-label="Mis calificaciones">
+            @if (calificaciones.Count == 0)
+            {
+                <div class="purchases-empty"><i class="far fa-star" aria-hidden="true"></i><h2>Aún no tienes calificaciones.</h2><p>Comparte tu opinión sobre las películas de tu historial de compras.</p><a class="btn btn-primary" href="/perfil/compras">Ver mis compras</a></div>
+            }
+            else
+            {
+                <div class="purchase-toolbar">
+                    <p>@totalCalificaciones @(calificaciones.Count == 1 ? "calificación" : "calificaciones")</p>
+                    <AdminSelect Id="rating-order" Etiqueta="Orden de calificaciones" Valor="@ordenCalificaciones" Opciones="OrdenesCompras" OcultarEtiqueta="true" ValorChanged="OrdenarCalificaciones" />
+                </div>
+                <div class="ratings-list">
+                    @foreach (var calificacion in CalificacionesPagina)
+                    {
+                        <AccountRatingCard @key="calificacion" Calificacion="calificacion" />
+                    }
+                </div>
+                <Pagination CurrentPage="paginaCalificaciones" TotalPages="TotalPaginasCalificaciones" TotalItems="totalCalificaciones" PageSize="CalificacionesPorPagina" ShowPageSizeSelector="false" Label="Páginas de mis calificaciones" OnPageChanged="CambiarPaginaCalificaciones" />
+            }
+        </section>
+        }
+    }
+</div>
+
+@code {
+    private static readonly AdminSelectOption[] OrdenesCompras = { new("recientes", "Más recientes"), new("antiguas", "Más antiguas") };
+    private Usuario? usuarioActual;
+    private Trabajador? trabajadorActual;
+    [Parameter] public string? Apartado { get; set; }
+    private string Seccion => Apartado switch { "seguridad" => "seguridad", "compras" => "compras", "calificaciones" => "calificaciones", _ => "cuenta" };
+    private string Titulo => Seccion switch { "seguridad" => "Seguridad", "compras" => "Historial de compras", "calificaciones" => "Mis calificaciones", _ => "Mi cuenta" };
+    private string Descripcion => Seccion switch { "seguridad" => "Administra el acceso a tu cuenta.", "compras" => "Tus entradas, listas para tu próxima función.", "calificaciones" => "Las películas que calificaste y lo que te dejaron.", _ => "Tus datos y tus entradas, en un solo lugar." };
+    private string CorreoCuenta => usuarioActual?.Email ?? trabajadorActual?.Email ?? "";
+    private string NombreCompleto => System.Globalization.CultureInfo.GetCultureInfo("es").TextInfo.ToTitleCase(($"{usuarioActual?.Nombre ?? trabajadorActual?.Nombre} {usuarioActual?.Apellido ?? trabajadorActual?.Apellido}").ToLowerInvariant());
+    private string RolCuenta => usuarioActual?.Rol == RolUsuario.Administrador ? "Administración" : trabajadorActual?.CargoTrabajador.ToString() ?? "Cuenta de cliente";
+    private string passwordActual = "", passwordNuevo = "", passwordConfirmacion = "", mensajeSeguridad = "";
+    private bool errorSeguridad;
+    private void AbrirAcceso() => AuthDialog.Abrir();
+    private async Task CambiarPassword()
+    {
+        errorSeguridad = true;
+        if (passwordNuevo != passwordConfirmacion) { mensajeSeguridad = "Las contraseñas no coinciden."; return; }
+        try { await Api.Post<object>("api/auth/cambiar-clave", new CambioClave(passwordActual,passwordNuevo)); passwordActual = passwordNuevo = passwordConfirmacion = ""; mensajeSeguridad = "Contraseña actualizada."; errorSeguridad = false; }
+        catch (Exception ex) { mensajeSeguridad = ex.Message; }
+    }
+    private List<VentaTicket> historialCompras = new();
+    private List<CalificacionPelicula> calificaciones = new();
+    private const int ComprasPorPagina = 6;
+    private int totalCompras, totalCalificaciones;
+    private int paginaActual = 1;
+    private string ordenCompras = "recientes";
+    private const int CalificacionesPorPagina = 6;
+    private int paginaCalificaciones = 1;
+    private string ordenCalificaciones = "recientes";
+    private int TotalPaginasCalificaciones => Math.Max(1, (totalCalificaciones + 5) / 6);
+    private IEnumerable<CalificacionPelicula> CalificacionesPagina => calificaciones;
+    private async Task OrdenarCalificaciones(string valor) { ordenCalificaciones = valor; paginaCalificaciones = 1; await CargarDatosUsuario(); }
+    private async Task CambiarPaginaCalificaciones(int pagina) { paginaCalificaciones = pagina; await CargarDatosUsuario(); }
+    private int TotalPaginas => Math.Max(1, (totalCompras + 5) / 6);
+    private IEnumerable<VentaTicket> ComprasPagina => historialCompras;
+    private async Task RestablecerPagina() { paginaActual = 1; await CargarDatosUsuario(); }
+    private async Task CambiarPagina(int pagina) { paginaActual = pagina; await CargarDatosUsuario(); }
+
+    // Modal QR
+    private bool mostrarModalQR = false;
+    private VentaTicket? ventaSeleccionada;
+    private string qrImagenUrl = string.Empty;
+
+    // Modal Calificación
+    private bool mostrarModalCalificacion = false;
+    private int calificacionActual = 0;
+    private string comentarioCalificacion = string.Empty;
+
+    protected override void OnInitialized() => AuthDialog.Changed += ActualizarAcceso;
+    private void ActualizarAcceso() => _ = InvokeAsync(async () => { await CargarAcceso(); StateHasChanged(); });
+    public void Dispose() => AuthDialog.Changed -= ActualizarAcceso;
+    private async Task CargarAcceso()
+    {
+        usuarioActual = UsuarioService.ObtenerUsuarioActual();
+        trabajadorActual = TrabajadorService.ObtenerTrabajadorActual();
+        await CargarDatosUsuario();
+    }
+    protected override async Task OnParametersSetAsync()
+    {
+        passwordActual = passwordNuevo = passwordConfirmacion = mensajeSeguridad = "";
+        paginaActual = 1;
+        ordenCompras = "recientes";
+        paginaCalificaciones = 1;
+        ordenCalificaciones = "recientes";
+        await CargarAcceso();
+    }
+    private async Task CargarDatosUsuario()
+    {
+        if (string.IsNullOrEmpty(CorreoCuenta)) return;
+        try {
+            if (Seccion == "compras") { var p = await TicketSalesService.ConsultarAsync(new() { Pagina = paginaActual, Tamano = 6, Orden = ordenCompras }); historialCompras = p.Items; totalCompras = p.Total; paginaActual = p.Numero; }
+            if (Seccion == "calificaciones") { var p = await UsuarioService.ConsultarResenasAsync(new() { Pagina = paginaCalificaciones, Tamano = 6, Orden = ordenCalificaciones }); calificaciones = p.Items; totalCalificaciones = p.Total; paginaCalificaciones = p.Numero; }
+        } catch (Exception ex) { mensajeSeguridad = ex.Message; errorSeguridad = true; }
+    }
+
+    private void IrAHome()
+    {
+        NavigationManager.NavigateTo("/cine");
+    }
+
+    private void MostrarQR(VentaTicket venta)
+    {
+        ventaSeleccionada = venta;
+        string qrBase64 = QRService.GenerarQRDesdeTicket(venta);
+        qrImagenUrl = QRService.ObtenerUrlImagenQR(qrBase64);
+        mostrarModalQR = true;
+    }
+
+    private void CerrarModalQR()
+    {
+        mostrarModalQR = false;
+        ventaSeleccionada = null;
+        qrImagenUrl = string.Empty;
+    }
+
+    private async Task DescargarQR()
+    {
+        if (ventaSeleccionada == null) return;
+
+        string qrBase64 = QRService.GenerarQRDesdeTicket(ventaSeleccionada);
+        string nombreArchivo = $"QR_Factura_{ventaSeleccionada.NumeroFactura}.png";
+
+        await QRService.DescargarQRAsync(qrBase64, nombreArchivo);
+    }
+
+    private void CalificarPelicula(VentaTicket venta)
+    {
+        ventaSeleccionada = venta;
+        calificacionActual = 0;
+        comentarioCalificacion = string.Empty;
+        mostrarModalCalificacion = true;
+    }
+
+    private void CerrarModalCalificacion()
+    {
+        mostrarModalCalificacion = false;
+        ventaSeleccionada = null;
+        calificacionActual = 0;
+        comentarioCalificacion = string.Empty;
+    }
+
+    private void SeleccionarCalificacion(int calificacion)
+    {
+        calificacionActual = calificacion;
+    }
+
+    private async Task GuardarCalificacion()
+    {
+        if (usuarioActual == null || ventaSeleccionada == null || calificacionActual == 0) return;
+
+        var calificacion = new CalificacionPelicula
+            {
+                PeliculaId = ventaSeleccionada.PeliculaId,
+                NombrePelicula = ventaSeleccionada.Pelicula,
+                EmailUsuario = usuarioActual.Email,
+                Calificacion = calificacionActual,
+                Comentario = comentarioCalificacion
+            };
+
+        try { await UsuarioService.GuardarCalificacionAsync(calificacion); await CargarDatosUsuario(); }
+        catch (Exception ex) { mensajeSeguridad = ex.Message; errorSeguridad = true; return; }
+
+        // Cerrar modal
+        CerrarModalCalificacion();
+    }
+}

@@ -1,0 +1,72 @@
+@page "/admin/banners"
+@using CineSpace.Client.Components.Admin
+@using CineSpace.Client.Components.Shared
+@inject UsuarioService Usuarios
+@inject BannersService Banners
+@inject PeliculaService PeliculasService
+
+<PageTitle>Banners de inicio - CineSpace</PageTitle>
+@if (!Usuarios.EsAdministrador()) { <div class="alert alert-danger" role="alert">La gestión de banners está disponible para administradores.</div> }
+else
+{
+    <div class="movie-management">
+    <div class="management-heading"><div><h1>@(editor == null ? "Banners de inicio" : editor.Id == 0 ? "Crear banner" : "Editar banner")</h1><p>@(editor == null ? "Elige las películas, sus imágenes y sus etiquetas para la portada." : "Selecciona un fondo panorámico y comprueba cómo se verá en la portada.")</p></div>@if (editor == null) { <button type="button" class="btn btn-primary" @onclick="Crear" disabled="@(cargando || Banners.ErrorCarga != null)"><i class="fas fa-plus" aria-hidden="true"></i>Crear banner</button> }</div>
+    @if (cargando) { <p role="status">Cargando películas…</p> }
+    else if (editor != null) { <BannerForm @key="version" Banner="editor" Peliculas="peliculas" OnGuardar="Guardado" OnCancelar="() => editor = null" /> }
+    else
+    {
+        @if (!string.IsNullOrEmpty(aviso)) { <div class="alert alert-success" role="status">@aviso</div> }
+        @if (!string.IsNullOrEmpty(error)) { <div class="alert alert-danger" role="alert">@error</div> }
+        @if (Banners.ErrorCarga != null) { <div class="alert alert-warning" role="alert">@Banners.ErrorCarga</div> }
+        <div class="banner-publishing"><div><label for="banner-mode">Banners de la página principal</label><p>@ResumenSeleccion</p></div><select id="banner-mode" class="form-select" value="@(Banners.Automatico ? "automatico" : "personalizado")" @onchange="CambiarModo" disabled="@ocupado"><option value="automatico">Selección automática</option><option value="personalizado">Mis banners</option></select></div>
+        <div class="catalogue-toolbar movie-management-toolbar"><form class="catalogue-search @(busqueda.Length > 0 || filtro.Length > 0 ? "has-query" : "")" role="search" @onsubmit="Buscar" @onsubmit:preventDefault><label class="visually-hidden" for="banner-search">Buscar banner</label><input id="banner-search" class="form-control" type="search" placeholder="Buscar película o etiqueta…" @bind="busqueda" @bind:event="oninput" />@if (busqueda.Length > 0 || filtro.Length > 0) { <button type="button" class="catalogue-clear" aria-label="Limpiar búsqueda" @onclick="Limpiar"><i class="fas fa-times" aria-hidden="true"></i></button> }<button type="submit" class="btn btn-primary" aria-label="Buscar banners"><i class="fas fa-search" aria-hidden="true"></i></button></form><div class="catalogue-secondary-filters"><span class="banner-list-note">@Banners.ManualesValidos(peliculas) válidos · @Banners.Banners.Count guardados</span><ClearFiltersButton Activo="@(!string.IsNullOrWhiteSpace(filtro))" OnClear="Limpiar" /></div></div>
+        @if (Filtrados.Count == 0) { <div class="catalogue-empty" role="status"><i class="fas fa-panorama" aria-hidden="true"></i><h2>@(Banners.Banners.Count == 0 ? "La portada, a tu manera" : "No encontramos banners")</h2><p>@(Banners.Banners.Count == 0 ? "Configura al menos cinco películas distintas con su imagen y etiqueta. Mientras tanto se utiliza la selección automática." : "Prueba otra película o limpia la búsqueda.")</p></div> }
+        else
+        {
+            <ManagementTable Title="Banners guardados" Summary="@($"{Filtrados.Count} banners")" TableClass="banner-table"><HeaderContent><tr><th scope="col">Orden</th><th scope="col">Película</th><th scope="col">Etiqueta</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></HeaderContent><ChildContent>
+            @foreach (var b in Filtrados)
+            {
+                var movie = peliculas.FirstOrDefault(p => p.Id == b.PeliculaId); var position = Banners.Banners.ToList().FindIndex(x => x.Id == b.Id);
+                <tr @key="b.Id" data-banner-id="@b.Id"><td><div class="banner-order-controls"><span>@(position + 1)</span><button type="button" class="btn btn-secondary" aria-label="Subir @Nombre(b)" title="Subir" @onclick="() => Mover(b.Id, -1)" disabled="@(ocupado || position == 0)"><i class="fas fa-chevron-up" aria-hidden="true"></i></button><button type="button" class="btn btn-secondary" aria-label="Bajar @Nombre(b)" title="Bajar" @onclick="() => Mover(b.Id, 1)" disabled="@(ocupado || position == Banners.Banners.Count - 1)"><i class="fas fa-chevron-down" aria-hidden="true"></i></button></div></td><td><div class="catalogue-product-name banner-product-name"><img src="@(string.IsNullOrEmpty(b.Imagen) ? "images/poster-placeholder.svg" : b.Imagen)" alt="" loading="lazy" onerror="this.onerror=null;this.src='images/poster-placeholder.svg';" /><strong>@Nombre(b)</strong></div></td><td>@b.Etiqueta.Nombre()</td><td>@(movie == null ? "Película retirada" : b.Activo ? "Activo" : "Inactivo")</td><td><div class="managed-table-actions"><button type="button" class="btn btn-secondary" aria-label="Editar @Nombre(b)" title="Editar" @onclick="() => Editar(b)" disabled="@ocupado"><i class="fas fa-pen-to-square" aria-hidden="true"></i></button><button type="button" class="btn btn-secondary" aria-label="@(b.Activo ? $"Desactivar {Nombre(b)}" : $"Activar {Nombre(b)}")" title="@(b.Activo ? "Desactivar" : "Activar")" @onclick="() => Activar(b)" disabled="@ocupado"><i class="fas @(b.Activo ? "fa-eye-slash" : "fa-eye")" aria-hidden="true"></i></button><button type="button" class="btn btn-danger" aria-label="Eliminar @Nombre(b)" title="Eliminar" @onclick="() => eliminar = b" disabled="@ocupado"><i class="fas fa-trash" aria-hidden="true"></i></button></div></td></tr>
+            }
+            </ChildContent></ManagementTable>
+            <Pagination CurrentPage="pagina" TotalPages="TotalPaginas" TotalItems="totalItems" PageSize="PorPagina" ShowPageSizeSelector="false" Label="Paginación de banners" OnPageChanged="Paginar" />
+        }
+    }
+    </div>
+}
+@if (eliminar != null)
+{
+    <AppDialog Title="¿Eliminar este banner?" OnClose="() => eliminar = null" @ref="confirmacion"><ChildContent><p>Se eliminará el banner de <strong>@Nombre(eliminar)</strong>. La película seguirá en cartelera.</p></ChildContent><Footer><button type="button" class="btn btn-secondary" @onclick="CerrarEliminar" disabled="@ocupado">Cancelar</button><button type="button" class="btn btn-danger" @onclick="Eliminar" disabled="@ocupado">Eliminar banner</button></Footer></AppDialog>
+}
+@code {
+    private const int PorPagina = 8;
+    private List<Pelicula> peliculas = new();
+    private BannerInicio? editor, eliminar;
+    private AppDialog? confirmacion;
+    private Guid version = Guid.NewGuid();
+    private int pagina = 1;
+    private bool cargando, ocupado;
+    private string busqueda = "", filtro = "", aviso = "", error = "";
+    private string Nombre(BannerInicio b) => peliculas.FirstOrDefault(p => p.Id == b.PeliculaId)?.Titulo ?? "Película retirada";
+    private List<BannerInicio> Filtrados = [];
+    private int totalItems;
+    private async Task Cargar() { var p = await Banners.ConsultarAsync(new() { Pagina = pagina, Tamano = PorPagina, Buscar = filtro }); Filtrados = p.Items; totalItems = p.Total; pagina = p.Numero; }
+    private async Task Paginar(int valor) { pagina = valor; await Cargar(); }
+    private string ResumenSeleccion => peliculas.Select(p => p.Id).Distinct().Count() < 5 ? "Se muestran todas las películas disponibles. Añade películas a cartelera para llegar a cinco." : Banners.Automatico ? "Se muestran cinco películas de cartelera automáticamente." : Banners.UsaSeleccionManual(peliculas) ? "Se muestran tus banners activos en el orden de esta lista." : $"Tienes {Banners.ManualesValidos(peliculas)} de 5 películas configuradas. La portada sigue en automático hasta completar cinco banners activos y válidos.";
+    private int TotalPaginas => Math.Max(1, (int)Math.Ceiling(totalItems / (double)PorPagina));
+    protected override async Task OnInitializedAsync() { if (!Usuarios.EsAdministrador()) return; cargando = true; try { peliculas = (await PeliculasService.OpcionesAsync()).DistinctBy(p => p.Id).ToList(); await Banners.InicializarAsync(); await Cargar(); } catch { error = "No pudimos cargar las películas. Recarga para volver a intentarlo."; } finally { cargando = false; } }
+    private void Crear() { editor = new(); version = Guid.NewGuid(); aviso = error = ""; }
+    private void Editar(BannerInicio b) { editor = b.Copiar(); version = Guid.NewGuid(); aviso = error = ""; }
+    private async Task Guardado(int id) { editor = null; busqueda = filtro = ""; pagina = 1; await Cargar(); aviso = Banners.UsaSeleccionManual(peliculas) ? "Banner guardado. Tu selección se utiliza en la página principal." : "Banner guardado. La portada sigue en automático hasta completar cinco películas con banners activos."; }
+    private async Task Ejecutar(Func<Task> accion) { if (ocupado) return; ocupado = true; error = aviso = ""; try { await accion(); await Cargar(); } catch (ArgumentException ex) { error = ex.Message; } catch { error = "No pudimos guardar el cambio. Vuelve a intentarlo."; } finally { ocupado = false; } }
+    private Task CambiarModo(ChangeEventArgs e) => Ejecutar(() => Banners.ModoAsync(e.Value?.ToString() == "automatico"));
+    private Task Mover(int id, int direccion) => Ejecutar(() => Banners.MoverAsync(id, direccion));
+    private Task Activar(BannerInicio b) => Ejecutar(async () => { if (!b.Activo && !string.IsNullOrEmpty(b.Imagen)) await JSValidar(b.Imagen); await Banners.ActivarAsync(b.Id, !b.Activo, peliculas.Any(p => p.Id == b.PeliculaId)); });
+    [Inject] public IJSRuntime JS { get; set; } = default!;
+    private Task JSValidar(string src) => JS.InvokeAsync<object>("cineBannerImages.inspect", src).AsTask();
+    private Task CerrarEliminar() => confirmacion?.CerrarDialogo() ?? Task.CompletedTask;
+    private Task Eliminar() => Ejecutar(async () => { if (eliminar == null) return; await Banners.EliminarAsync(eliminar.Id); await CerrarEliminar(); pagina = Math.Min(pagina, TotalPaginas); aviso = "Banner eliminado."; });
+    private async Task Buscar() { filtro = busqueda.Trim(); pagina = 1; await Cargar(); }
+    private async Task Limpiar() { busqueda = filtro = ""; pagina = 1; await Cargar(); }
+}

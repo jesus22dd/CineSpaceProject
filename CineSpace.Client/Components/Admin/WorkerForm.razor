@@ -1,0 +1,224 @@
+@using CineSpace.Shared.Models
+@using CineSpace.Client.Services
+@inject TrabajadorService TrabajadorService
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>@(ModoEdicion ? "Editar" : "Nuevo") Trabajador</h5>
+    </div>
+    <div class="card-body">
+        <form @onsubmit="GuardarTrabajador" @onsubmit:preventDefault aria-busy="@guardando"><fieldset class="auth-fields" disabled="@guardando">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="nombre" class="form-label">Nombre</label>
+                    <input type="text" class="form-control" id="nombre" value="@trabajador.Nombre"
+                           @oninput="@(e => HandleNombreInput(e))" required />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="apellido" class="form-label">Apellido</label>
+                    <input type="text" class="form-control" id="apellido" value="@trabajador.Apellido"
+                           @oninput="@(e => HandleApellidoInput(e))" required />
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="ci" class="form-label">CI/NIT</label>
+                    <input type="text" class="form-control" id="ci" @bind="trabajador.CI" required />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="fechaNacimiento" class="form-label">Fecha de Nacimiento</label>
+                    <input type="date" class="form-control" id="fechaNacimiento" @bind="trabajador.FechaNacimiento" />
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="nacionalidad" class="form-label">Nacionalidad</label>
+                    <input type="text" class="form-control" id="nacionalidad" @bind="trabajador.Nacionalidad" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="telefono" class="form-label">Teléfono</label>
+                    <input type="tel" class="form-control" id="telefono" @bind="trabajador.Telefono" />
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="direccion" class="form-label">Dirección</label>
+                <input type="text" class="form-control" id="direccion" @bind="trabajador.Direccion" />
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" @bind="trabajador.Email" required />
+                </div>
+                @if (!ModoEdicion)
+                {
+                    <div class="col-md-6 mb-3">
+                        <label for="password" class="form-label">Contraseña</label>
+                        <input type="password" class="form-control" id="password" @bind="trabajador.Password" required />
+                    </div>
+                }
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="cargo" class="form-label">Cargo</label>
+                    <select class="form-select" id="cargo" value="@trabajador.CargoTrabajador" @onchange="@(e => CambiarCargo(e))">
+                        @foreach (Cargo cargo in Enum.GetValues(typeof(Cargo)))
+                        {
+                            <option value="@cargo">@cargo</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="horarioTrabajo" class="form-label">Horario</label>
+                    <select class="form-select" id="horarioTrabajo" @bind="trabajador.HorarioTrabajo">
+                        <option value="">-- Selecciona un horario --</option>
+                        <option value="8:00-16:00">8:00-16:00</option>
+                        <option value="16:00-23:30">16:00-23:30</option>
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="sueldo" class="form-label">Sueldo (Bs)</label>
+                    <input type="number" class="form-control" id="sueldo" @bind="trabajador.Sueldo" min="0" />
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(mensajeError))
+            {
+                <div class="alert alert-danger" role="alert">
+                    @mensajeError
+                </div>
+            }
+
+            <div class="d-flex justify-content-between mt-4">
+                <button type="button" class="btn btn-secondary" @onclick="@(() => OnCancelar.InvokeAsync())">
+                    Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary" disabled="@guardando">@if (guardando) { <span class="button-spinner" aria-hidden="true"></span> }
+                    @(ModoEdicion ? "Actualizar" : "Guardar")
+                </button>
+            </div>
+        </fieldset></form>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Trabajador Trabajador { get; set; } = new Trabajador();
+
+    [Parameter]
+    public bool ModoEdicion { get; set; } = false;
+
+    [Parameter]
+    public EventCallback<Trabajador> OnGuardar { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancelar { get; set; }
+
+    private Trabajador trabajador = new Trabajador();
+    private string mensajeError = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        // Clonar el trabajador para evitar modificar directamente el parámetro
+        trabajador = new Trabajador
+            {
+                Id = Trabajador.Id,
+                Nombre = Trabajador.Nombre,
+                Apellido = Trabajador.Apellido,
+                CI = Trabajador.CI,
+                FechaNacimiento = Trabajador.FechaNacimiento != DateTime.MinValue ? Trabajador.FechaNacimiento : DateTime.Today.AddYears(-20),
+                Telefono = Trabajador.Telefono,
+                Email = Trabajador.Email,
+                Password = Trabajador.Password,
+                Direccion = Trabajador.Direccion,
+                Nacionalidad = Trabajador.Nacionalidad,
+                CargoTrabajador = Trabajador.CargoTrabajador,
+                HorarioTrabajo = Trabajador.HorarioTrabajo,
+                Sueldo = Trabajador.Sueldo > 0 ? Trabajador.Sueldo : Trabajador.ObtenerSueldoPorCargo(Trabajador.CargoTrabajador)
+            };
+
+        // Si es un nuevo trabajador y no tiene sueldo asignado
+        if (!ModoEdicion && trabajador.Sueldo <= 0)
+        {
+            trabajador.Sueldo = Trabajador.ObtenerSueldoPorCargo(trabajador.CargoTrabajador);
+        }
+    }
+
+    private void ActualizarSueldoPorCargo()
+    {
+        // Actualizar el sueldo según el cargo seleccionado si el usuario no ha modificado el sueldo
+        trabajador.Sueldo = Trabajador.ObtenerSueldoPorCargo(trabajador.CargoTrabajador);
+    }
+
+    private void CambiarCargo(ChangeEventArgs e)
+    {
+        if (e.Value != null && Enum.TryParse<Cargo>(e.Value.ToString(), out var cargo))
+        {
+            trabajador.CargoTrabajador = cargo;
+            // Actualizar el sueldo basado en el cargo
+            trabajador.Sueldo = Trabajador.ObtenerSueldoPorCargo(cargo);
+        }
+    }
+
+    private bool guardando;
+    private async Task GuardarTrabajador()
+    {
+        if (guardando) return;
+        mensajeError = string.Empty;
+
+        // Validaciones básicas
+        if (string.IsNullOrWhiteSpace(trabajador.Nombre) ||
+            string.IsNullOrWhiteSpace(trabajador.Apellido) ||
+            string.IsNullOrWhiteSpace(trabajador.CI) ||
+            string.IsNullOrWhiteSpace(trabajador.Email))
+        {
+            mensajeError = "Por favor complete todos los campos obligatorios.";
+            return;
+        }
+
+        if (!ModoEdicion && string.IsNullOrWhiteSpace(trabajador.Password))
+        {
+            mensajeError = "La contraseña es obligatoria para nuevos trabajadores.";
+            return;
+        }
+
+        if (trabajador.FechaNacimiento == DateTime.MinValue)
+        {
+            mensajeError = "La fecha de nacimiento no es válida.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(trabajador.HorarioTrabajo))
+        {
+            mensajeError = "Por favor selecciona un horario.";
+            return;
+        }
+        if (trabajador.Sueldo <= 0)
+        {
+            mensajeError = "El sueldo debe ser mayor a 0.";
+            return;
+        }
+
+        // Todo está bien, notificar al componente padre
+        guardando = true;
+        try { await OnGuardar.InvokeAsync(trabajador); } finally { guardando = false; }
+    }
+    private void HandleNombreInput(ChangeEventArgs e)
+    {
+        if (e.Value != null)
+        {
+            trabajador.Nombre = e.Value?.ToString()?.ToUpperInvariant() ?? "";
+        }
+    }
+
+    private void HandleApellidoInput(ChangeEventArgs e)
+    {
+        if (e.Value != null)
+        {
+            trabajador.Apellido = e.Value?.ToString()?.ToUpperInvariant() ?? "";
+        }
+    }
+}

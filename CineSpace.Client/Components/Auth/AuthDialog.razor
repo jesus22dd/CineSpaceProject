@@ -1,0 +1,79 @@
+@namespace CineSpace.Client.Components.Auth
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject CineSpace.Client.Services.SessionTransitionService Transicion
+@inject AuthDialogService EstadoLogin
+
+<dialog class="auth-modal" aria-labelledby="auth-title" aria-describedby="auth-intro" @ref="dialogElement">
+    <div class="auth-modal-header">
+        <span class="auth-modal-brand">Cine<span>Space</span></span>
+        <button type="button" class="auth-modal-close" @onclick="CerrarDialogo" aria-label="Cerrar acceso"><i class="fas fa-times" aria-hidden="true"></i></button>
+    </div>
+    <div class="auth-modal-content">
+        <div class="auth-mode" role="group" aria-label="Tipo de acceso">
+            <button type="button" aria-pressed="@(mostrarLogin ? "true" : "false")" disabled="@Transicion.Activa" @onclick="SwitchToLogin">Iniciar sesión</button>
+            <button type="button" aria-pressed="@(!mostrarLogin ? "true" : "false")" disabled="@Transicion.Activa" @onclick="SwitchToRegister">Registrarse</button>
+        </div>
+        @if (!string.IsNullOrEmpty(mensaje))
+        {
+            <div class="alert @(mensajeEsError ? "alert-danger" : "alert-success") auth-message" role="@(mensajeEsError ? "alert" : "status")">@mensaje</div>
+        }
+        @if (mostrarLogin)
+        {
+            <Login @bind-LoginEmail="loginEmail" @bind-LoginPassword="loginPassword" @bind-RememberMe="rememberMe"
+                   PeliculaParaReservar="PeliculaId" Contexto="@(PeliculaId.HasValue ? "Inicia sesión para continuar con la película que elegiste." : null)" OnLoginResult="HandleAuthResult" OnAutenticado="ClienteAutenticado" OnSwitchToRegister="SwitchToRegister" />
+        }
+        else
+        {
+            <Register @bind-RegisterNombre="registerNombre" @bind-RegisterApellido="registerApellido"
+                      @bind-RegisterEmail="registerEmail" @bind-RegisterCI="registerCI"
+                      @bind-RegisterPassword="registerPassword" @bind-RegisterConfirmPassword="registerConfirmPassword"
+                      OnRegisterResult="HandleAuthResult" OnSwitchToLogin="SwitchToLogin" />
+        }
+    </div>
+</dialog>
+
+@code {
+    [Parameter] public int? PeliculaId { get; set; }
+    [Parameter] public EventCallback OnCerrar { get; set; }
+    protected override void OnInitialized() { mensaje = EstadoLogin.Aviso; mensajeEsError = mensaje is not null; }
+    private bool mostrarLogin = true;
+    private string? loginEmail, loginPassword, registerNombre, registerApellido, registerEmail, registerCI, registerPassword, registerConfirmPassword, mensaje;
+    private bool rememberMe, mensajeEsError;
+    private ElementReference dialogElement;
+    private IJSObjectReference? module;
+    private DotNetObjectReference<AuthDialog>? reference;
+    private int? dialogId;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/auth-dialog.js");
+        reference = DotNetObjectReference.Create(this);
+        dialogId = await module.InvokeAsync<int>("openAuthDialog", dialogElement, reference);
+    }
+    [JSInvokable] public async Task CerrarDialogo()
+    {
+        if (module != null && dialogId.HasValue) await module.InvokeVoidAsync("closeAuthDialog", dialogId.Value);
+        await OnCerrar.InvokeAsync();
+    }
+    private async Task ClienteAutenticado()
+    {
+        var pelicula = PeliculaId;
+        EstadoLogin.ConfirmarReserva();
+        await CerrarDialogo();
+        if (pelicula.HasValue) Navigation.NavigateTo($"/cine?pelicula={pelicula.Value}");
+    }
+    private void HandleAuthResult((string mensaje, bool esError) result) { mensaje = result.mensaje; mensajeEsError = result.esError; }
+    private void SwitchToRegister() { mostrarLogin = false; mensaje = null; }
+    private void SwitchToLogin() { mostrarLogin = true; mensaje = null; loginEmail = registerEmail ?? loginEmail; }
+    public async ValueTask DisposeAsync()
+    {
+        if (module != null)
+        {
+            try { if (dialogId.HasValue) await module.InvokeVoidAsync("closeAuthDialog", dialogId.Value); await module.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+        reference?.Dispose();
+    }
+}

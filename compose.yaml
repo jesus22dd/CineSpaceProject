@@ -1,0 +1,23 @@
+services:
+  cinespace:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__CineSpace: ${CINESPACE_DB_CONNECTION:-}
+      Supabase__ProjectRef: ${SUPABASE_PROJECT_REF:-}
+      Supabase__Url: ${SUPABASE_URL:-}
+      Supabase__SecretKey: ${SUPABASE_SECRET_KEY:-}
+      Supabase__Bucket: ${SUPABASE_STORAGE_BUCKET:-}
+      Authentication__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      Authentication__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      Tmdb__ApiKey: ${TMDB_API_KEY:-}
+      BrevoSettings__ApiKey: ${BREVO_API_KEY:-}
+      BrevoSettings__FromEmail: ${BREVO_FROM_EMAIL:-}
+      BrevoSettings__FromName: ${BREVO_FROM_NAME:-}
+      Frontend__Url: ${FRONTEND_URL:-}
+      Backend__PublicUrl: ${BACKEND_PUBLIC_URL:-}
+    restart: unless-stopped

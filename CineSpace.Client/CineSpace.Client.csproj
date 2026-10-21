@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+  <PropertyGroup><TargetFramework>net8.0</TargetFramework><BlazorWebAssemblyLoadAllGlobalizationData>true</BlazorWebAssemblyLoadAllGlobalizationData></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../CineSpace.Shared/CineSpace.Shared.csproj" /><PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.32" /><PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.32" PrivateAssets="all" /></ItemGroup>
+  <ItemGroup><PackageReference Include="QRCoder" Version="1.6.0" /></ItemGroup>
+</Project>

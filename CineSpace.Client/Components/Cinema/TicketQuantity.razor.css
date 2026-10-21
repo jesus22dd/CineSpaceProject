@@ -1,0 +1,36 @@
+.booking-tickets header h3 { font-size:28px; margin:0 0 8px; }
+.booking-tickets header > p { color:var(--cinema-muted); font-size:14px; margin:0 0 20px; }
+.ticket-screening { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; background:transparent; padding:0 0 16px; border-bottom:1px solid var(--cinema-line); margin-bottom:24px; }
+.ticket-screening > div { display:grid; gap:6px; }
+.ticket-screening span { font-size:12px; color:var(--cinema-muted); }
+.ticket-checkout { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:32px; align-items:start; }
+.ticket-options { display:grid; grid-template-columns:minmax(0,1fr); }
+.ticket-summary { min-width:0; padding:4px 0; }
+.ticket-summary h4 { color:var(--cinema-heading); font-size:18px; margin:0; }
+.ticket-pass { position:relative; display:grid; grid-template-columns:minmax(0,1fr) 160px; background:var(--cinema-choice-surface); color:var(--cinema-choice-ink); border-radius:6px; min-height:164px; }
+.ticket-pass::before,.ticket-pass::after { content:""; position:absolute; top:calc(50% - 10px); width:20px; height:20px; border-radius:50%; background:var(--cinema-canvas); }
+.ticket-pass::before { left:-10px; }.ticket-pass::after { right:-10px; }
+.ticket-pass-copy { padding:20px 24px; min-width:0; }
+.ticket-brand { display:flex; gap:8px; align-items:center; color:var(--cinema-choice-muted); font-size:11px; margin-bottom:12px; }
+.ticket-pass h4 { font-size:22px; color:inherit; margin:0 0 8px; }
+.ticket-details { display:flex; flex-wrap:wrap; gap:12px 32px; margin:12px 0 16px; }
+.ticket-details > div { display:grid; gap:3px; min-width:0; }
+.ticket-details dt { font-size:11px; color:var(--cinema-choice-muted); font-weight:400; }
+.ticket-details dd { margin:0; font-size:14px; font-weight:600; overflow-wrap:anywhere; }
+.ticket-pass h4 { overflow-wrap:anywhere; }
+.ticket-pass-copy p { font-size:16px; font-weight:600; margin:0; font-variant-numeric:tabular-nums; }
+.ticket-pass-copy p span { font-size:11px; font-weight:400; }
+.ticket-pass-stub { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:16px; border-left:1px dashed var(--cinema-choice-line); }
+.ticket-pass-stub > span { font-size:12px; color:var(--cinema-choice-muted); }
+.ticket-stepper { display:flex; align-items:center; }
+.ticket-stepper button { border:1px solid var(--cinema-choice-line); background:var(--cinema-choice-hover); color:var(--cinema-choice-ink); height:44px; width:44px; padding:0; flex-shrink:0; border-radius:4px; }
+.ticket-stepper button:hover:not(:disabled) { background:var(--cinema-choice-selected); color:var(--cinema-choice-ink); }
+.ticket-stepper button:disabled { opacity:.4; }
+.ticket-stepper input { width:44px; height:44px; padding:0 2px; border:0; background:transparent; color:var(--cinema-choice-ink); font-size:20px; font-weight:600; text-align:center; appearance:textfield; -moz-appearance:textfield; }
+.ticket-stepper input::-webkit-inner-spin-button,.ticket-stepper input::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+.ticket-stepper input:focus-visible,.ticket-stepper button:focus-visible { outline:2px solid var(--cinema-choice-selected-line); outline-offset:2px; }
+.ticket-total { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px; border-top:1px solid var(--cinema-line); padding-top:16px; margin-top:12px; }
+.ticket-total p { display:grid; gap:6px; margin:0; }.ticket-total span { font-size:13px; color:var(--cinema-muted); }.ticket-total p:last-child { text-align:right; }.ticket-total p:last-child strong { font-size:26px; font-variant-numeric:tabular-nums; }.ticket-total small { font-size:14px; }
+.booking-actions { display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-top:20px; }
+@media(max-width:900px) { .ticket-checkout { grid-template-columns:minmax(0,1fr); gap:24px; } }
+@media(max-width:420px) { .booking-tickets header h3 { font-size:24px; }.ticket-pass { grid-template-columns:minmax(0,1fr); }.ticket-pass-copy { padding:16px 24px; }.ticket-pass-stub { flex-direction:row; justify-content:space-between; padding:12px 24px; border-left:0; border-top:1px dashed var(--cinema-choice-line); }.ticket-brand { margin-bottom:8px; }.ticket-pass h4 { font-size:20px; }.booking-actions > button { width:100%; }.ticket-total p:last-child { text-align:left; } }

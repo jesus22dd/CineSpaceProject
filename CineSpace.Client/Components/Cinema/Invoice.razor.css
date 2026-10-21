@@ -1,0 +1,25 @@
+.purchase-documents { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; align-items:start; }
+.entry-confirmation, .invoice-panel { min-width:0; }
+.completion-heading { margin-bottom:20px; }
+.entry-success { display:flex; align-items:center; gap:8px; margin:0 0 8px; color:var(--cinema-link); font-size:13px; font-weight:600; }
+.completion-heading h2 { margin:0 0 8px; color:var(--cinema-heading); font-size:28px; }
+.completion-heading h2:focus { outline:none; }
+.completion-heading > p:last-child { color:var(--cinema-muted); font-size:14px; margin:0; }
+.confirmed-entry { display:grid; grid-template-columns:172px minmax(0,1fr); align-items:start; gap:20px; width:100%; padding:20px; border:1px solid var(--cinema-line); border-radius:6px; background:var(--cinema-surface); }
+.entry-qr { display:grid; justify-items:center; gap:12px; padding:12px; border-radius:4px; background:#fff; color:#171717; max-width:100%; }
+.entry-qr img { width:148px; max-width:100%; height:auto; image-rendering:pixelated; }
+.entry-qr > span { font:600 18px/1.4 monospace; letter-spacing:2px; }
+.entry-copy { min-width:0; }
+.entry-copy h3 { margin:0 0 8px; color:var(--cinema-heading); font-size:22px; overflow-wrap:anywhere; }
+.entry-copy > p { margin:0 0 20px; font-size:13px; color:var(--cinema-muted); }
+.entry-metadata { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin:0 0 20px; }
+.entry-metadata dt { font-size:12px; color:var(--cinema-muted); font-weight:400; margin-bottom:4px; }
+.entry-metadata dd { margin:0; font-size:14px; color:var(--cinema-heading); overflow-wrap:anywhere; }
+.entry-seats { grid-column:1/-1; }
+.entry-copy .btn { min-height:44px; }
+
+.invoice-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:20px; }
+.invoice-actions .btn { min-height:44px; }
+@media(max-width:600px) { .confirmed-entry { grid-template-columns:minmax(0,1fr); gap:24px; padding:20px 16px; }.entry-qr { justify-self:center; }.completion-heading h2 { font-size:24px; }.entry-copy .btn { width:100%; }.entry-copy h3 { font-size:22px; } }
+
+@media(max-width:999px) { .purchase-documents { grid-template-columns:minmax(0,1fr); max-width:680px; } }

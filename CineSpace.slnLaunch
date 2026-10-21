@@ -1,0 +1,17 @@
+[
+  {
+    "Name": "CineSpace completo",
+    "Projects": [
+      {
+        "Path": "CineSpace.Server\\CineSpace.Server.csproj",
+        "Action": "Start",
+        "DebugTarget": "https"
+      },
+      {
+        "Path": "CineSpace.Client\\CineSpace.Client.csproj",
+        "Action": "Start",
+        "DebugTarget": "https"
+      }
+    ]
+  }
+]

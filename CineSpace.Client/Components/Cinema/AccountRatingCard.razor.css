@@ -1,0 +1,16 @@
+.account-rating { min-width: 0; height: 264px; padding: 20px 24px; display: grid; grid-template-rows: 68px 20px minmax(0, 1fr) 44px; gap: 8px; border-radius: 12px; background: var(--cinema-surface); color: var(--cinema-ink); }
+.account-rating-heading { min-width: 0; }
+.account-rating h2 { margin: 0 0 6px; color: var(--cinema-heading); font-size: 21px; line-height: 24px; height: 48px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.account-rating time { display: block; color: var(--cinema-muted); font-size: 12px; line-height: 14px; font-variant-numeric: tabular-nums; }
+.account-rating-score { display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 600; color: var(--cinema-heading); }
+.account-rating-stars { display: inline-flex; gap: 4px; color: var(--cinema-link); }
+.account-rating-comment { align-self: start; margin: 0; font-size: 14px; line-height: 22px; white-space: pre-line; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.account-rating-footer { display: flex; align-items: end; }
+.account-rating-expand { display: none; align-items: center; gap: 8px; min-height: 44px; padding: 8px 0; border: 0; background: transparent; color: var(--cinema-link); font: inherit; font-size: 13px; font-weight: 600; }
+.account-rating[data-overflow="true"] .account-rating-expand { display: inline-flex; }
+.account-rating-expand:hover { text-decoration: underline; }
+.account-rating-expand:focus-visible { outline: 2px solid var(--cinema-link); outline-offset: 4px; border-radius: 2px; }
+.account-rating.is-expanded { height: auto; min-height: 264px; grid-template-rows: auto 20px auto 44px; }
+.account-rating.is-expanded:not(.is-measuring) h2 { display: block; height: auto; min-height: 48px; overflow: visible; }
+.account-rating.is-expanded:not(.is-measuring) .account-rating-comment { display: block; overflow: visible; }
+@media (max-width: 480px) { .account-rating { padding-inline: 20px; } }

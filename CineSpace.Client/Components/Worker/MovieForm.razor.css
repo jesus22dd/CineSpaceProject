@@ -1,0 +1,27 @@
+.movie-metadata-poster { display: block; width: min(100%,160px); aspect-ratio: 2/3; object-fit: contain; margin: 0 auto; border-radius: 6px; }
+.movie-image-preview { min-width: 0; }
+.movie-image-preview h3 { font-size: 16px; margin: 0 0 12px; }
+.movie-home-preview { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--cinema-line); }
+.movie-home-preview .carousel-stage { width: 100%; height: auto; aspect-ratio: 16/5; border-radius: 6px; }
+.movie-home-preview ::deep .carousel-caption { left: 12px; right: 12px; bottom: 10px; width: auto; padding: 0; }
+.movie-home-preview ::deep .carousel-caption h2 { margin: 0; font-size: 16px; line-height: 1.2; }
+.movie-home-preview ::deep .banner-reserve-actions,
+.movie-home-preview ::deep .banner-mobile-trigger { display: none; }
+.movie-framing-control { margin-top: 16px; }
+.movie-framing-control label { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--cinema-heading); font-size: 13px; font-weight: 600; }
+.movie-framing-control output { color: var(--cinema-link); font-variant-numeric: tabular-nums; }
+.movie-framing-control input { display: block; width: 100%; min-height: 44px; margin: 0; accent-color: var(--cinema-accent); }
+.movie-framing-control input::-webkit-slider-thumb { background: var(--cinema-accent); box-shadow: none; }
+.movie-framing-control input::-moz-range-thumb { background: var(--cinema-accent); box-shadow: none; }
+.movie-framing-control input::-webkit-slider-runnable-track { background: var(--cinema-control-border); }
+.movie-framing-control input::-moz-range-track { background: var(--cinema-control-border); }
+.movie-framing-control input:focus-visible { outline: 2px solid var(--cinema-focus); outline-offset: 2px; }
+.movie-framing-control > div { display: flex; justify-content: space-between; gap: 16px; color: var(--cinema-muted); font-size: 11px; }
+@media (min-width: 576px) and (max-width: 991px) {
+    .movie-image-preview { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 24px; margin-top: 16px; }
+    .movie-home-preview { margin-top: 0; padding-top: 0; border-top: 0; }
+}
+@media (max-width: 575px) {
+    .movie-image-preview { margin-top: 16px; }
+    .movie-metadata-poster { width: 144px; }
+}

@@ -1,0 +1,112 @@
+@namespace CineSpace.Client.Components.Worker
+@using CineSpace.Client.Components.Admin
+@using CineSpace.Client.Components.Cinema
+@using CineSpace.Client.Components.Shared
+@inject PeliculaService PeliculaService
+@inject CatalogosService Catalogos
+@inject SalaService Salas
+@inject FuncionesService Funciones
+
+<section class="movie-management" aria-label="Gestión de cartelera">
+    @if(errorCarga.Length>0) { <div class="alert alert-danger" role="alert">@errorCarga <button class="btn btn-secondary" @onclick="Cargar">Reintentar</button></div> }
+    <div class="catalogue-toolbar movie-management-toolbar">
+        <form class="catalogue-search @(titulo.Length>0||tituloAplicado.Length>0 ? "has-query":"")" role="search" aria-label="Buscar en cartelera" @onsubmit="BuscarPorTitulo" @onsubmit:preventDefault>
+            <input id="filtroTitulo" class="form-control" type="search" aria-label="Buscar películas por título" placeholder="Buscar por título…" @bind="titulo" @bind:event="oninput" />
+            @if(titulo.Length>0||tituloAplicado.Length>0){<button type="button" class="catalogue-clear" aria-label="Limpiar búsqueda de películas" @onclick="LimpiarBusqueda"><i class="fas fa-times" aria-hidden="true"></i></button>}
+            <button type="submit" class="btn btn-primary" aria-label="Buscar películas"><i class="fas fa-search" aria-hidden="true"></i></button>
+        </form>
+        <div class="catalogue-secondary-filters">
+            <AdminSelect Id="management-genre" Etiqueta="Género" Valor="@genero" Opciones="@AdminSelectOption.From(Generos)" Activo="@(genero != "Todos")" ValorChanged="CambiarGenero" />
+            <AdminSelect Id="management-format" Etiqueta="Formato" Valor="@formato" Opciones="@AdminSelectOption.From(formatos)" Activo="@(formato != "Todos")" ValorChanged="CambiarFormato" />
+            <AdminSelect Id="management-language" Etiqueta="Idioma" Valor="@idioma" Opciones="@AdminSelectOption.From(idiomas)" Activo="@(idioma != "Todos")" ValorChanged="CambiarIdioma" />
+            <CompactOrder Id="management-order" Valor="@orden" ValorChanged="CambiarOrden" />
+            <ViewToggle Etiqueta="Vista de cartelera" Valor="@vista" ValorChanged="valor => vista = valor" />
+            <ClearFiltersButton Activo="HayFiltros" OnClear="LimpiarFiltros" />
+        </div>
+    </div>
+    <div class="management-result-heading"><h2>Catálogo de películas</h2><span role="status">@totalItems películas</span></div>
+    @if (Filtradas.Count == 0)
+    {
+        <div class="management-empty" role="status"><i class="fas fa-circle-info" aria-hidden="true"></i><div><strong>@(HayFiltros ? "No encontramos películas con estos filtros." : "Aún no hay películas en cartelera.")</strong><p>@(HayFiltros ? "Prueba otra búsqueda o limpia los filtros." : "Añade una película para programar sus funciones.")</p></div></div>
+    }
+    else if (vista == "Tarjetas")
+    {
+        <div class="managed-movie-grid">
+            @foreach (var pelicula in Paginadas)
+            {
+                <article class="managed-movie" @key="pelicula.Id">
+                    <img class="managed-movie-poster" src="@Poster(pelicula)" style="@($"object-position:50% {pelicula.FocoPosterVertical}%")" alt="@pelicula.Titulo" loading="lazy" />
+                    <div class="managed-movie-body">
+                        <span class="managed-genre">@pelicula.GenerosTexto</span>
+                        <span class="badge bg-secondary">@pelicula.FuncionesDisponibles funciones</span>
+                        <h3 title="@pelicula.Titulo">@pelicula.Titulo</h3>
+                        <p class="managed-room">@pelicula.DuracionMinutos min <span>· @Formato(pelicula)</span></p>
+                        <a href="@($"/admin/funciones?pelicula={pelicula.Id}")">Gestionar funciones</a>
+                    </div>
+                    <div class="managed-actions">
+                        <button type="button" class="btn btn-secondary" aria-label="Editar @pelicula.Titulo" title="Editar" @onclick="() => OnEditar.InvokeAsync(pelicula)"><i class="fas fa-pen-to-square" aria-hidden="true"></i><span class="action-label">Editar</span></button>
+                        <button type="button" class="btn btn-danger" aria-label="Eliminar @pelicula.Titulo" title="Eliminar" @onclick="() => OnEliminar.InvokeAsync(pelicula)"><i class="fas fa-trash" aria-hidden="true"></i><span class="action-label">Eliminar</span></button>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+    else
+    {
+        <p class="table-scroll-note">Desliza la tabla para ver todas las columnas.</p>
+        <div class="managed-table-scroll"><table class="managed-movie-table"><thead><tr><th scope="col">Película</th><th scope="col">Género</th><th scope="col">Estado</th><th scope="col">Formato</th><th scope="col">Idioma</th><th scope="col">Duración</th><th scope="col">Funciones</th><th scope="col">Acciones</th></tr></thead><tbody>
+            @foreach (var pelicula in Paginadas)
+            {
+                <tr @key="pelicula.Id"><td><div class="managed-table-film"><img src="@Poster(pelicula)" style="@($"object-position:50% {pelicula.FocoPosterVertical}%")" alt="" loading="lazy" /><strong>@pelicula.Titulo</strong></div></td><td>@pelicula.GenerosTexto</td><td>@(pelicula.FuncionesDisponibles>0 ? "Programada" : "Sin funciones")</td><td>@Formato(pelicula)</td><td>@(pelicula.IdiomasDisponibles.Count > 0 ? string.Join(" · ", pelicula.IdiomasDisponibles) : "Sin programar")</td><td>@(pelicula.DuracionMinutos + " min")</td><td>@pelicula.FuncionesDisponibles</td><td><div class="managed-table-actions"><button type="button" class="btn btn-secondary" aria-label="Editar @pelicula.Titulo" title="Editar" @onclick="() => OnEditar.InvokeAsync(pelicula)"><i class="fas fa-pen-to-square" aria-hidden="true"></i></button><button type="button" class="btn btn-danger" aria-label="Eliminar @pelicula.Titulo" title="Eliminar" @onclick="() => OnEliminar.InvokeAsync(pelicula)"><i class="fas fa-trash" aria-hidden="true"></i></button></div></td></tr>
+            }
+        </tbody></table></div>
+    }
+    <Pagination CurrentPage="pagina" TotalPages="TotalPaginas" TotalItems="totalItems" PageSize="PorPagina" ShowPageSizeSelector="false" Label="Paginación de películas" OnPageChanged="CambiarPagina" />
+</section>
+
+@code {
+    [Parameter] public List<Pelicula> Peliculas { get; set; } = new();
+    [Parameter] public EventCallback<Pelicula> OnEditar { get; set; }
+    [Parameter] public EventCallback<Pelicula> OnEliminar { get; set; }
+    private const int PorPagina = 10;
+    private int pagina = 1;
+    private string genero = "Todos", formato = "Todos", idioma = "Todos", titulo = "", tituloAplicado = "", vista = "Tarjetas", orden = "Más recientes";
+    private string[] formatos => new[] { "Todos" }.Concat(Salas.Experiencias.Select(e => e.Nombre)).Append("DBOX").Distinct().ToArray();
+    private readonly string[] idiomas = { "Todos", "Español", "Inglés" }, vistas = { "Tarjetas", "Tabla" };
+    private IReadOnlyList<string> Generos => new[] { "Todos" }.Concat(Catalogos.Generos.Select(g => g.Nombre).Concat(Peliculas.SelectMany(p => p.ListaGeneros)).Where(g => !string.IsNullOrWhiteSpace(g)).Distinct().OrderBy(g => g)).ToArray();
+    private bool HayFiltros => genero != "Todos" || formato != "Todos" || idioma != "Todos" || !string.IsNullOrWhiteSpace(tituloAplicado);
+    private List<Pelicula> Filtradas = [];
+    private int totalItems;
+    private int TotalPaginas => Math.Max(1,(int)Math.Ceiling(totalItems/(double)PorPagina));
+    private IEnumerable<Pelicula> Paginadas => Filtradas;
+    protected override Task OnParametersSetAsync() => Cargar();
+    private string errorCarga="";
+    private int versionCarga;
+    private async Task Cargar() {
+        var version=++versionCarga; errorCarga="";
+        try {
+        var page = await PeliculaService.ConsultarAsync(new() { Pagina = pagina, Tamano = PorPagina, Buscar = tituloAplicado,
+            Genero = Catalogos.Generos.FirstOrDefault(x => x.Nombre == genero)?.Id,
+            Experiencia = formato == "Todos" ? null : Salas.Experiencias.FirstOrDefault(x => x.Nombre == formato)?.Id ?? -2,
+            Idioma = idioma == "Todos" ? "" : idioma, Orden = orden == "Más recientes" ? "recientes" : "antiguas" });
+        if(version!=versionCarga)return;
+        Filtradas = page.Items; totalItems = page.Total; pagina = page.Numero;
+        } catch(Exception ex) { if(version==versionCarga) errorCarga=ex.Message; }
+    }
+    private async Task ReiniciarPagina() { pagina = 1; await Cargar(); }
+    private async Task BuscarPorTitulo() { tituloAplicado = titulo.Trim(); await ReiniciarPagina(); }
+    private async Task LimpiarBusqueda() { titulo=tituloAplicado="";await ReiniciarPagina(); }
+    private async Task CambiarGenero(string valor) { genero = valor; await ReiniciarPagina(); }
+    private async Task CambiarFormato(string valor) { formato = valor; await ReiniciarPagina(); }
+    private async Task CambiarIdioma(string valor) { idioma = valor; await ReiniciarPagina(); }
+    private async Task CambiarOrden(string valor) { orden = valor; await ReiniciarPagina(); }
+    private async Task CambiarPagina(int valor) { pagina = valor; await Cargar(); }
+    private async Task LimpiarFiltros() { genero = formato = idioma = "Todos"; titulo = tituloAplicado = ""; await ReiniciarPagina(); }
+    private static string Poster(Pelicula pelicula) => CineSpace.Client.Services.PeliculaService.UrlImagen(pelicula.ImagenUrl,"w342");
+    private string Formato(Pelicula pelicula)
+    {
+        var formatosPelicula = PeliculaService.ObtenerExperienciasDisponiblesParaPelicula(pelicula.Id).Select(Salas.NombreExperiencia).ToList();
+        if (pelicula.DBoxDisponible) formatosPelicula.Add("DBOX");
+        return formatosPelicula.Count > 0 ? string.Join(" · ", formatosPelicula) : "Sin funciones";
+    }
+}

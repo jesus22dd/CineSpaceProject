@@ -1,0 +1,40 @@
+.reviews-list { container-type: inline-size; }
+.reviews-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin: 0 0 20px; }
+.reviews-toolbar h2 { margin: 0; color: var(--cinema-heading); font-size: 25px; }
+.reviews-view-controls { display: flex; align-items: center; gap: 12px; }
+.reviews-view-select { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.reviews-view-select label { margin: 0; color: var(--cinema-muted); white-space: nowrap; font-size: 13px; }
+.reviews-view-select select { width: 180px; min-height: 44px; padding: 8px 34px 8px 12px; font-size: 14px; background-color: var(--cinema-surface); }
+.reviews-view-controls .btn { min-height: 44px; font-size: 13px; white-space: nowrap; }
+.review-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.reviews-table-scroll { overflow-x: auto; border-radius: 12px; }
+.reviews-table { width: 100%; min-width: 850px; font-size: 13px; line-height: 1.45; }
+.reviews-table th { padding: 6px 12px; color: var(--cinema-on-action); background: var(--cinema-wine); font-size: 12px; font-weight: 600; }
+.review-sort { display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; padding: 4px 0; width: 100%; color: inherit; background: transparent; border: 0; font: inherit; }
+.review-sort:focus-visible { outline-color: var(--cinema-gold); }
+.review-sort i { font-size: 10px; }
+.reviews-table td { padding: 16px 12px; background: var(--cinema-surface); border-bottom: 1px solid var(--cinema-line); overflow-wrap: anywhere; }
+.reviews-table tr:nth-child(even) td { background: var(--cinema-canvas); }
+.reviews-table tr:hover td { background: var(--cinema-accent-soft); }
+.review-table-movie { display: block; font-weight: 600; color: var(--cinema-heading); min-width: 120px; }
+.review-table-featured { display: inline-block; margin-top: 6px; padding: 3px 6px; border-radius: 3px; font-size: 11px; color: var(--cinema-heading); background: var(--cinema-accent-soft); }
+.review-table-comment { min-width: 180px; max-width: 32ch; }
+.review-expand { display: block; min-height: 44px; padding: 6px 0; background: transparent; border: 0; color: var(--cinema-link); font-size: 12px; font-weight: 600; }
+.reviews-empty { display: flex; align-items: flex-start; gap: 10px; padding: 20px; background: var(--cinema-notice-background); color: var(--cinema-notice-foreground); border-radius: 8px; font-size: 14px; line-height: 1.5; }
+.reviews-empty i { margin-top: 3px; }
+.review-details h3 { margin: 0 0 8px; color: var(--cinema-heading); font-size: 24px; }
+.review-metadata { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 8px 12px; margin: 16px 0; }
+.review-metadata dt { font-size: 12px; font-weight: 500; color: var(--cinema-muted); }
+.review-metadata dd { margin: 0; font-size: 14px; color: var(--cinema-ink); overflow-wrap: anywhere; }
+.review-details h4 { font: 600 13px/1.4 'Manrope', sans-serif; color: var(--cinema-heading); margin: 0 0 8px; letter-spacing: 0; }
+.review-detail-comment { max-height: 220px; overflow-y: auto; padding: 14px; margin: 0; border-radius: 6px; background: var(--cinema-canvas); white-space: pre-line; overflow-wrap: anywhere; font-size: 14px; line-height: 1.5; }
+.review-detail-feature { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 16px; }
+.review-detail-feature > span { font-size: 12px; color: var(--cinema-muted); }
+.review-detail-feature .btn { padding: 10px 12px; font-size: 12px; }
+.review-confirmation { display: flex; flex-direction: column; gap: 8px; }
+.review-confirmation p { margin: 0 0 8px; font-size: 14px; line-height: 1.5; }
+.review-confirmation strong { color: var(--cinema-heading); font: 500 23px/1.25 'Outfit', sans-serif; }
+.review-confirmation > span:not(.review-confirmation-symbol) { font-size: 13px; color: var(--cinema-muted); overflow-wrap: anywhere; }
+.review-confirmation-symbol { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 6px; margin-bottom: 8px; color: var(--cinema-heading); background: var(--cinema-accent-soft); }
+@container (max-width: 700px) { .reviews-toolbar { align-items: flex-start; flex-direction: column; gap: 16px; } .reviews-view-controls { width: 100%; align-items: flex-end; } .reviews-view-select { flex: 1; flex-direction: column; align-items: flex-start; gap: 4px; } .reviews-view-select label { font-size: 12px; } .reviews-view-select select { width: 100%; min-width: 0; } .reviews-view-controls .btn { padding: 10px 12px; } .review-cards { grid-template-columns: 1fr; } }
+@media (max-width: 380px) { .review-detail-feature { align-items: flex-start; flex-direction: column; gap: 8px; } }

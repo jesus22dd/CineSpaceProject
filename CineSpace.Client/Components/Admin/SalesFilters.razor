@@ -1,0 +1,28 @@
+@inject TicketSalesService Ventas
+@inject SalaService Salas
+@inject CatalogosService Catalogos
+@using CineSpace.Client.Components.Shared
+
+<div class="sales-filters @(Activo ? "has-clear" : "")" role="group" aria-label="@Etiqueta">
+    <AdminSelect Id="@(Id + "-period")" Etiqueta="Período" Valor="@Valor.Periodo" Opciones="Periodos" Activo="@(Valor.Periodo != PeriodoInicial)" Completo="true" ValorChanged="valor => Cambiar(Valor with { Periodo = valor })" />
+    <AdminSelect Id="@(Id + "-room")" Etiqueta="Tipo de sala" Valor="@Valor.TipoSala" Opciones="TiposSala" Activo="@(Valor.TipoSala != "todos")" Completo="true" ValorChanged="valor => Cambiar(Valor with { TipoSala = valor })" />
+    <AdminSelect Id="@(Id + "-experience")" Etiqueta="Experiencia" Valor="@Valor.Experiencia" Opciones="Experiencias" Activo="@(Valor.Experiencia != "todos")" Completo="true" ValorChanged="valor => Cambiar(Valor with { Experiencia = valor })" />
+    <AdminSelect Id="@(Id + "-genre")" Etiqueta="Género" Valor="@Valor.Genero" Opciones="GenerosSelect" Activo="@(Valor.Genero != "todos")" Completo="true" ValorChanged="valor => Cambiar(Valor with { Genero = valor })" />
+    @if (Activo) { <button type="button" class="btn btn-secondary sales-clear" @onclick="Limpiar"><i class="fas fa-filter-circle-xmark" aria-hidden="true"></i>Limpiar filtros</button> }
+</div>
+@code {
+    [Parameter] public string Id { get; set; } = "sales";
+    [Parameter] public string Etiqueta { get; set; } = "Filtros de ventas";
+    [Parameter] public FiltroVentas Valor { get; set; } = new();
+    [Parameter] public EventCallback<FiltroVentas> ValorChanged { get; set; }
+    [Parameter] public string PeriodoInicial { get; set; } = "hoy";
+    [Parameter] public IEnumerable<string> GenerosHistoricos { get; set; } = Array.Empty<string>();
+    private bool Activo => Valor != new FiltroVentas(PeriodoInicial);
+    private IEnumerable<string> Generos => Catalogos.Generos.Select(g => g.Nombre).Concat(GenerosHistoricos).Distinct().OrderBy(g => g);
+    private static readonly AdminSelectOption[] Periodos = { new("hoy", "Hoy"), new("semana", "Esta semana"), new("mes", "Este mes"), new("todos", "Todos los períodos") };
+    private IReadOnlyList<AdminSelectOption> TiposSala => new[] { new AdminSelectOption("todos", "Todos") }.Concat(Salas.TiposSala.Select(tipo => new AdminSelectOption(TipoSala.Codigo(tipo.Id), tipo.Nombre)).Concat(Ventas.ObtenerVentas().GroupBy(v => v.TipoSala).Where(g => !Salas.TiposSala.Any(t => t.Id == g.Key)).Select(g => new AdminSelectOption(TipoSala.Codigo(g.Key), AnaliticaVentas.NombreTipoSala(g.First()))))).ToList();
+    private IReadOnlyList<AdminSelectOption> Experiencias => new[] { new AdminSelectOption("todos", "Todos") }.Concat(Salas.Experiencias.Select(tipo => new AdminSelectOption(TipoExperiencia.Codigo(tipo.Id), tipo.Nombre)).Concat(Ventas.ObtenerVentas().GroupBy(v => v.TipoExperiencia).Where(g => !Salas.Experiencias.Any(e => e.Id == g.Key)).Select(g => new AdminSelectOption(TipoExperiencia.Codigo(g.Key), AnaliticaVentas.NombreExperiencia(g.First()))))).ToList();
+    private IReadOnlyList<AdminSelectOption> GenerosSelect => new[] { new AdminSelectOption("todos", "Todos") }.Concat(Generos.Select(genero => new AdminSelectOption(genero, genero))).ToList();
+    private Task Cambiar(FiltroVentas valor) => ValorChanged.InvokeAsync(valor);
+    private Task Limpiar() => Cambiar(new FiltroVentas(PeriodoInicial));
+}

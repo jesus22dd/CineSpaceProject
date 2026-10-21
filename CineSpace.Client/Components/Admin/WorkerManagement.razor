@@ -1,0 +1,275 @@
+@inject ApiCine Api
+@using CineSpace.Client.Components.Shared
+@using CineSpace.Shared.Models
+@using CineSpace.Client.Services
+@inject TrabajadorService TrabajadorService
+
+<div class="container-fluid p-0 people-management movie-management">
+    <!-- Cabecera con estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title">Total Trabajadores</h5>
+                    <h2 class="card-text">@TrabajadorService.ObtenerTotalTrabajadores()</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-bg-success">
+                <div class="card-body">
+                    <h5 class="card-title">Sueldo Total</h5>
+                    <h2 class="card-text">@TrabajadorService.ObtenerSueldoTotalMensual().ToString("N0") Bs</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-bg-info">
+                <div class="card-body">
+                    <h5 class="card-title">Edad Promedio</h5>
+                    <h2 class="card-text">@TrabajadorService.ObtenerEdadPromedio().ToString("N1") años</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-bg-warning">
+                <div class="card-body">
+                    <h5 class="card-title">Gerentes</h5>
+                    <h2 class="card-text">@TrabajadorService.ObtenerTotalTrabajadoresPorCargo(Cargo.Gerente)</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="catalogue-toolbar movie-management-toolbar people-toolbar">
+        <form class="catalogue-search @(filtroTexto.Length > 0 || filtroAplicado.Length > 0 ? "has-query" : "")" role="search" @onsubmit="Buscar" @onsubmit:preventDefault><input type="search" class="form-control" placeholder="Buscar por nombre, email o CI" aria-label="Buscar trabajadores" @bind="filtroTexto" @bind:event="oninput" />@if (filtroTexto.Length > 0 || filtroAplicado.Length > 0) { <button type="button" class="catalogue-clear" aria-label="Limpiar búsqueda" @onclick="LimpiarBusqueda"><i class="fas fa-times" aria-hidden="true"></i></button> }<button type="submit" class="btn btn-primary" aria-label="Buscar trabajadores"><i class="fas fa-search" aria-hidden="true"></i></button></form>
+        <div class="catalogue-secondary-filters">
+            <AdminSelect Id="worker-order" Etiqueta="Orden de trabajadores" Valor="@orden" Opciones="Ordenes" ValorChanged="async valor => { orden = valor; await FiltrarTrabajadores(); }" />
+            <AdminSelect Id="worker-role-filter" Etiqueta="Cargo" Valor="@filtroCargo" Opciones="OpcionesRol" Activo="@(!string.IsNullOrEmpty(filtroCargo))" ValorChanged="async valor => { filtroCargo = valor; await FiltrarTrabajadores(); }" />
+            <ClearFiltersButton Activo="@(!string.IsNullOrWhiteSpace(filtroAplicado) || !string.IsNullOrEmpty(filtroCargo) || orden != "recientes")" OnClear="LimpiarFiltros" />
+            <button type="button" class="btn btn-primary" @onclick="MostrarFormularioNuevo"><i class="fas fa-plus" aria-hidden="true"></i>Nuevo Trabajador</button>
+        </div>
+    </div>
+
+    @if (mostrarFormulario)
+    {
+        <WorkerForm Trabajador="@trabajadorSeleccionado"
+                    ModoEdicion="@modoEdicion"
+                    OnGuardar="GuardarTrabajador"
+                    OnCancelar="CerrarFormulario" />
+    }
+
+    @if (mostrarConfirmacion)
+    {
+        <div class="card mb-4">
+            <div class="card-header bg-danger text-white">
+                <h5>Confirmar Eliminación</h5>
+            </div>
+            <div class="card-body">
+                <p>¿Está seguro que desea eliminar al trabajador <strong>@trabajadorSeleccionado.ObtenerNombreCompleto()</strong>?</p>
+                <p>Esta acción no se puede deshacer.</p>
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarConfirmacion">Cancelar</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmarEliminar">Eliminar</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(mensaje))
+    {
+        <div class="alert @(mensajeEsError ? "alert-danger" : "alert-success") alert-dismissible fade show mb-4" role="alert">
+            @mensaje
+            <button type="button" class="btn-close" @onclick="LimpiarMensaje"></button>
+        </div>
+    }
+
+    <ManagementTable Title="Trabajadores" Summary="@($"{trabajadoresFiltrados.Count} trabajadores")" TableClass="worker-table"><HeaderContent>
+                    <tr>
+                        <th scope="col">ID</th>
+                        <th scope="col">Nombre</th>
+                        <th scope="col">CI</th>
+                        <th scope="col">Cargo</th>
+                        <th scope="col">Edad</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">Teléfono</th>
+                        <th scope="col">Sueldo</th>
+                        <th scope="col">Acciones</th>
+                    </tr>
+                </HeaderContent><ChildContent>
+                    @if (trabajadoresFiltrados.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="9" class="text-center py-3">No se encontraron trabajadores</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var trabajador in trabajadoresFiltrados)
+                        {
+                            <tr>
+                                <td>@trabajador.Id</td>
+                                <td><strong>@trabajador.ObtenerNombreCompleto()</strong></td>
+                                <td>@trabajador.CI</td>
+                                <td>@trabajador.CargoTrabajador</td>
+                                <td>@trabajador.ObtenerEdad() años</td>
+                                <td class="worker-table-email">@trabajador.Email</td>
+                                <td>@trabajador.Telefono</td>
+                                <td>@trabajador.Sueldo.ToString("N0") Bs</td>
+                                <td><div class="managed-table-actions">
+                                    <button type="button" class="btn btn-secondary" title="Editar" aria-label="Editar trabajador @trabajador.Nombre" @onclick="() => EditarTrabajador(trabajador)">
+                                        <i class="fas fa-pen-to-square" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-danger" title="Eliminar" aria-label="Eliminar trabajador @trabajador.Nombre" @onclick="() => EliminarTrabajador(trabajador)">
+                                        <i class="fas fa-trash" aria-hidden="true"></i>
+                                    </button>
+                                </div></td>
+                            </tr>
+                        }
+                    }
+                </ChildContent></ManagementTable>
+    <Pagination CurrentPage="paginaActual" TotalPages="TotalPaginas" TotalItems="totalItems" PageSize="PorPagina" ShowPageSizeSelector="false" Label="Paginación de trabajadores" OnPageChanged="CambiarPagina" />
+</div>
+
+@code {
+    private const int PorPagina = 3;
+    private int paginaActual = 1;
+    private int totalItems;
+    private int TotalPaginas => Math.Max(1, (int)Math.Ceiling(totalItems / (double)PorPagina));
+    private async Task CambiarPagina(int pagina) { paginaActual = pagina; await CargarTrabajadores(); }
+    // Lista de trabajadores y filtros
+    private List<Trabajador> trabajadores = new List<Trabajador>();
+    private List<Trabajador> trabajadoresFiltrados = new List<Trabajador>();
+    private string filtroTexto = string.Empty;
+    private string filtroAplicado = string.Empty;
+    private string filtroCargo = string.Empty;
+    private string orden = "recientes";
+    private static readonly AdminSelectOption[] Ordenes = { new("recientes", "Más recientes"), new("antiguos", "Más antiguos") };
+    private static IReadOnlyList<AdminSelectOption> OpcionesRol => new[] { new AdminSelectOption("", "Todos los cargos") }.Concat(Enum.GetValues<Cargo>().Select(valor => new AdminSelectOption(valor.ToString(), valor.ToString()))).ToList();
+
+    // Control de formulario y edición
+    private bool mostrarFormulario = false;
+    private bool modoEdicion = false;
+    private Trabajador trabajadorSeleccionado = new Trabajador();
+
+    // Control de mensajes
+    private string mensaje = string.Empty;
+    private bool mensajeEsError = false;
+
+    // Control de confirmación de eliminación
+    private bool mostrarConfirmacion = false;
+
+    protected override async Task OnInitializedAsync() { await CargarTrabajadores(); }
+
+    private int versionCarga;
+    private async Task CargarTrabajadores()
+    {
+        var version=++versionCarga;
+        try {
+            var resumen = Api.ResumenAsync();
+            var page = await TrabajadorService.ConsultarAsync(new() { Pagina = paginaActual, Tamano = PorPagina, Buscar = filtroAplicado, Rol = "", Estado = Enum.TryParse<Cargo>(filtroCargo, out var cargo) ? ((int)cargo).ToString() : "", Orden = orden == "antiguos" ? "antiguas" : "recientes" });
+            if (version!=versionCarga) return;
+            trabajadores = trabajadoresFiltrados = page.Items; totalItems = page.Total; paginaActual = page.Numero;
+            await resumen;
+        } catch (Exception ex) { mensaje = ex.Message; mensajeEsError = true; }
+    }
+
+    private async Task LimpiarBusqueda() { filtroTexto = filtroAplicado = ""; await FiltrarTrabajadores(); }
+
+    private async Task Buscar() { filtroAplicado = filtroTexto.Trim(); await FiltrarTrabajadores(); }
+
+    private async Task FiltrarTrabajadores() { paginaActual = 1; await CargarTrabajadores(); }
+
+    private async Task CambiarFiltroCargo(ChangeEventArgs e)
+    {
+        filtroCargo = e.Value?.ToString() ?? string.Empty;
+        await FiltrarTrabajadores();
+    }
+
+    private async Task LimpiarFiltros()
+    {
+        filtroTexto = filtroAplicado = string.Empty;
+        filtroCargo = string.Empty;
+        orden = "recientes";
+        await FiltrarTrabajadores();
+    }
+
+    private void MostrarFormularioNuevo()
+    {
+        trabajadorSeleccionado = new Trabajador
+            {
+                FechaNacimiento = DateTime.Today.AddYears(-20),
+                CargoTrabajador = Cargo.Taquillero,
+                Sueldo = Trabajador.ObtenerSueldoPorCargo(Cargo.Taquillero)
+            };
+        modoEdicion = false;
+        mostrarFormulario = true;
+    }
+
+    private void EditarTrabajador(Trabajador trabajador)
+    {
+        trabajadorSeleccionado = trabajador;
+        modoEdicion = true;
+        mostrarFormulario = true;
+    }
+
+    private async Task GuardarTrabajador(Trabajador trabajador)
+    {
+        if (modoEdicion)
+        {
+            var resultado = await TrabajadorService.ModificarTrabajador(trabajador);
+            mensaje = resultado.mensaje;
+            mensajeEsError = !resultado.exito;
+        }
+        else
+        {
+            var resultado = await TrabajadorService.AgregarTrabajador(trabajador);
+            mensaje = resultado.mensaje;
+            mensajeEsError = !resultado.exito;
+        }
+
+        if (!mensajeEsError)
+        {
+            CerrarFormulario();
+            await CargarTrabajadores();
+        }
+
+        // Forzar actualización de la UI para consistencia
+        StateHasChanged();
+    }
+
+    private void EliminarTrabajador(Trabajador trabajador)
+    {
+        trabajadorSeleccionado = trabajador;
+        mostrarConfirmacion = true;
+    }
+
+    private async Task ConfirmarEliminar()
+    {
+        var resultado = await TrabajadorService.EliminarTrabajador(trabajadorSeleccionado.Id);
+        mensaje = resultado.mensaje;
+        mensajeEsError = !resultado.exito;
+
+        mostrarConfirmacion = false;
+        CerrarFormulario();
+        await CargarTrabajadores();
+
+        // Forzar actualización de la UI para consistencia
+        StateHasChanged();
+    }
+
+    private void CerrarFormulario()
+    {
+        mostrarFormulario = false;
+    }
+
+    private void CerrarConfirmacion()
+    {
+        mostrarConfirmacion = false;
+    }
+
+    private void LimpiarMensaje()
+    {
+        mensaje = string.Empty;
+    }
+}

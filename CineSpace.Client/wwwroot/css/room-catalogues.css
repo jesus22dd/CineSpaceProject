@@ -1,0 +1,39 @@
+.room-settings, .experience-editor { padding: 24px; background: var(--cinema-surface); border-radius: 12px; }
+.room-settings label, .experience-editor label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--cinema-heading); }
+.room-settings-fields { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 20px; }
+.room-field-wide { grid-column: span 2; }
+.room-settings input, .room-settings select, .experience-editor input { min-height: 44px; }
+.room-final-price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; margin: 24px 0 0; padding-block: 20px; border-block: 1px solid var(--cinema-line); color: var(--cinema-muted); font-size: 13px; }
+.room-final-price strong { color: var(--cinema-heading); font: 500 24px 'Outfit',sans-serif; font-variant-numeric: tabular-nums; }
+.room-final-price > span { font-size: 12px; }
+.room-experiences, .room-design-picker { margin: 28px 0 0; padding: 0; border: 0; min-width: 0; }
+.room-experiences legend, .room-design-picker legend { float: none; margin: 0 0 8px; font: 500 21px 'Outfit',sans-serif; color: var(--cinema-heading); }
+.room-experiences p, .room-design-picker > p { color: var(--cinema-muted); font-size: 13px; margin-bottom: 16px; }
+.room-experiences > div { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.room-experiences label { display: flex; align-items: center; gap: 10px; min-height: 44px; margin: 0; }
+.room-experiences input { min-height: 0; width: 18px; height: 18px; accent-color: var(--cinema-accent); }
+.room-design-options { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
+.room-design-option { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 8px; padding: 16px; border: 1px solid var(--cinema-line); border-radius: 8px; background: var(--cinema-canvas); color: var(--cinema-heading); text-align: left; }
+.room-design-option .room-preview { width: 100%; height: 120px; padding: 12px; }
+.room-design-option > strong { overflow-wrap: anywhere; font-size: 15px; }
+.room-design-option > span { font-size: 12px; color: var(--cinema-muted); }
+.room-design-option.is-selected { border-color: var(--cinema-accent); background: var(--cinema-accent-soft); }
+.room-design-option .room-design-selection { color: var(--cinema-link); font-weight: 600; }
+.room-design-option:disabled { cursor: default; }
+.room-settings-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 32px; }
+.experience-editor { display: grid; grid-template-columns: minmax(150px,1fr) minmax(240px,2fr); gap: 16px 20px; margin-bottom: 24px; }
+.experience-editor-actions { display: flex; grid-column: 1/-1; justify-content: flex-end; gap: 12px; }
+.design-directory { padding: 0; list-style: none; background: var(--cinema-surface); border-radius: 12px; overflow: hidden; }
+.design-directory > li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 24px; border-bottom: 1px solid var(--cinema-line); }
+.design-directory-identity { display: flex; align-items: center; gap: 20px; min-width: 0; }
+.design-directory .room-preview { width: 120px; height: 80px; flex-shrink: 0; }
+.design-directory h2 { font-size: 19px; margin: 0 0 8px; overflow-wrap: anywhere; }
+.design-directory p { margin: 4px 0 0; font-size: 12px; color: var(--cinema-muted); }
+@media(max-width:900px) { .room-design-options { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) { .room-settings, .experience-editor { padding: 20px 16px; } .room-settings-fields { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; } .room-field-wide { grid-column: 1/-1; } .room-design-options { grid-template-columns: 1fr; } .room-design-option .room-preview { height: 140px; } .room-settings-actions > .btn, .experience-editor-actions > .btn { flex: 1; } .experience-editor { grid-template-columns: 1fr; } .design-directory > li { padding: 20px 16px; } .design-directory-identity { gap: 12px; } .design-directory .room-preview { width: 80px; height: 64px; } .design-directory .catalogue-row-actions { width: 100%; } }
+
+.experience-directory table { min-width: 340px; }
+.experience-description-copy { max-width: 64ch; margin: 6px 0 0; color: var(--cinema-muted); font-size: 13px; line-height: 1.5; }
+@media(max-width:600px) { .experience-directory .catalogue-table th, .experience-directory .catalogue-table td { padding-inline: 12px; } .experience-directory td:first-child { min-width: 140px; } .experience-directory .catalogue-row-actions { gap: 4px; } }
+
+.design-directory .catalogue-row-actions > .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: auto; min-width: 44px; padding: 10px 12px; }

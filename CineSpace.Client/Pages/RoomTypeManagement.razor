@@ -1,0 +1,61 @@
+@page "/admin/tipos-sala"
+@using CineSpace.Client.Components.Admin
+@using CineSpace.Client.Components.Shared
+@inject SalaService Salas
+@inject UsuarioService Usuarios
+<PageTitle>Tipos de sala - CineSpace</PageTitle>
+@if (!Usuarios.EsAdministrador()) { <div class="alert alert-danger" role="alert">Esta sección está disponible para administradores.</div> }
+else
+{
+    <div class="movie-management">
+    <div class="management-heading"><div><h1>Tipos de sala</h1><p>Define los tipos que podrás asignar a tus salas.</p></div><button type="button" class="btn btn-primary" disabled="@(Salas.ErrorCarga != null)" @onclick="Crear"><i class="fas fa-plus" aria-hidden="true"></i>Crear tipo de sala</button></div>
+    @if (!string.IsNullOrEmpty(aviso)) { <div class="alert alert-success" role="status">@aviso</div> }
+    @if (!string.IsNullOrEmpty(error)) { <div class="alert alert-danger" role="alert">@error</div> }
+    @if (!string.IsNullOrEmpty(Salas.ErrorCarga)) { <div class="alert alert-warning" role="alert">@Salas.ErrorCarga</div> }
+    @if (editor != null)
+    {
+        <form class="experience-editor" @onsubmit="Guardar" @onsubmit:preventDefault aria-label="Editar tipo de sala"><div><label for="room-type-name">Nombre</label><input id="room-type-name" class="form-control" maxlength="60" required @bind="editor.Nombre" @bind:event="oninput" @ref="nombreInput" /></div><div><label for="room-type-description">Descripción</label><input id="room-type-description" class="form-control" maxlength="240" placeholder="Qué caracteriza a este tipo de sala" @bind="editor.Descripcion" @bind:event="oninput" /></div><div class="experience-editor-actions"><button type="button" class="btn btn-secondary" @onclick="Cancelar" disabled="@guardando">Cancelar</button><button type="submit" class="btn btn-primary" disabled="@guardando">@(guardando ? "Guardando…" : "Guardar")</button></div></form>
+    }
+    <div class="catalogue-toolbar movie-management-toolbar"><form class="catalogue-search @(busqueda.Length > 0 || filtro.Length > 0 ? "has-query" : "")" role="search" @onsubmit="Buscar" @onsubmit:preventDefault><label class="visually-hidden" for="room-type-search">Buscar tipo de sala</label><input id="room-type-search" class="form-control" type="search" placeholder="Buscar tipo de sala…" @bind="busqueda" @bind:event="oninput" />@if (busqueda.Length > 0 || filtro.Length > 0) { <button type="button" class="catalogue-clear" aria-label="Limpiar búsqueda" @onclick="Limpiar"><i class="fas fa-times" aria-hidden="true"></i></button> }<button type="submit" class="btn btn-primary" aria-label="Buscar tipos de sala"><i class="fas fa-search" aria-hidden="true"></i></button></form><div class="catalogue-secondary-filters"><CompactOrder Id="room-type-order" Valor="@orden" ValorChanged="CambiarOrden" /><ClearFiltersButton Activo="@(!string.IsNullOrEmpty(filtro))" OnClear="Limpiar" /></div></div>
+    @if (Filtradas.Count == 0) { <div class="catalogue-empty" role="status"><h2>No hay tipos de sala que mostrar</h2><p>Crea un tipo de sala o prueba otra búsqueda.</p></div> }
+    else
+    {
+        <ManagementTable Title="Tipos de sala" Summary="@($"{Filtradas.Count} tipos de sala")" TableClass="experience-table room-type-table"><HeaderContent><tr><th scope="col">Tipo de sala</th><th scope="col">Descripción</th><th scope="col">Salas</th><th scope="col">Acciones</th></tr></HeaderContent><ChildContent>@foreach (var e in Filtradas) { <tr data-room-type="@e.Id"><td><strong>@e.Nombre</strong></td><td><p class="catalogue-description" title="@e.Descripcion">@(string.IsNullOrWhiteSpace(e.Descripcion) ? "—" : e.Descripcion)</p></td><td>@Uso(e.Id)</td><td><div class="managed-table-actions"><button type="button" class="btn btn-secondary" aria-label="Editar @e.Nombre" @onclick="() => Editar(e)"><i class="fas fa-pen-to-square" aria-hidden="true"></i></button><button type="button" class="btn btn-danger" aria-label="Eliminar @e.Nombre" title="@(Uso(e.Id) > 0 ? "Asignado a salas" : "Eliminar")" disabled="@(Uso(e.Id) > 0)" @onclick="() => eliminar = e"><i class="fas fa-trash" aria-hidden="true"></i></button></div></td></tr> }</ChildContent></ManagementTable>
+        <Pagination CurrentPage="pagina" TotalPages="TotalPaginas" TotalItems="totalItems" PageSize="PorPagina" ShowPageSizeSelector="false" Label="Paginación de tipos de sala" OnPageChanged="CambiarPaginaRemota" />
+    }
+    </div>
+}
+@if (eliminar != null) { <AppDialog Title="¿Eliminar este tipo de sala?" OnClose="() => eliminar = null" @ref="dialogo"><ChildContent><p>Se eliminará <strong>@eliminar.Nombre</strong> del catálogo. Las compras anteriores conservarán sus datos.</p></ChildContent><Footer><button type="button" class="btn btn-secondary" @onclick="Cerrar">Cancelar</button><button type="button" class="btn btn-danger" @onclick="Eliminar" disabled="@guardando">Eliminar</button></Footer></AppDialog> }
+@code {
+    private async Task CambiarPaginaRemota(int valor) { pagina = valor; await CargarPagina(); }
+    private async Task CargarPagina() {
+        try {
+            var f = new ConsultaPagina { Pagina = pagina, Tamano = PorPagina, Buscar = filtro, Orden = orden == "Más recientes" ? "recientes" : "antiguas" };
+            var page = await Salas.ConsultarTiposAsync(f);
+            Filtradas = page.Items; totalItems = page.Total; pagina = page.Numero;
+        } catch (Exception ex) { error = ex.Message; }
+    }
+
+    protected override async Task OnInitializedAsync() { if (Usuarios.EsAdministrador()) await CargarPagina(); }
+    private const int PorPagina = 8;
+    private int pagina = 1;
+    private string busqueda = "", filtro = "", orden = "Más recientes", aviso = "", error = "";
+    private bool guardando, enfocar;
+    private TipoSalaCine? editor, eliminar;
+    private AppDialog? dialogo;
+    private ElementReference nombreInput;
+    private int Uso(int id) => Salas.SalasGestion.Count(s => s.Tipo == id);
+    private List<TipoSalaCine> Filtradas = [];
+    private int totalItems;
+    private int TotalPaginas => Math.Max(1, (int)Math.Ceiling(totalItems / (double)PorPagina));
+    protected override async Task OnAfterRenderAsync(bool firstRender) { if (enfocar && editor != null) { enfocar = false; await nombreInput.FocusAsync(); } }
+    private void Cancelar() { editor = null; error = ""; }
+    private void Crear() { editor = new() { Id = -1 }; enfocar = true; error = aviso = ""; }
+    private void Editar(TipoSalaCine e) { editor = e.Copiar(); enfocar = true; error = aviso = ""; }
+    private async Task Guardar() { if (editor == null || guardando) return; guardando = true; error = ""; try { var id = await Salas.GuardarTipoSalaAsync(editor); aviso = $"{editor.Nombre.Trim()} guardado."; editor = null; busqueda = filtro = ""; pagina = 1; await CargarPagina(); } catch (ArgumentException ex) { error = ex.Message; } catch { error = "No pudimos guardar el tipo de sala. Tus cambios siguen aquí."; } finally { guardando = false; } }
+    private Task Cerrar() => dialogo?.CerrarDialogo() ?? Task.CompletedTask;
+    private async Task Eliminar() { if (eliminar == null || guardando) return; guardando = true; try { await Salas.EliminarTipoSalaAsync(eliminar.Id); await Cerrar(); await CargarPagina(); aviso = "Tipo de sala eliminado."; } catch (ArgumentException ex) { await Cerrar(); error = ex.Message; } catch { await Cerrar(); error = "No pudimos eliminar el tipo de sala."; } finally { guardando = false; } }
+    private async Task Buscar() { filtro = busqueda.Trim(); pagina = 1;  await CargarPagina(); }
+    private async Task Limpiar() { busqueda = filtro = ""; pagina = 1;  await CargarPagina(); }
+    private async Task CambiarOrden(string valor) { orden = valor; pagina = 1;  await CargarPagina(); }
+}

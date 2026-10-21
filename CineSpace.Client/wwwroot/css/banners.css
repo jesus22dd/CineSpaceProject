@@ -1,0 +1,100 @@
+.banner-publishing { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 20px 24px; background: var(--cinema-surface); border-radius: 12px; }
+.banner-publishing label { color: var(--cinema-heading); font-weight: 600; }
+.banner-publishing p { margin: 6px 0 0; color: var(--cinema-muted); font-size: 13px; }
+.banner-publishing select { width: 240px; min-height: 44px; flex-shrink: 0; }
+.banner-list-note { color: var(--cinema-muted); font-size: 12px; }
+.banner-editor { padding: 24px; border-radius: 12px; background: var(--cinema-surface); }
+.banner-editor-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+.banner-content-fields, .banner-image-fields { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.banner-content-fields > h2, .banner-image-fields > h2, .banner-preview > h2 { font-size: 20px; margin: 0; }
+.banner-editor .confection-publish { display: flex; align-items: flex-start; gap: 12px; margin: 0; cursor: pointer; }
+.banner-editor label { display: block; font-size: 13px; color: var(--cinema-heading); margin-bottom: 8px; }
+.banner-editor .form-control, .banner-editor .form-select { min-height: 44px; }
+.banner-optional { margin-left: 6px; font-weight: 400; color: var(--cinema-muted); font-size: 11px; }
+.banner-source-options { display: flex; gap: 4px; padding: 4px; border-radius: 6px; background: var(--cinema-raised); }
+.banner-source-options button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px; border: 0; border-radius: 4px; font-size: 12px; font-weight: 600; color: var(--cinema-ink); background: transparent; }
+.banner-source-options button.is-selected { background: var(--cinema-accent); color: var(--cinema-on-action); }
+.banner-image-grid { --gallery-scroll-thumb: color-mix(in srgb, var(--cinema-muted) 22%, transparent); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: max-content; align-content: start; gap: 12px; max-height: 360px; overflow-y: auto; padding: 3px; scrollbar-width: thin; scrollbar-color: var(--gallery-scroll-thumb) transparent; }
+.banner-image-grid:hover, .banner-image-grid:focus-within { --gallery-scroll-thumb: color-mix(in srgb, var(--cinema-muted) 40%, transparent); }
+@supports selector(::-webkit-scrollbar) {
+    .banner-image-grid { scrollbar-width: auto; scrollbar-color: auto; }
+    .banner-image-grid::-webkit-scrollbar { width: 6px; }
+    .banner-image-grid::-webkit-scrollbar-track { background: transparent; }
+    .banner-image-grid::-webkit-scrollbar-thumb { min-height: 32px; border-radius: 8px; background: var(--gallery-scroll-thumb); }
+    .banner-image-grid::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+}
+.banner-image-option { display: flex; flex-direction: column; align-self: start; min-width: 0; min-height: 104px; padding: 0; border: 2px solid transparent; border-radius: 6px; background: var(--cinema-raised); color: var(--cinema-muted); overflow: hidden; }
+.banner-image-option img { display: block; width: 100%; height: auto; aspect-ratio: 16/9; object-fit: cover; flex-shrink: 0; }
+.banner-image-missing { width: 100%; aspect-ratio: 16/9; display: grid; place-items: center; color: var(--cinema-muted); }
+.banner-image-option:disabled { opacity: .7; cursor: not-allowed; }
+.banner-image-option span { padding: 7px; font-size: 11px; }
+.banner-image-option.is-selected { border-color: var(--cinema-accent); color: var(--cinema-heading); }
+.banner-image-status { padding: 20px 0; color: var(--cinema-muted); font-size: 13px; line-height: 1.7; }
+.banner-image-selected { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--cinema-link); }
+.banner-focus label, .banner-focus > div { display: flex; align-items: center; justify-content: space-between; }
+.banner-focus label span, .banner-focus > div { color: var(--cinema-muted); font-size: 11px; }
+.banner-focus input { accent-color: var(--cinema-accent); }
+.banner-focus input::-webkit-slider-thumb { background: var(--cinema-accent); }
+.banner-focus input::-moz-range-thumb { background: var(--cinema-accent); }
+.banner-focus input::-webkit-slider-runnable-track { background: var(--cinema-raised); }
+.banner-focus input::-moz-range-track { background: var(--cinema-raised); }
+.banner-preview { margin-top: 32px; }
+.banner-preview > h2 { margin-bottom: 16px; }
+.banner-preview .carousel-reserve:disabled { opacity: 1; color: var(--cinema-on-action); background: var(--cinema-accent); border-color: var(--cinema-action-border); cursor: default; }
+.banner-product-name img { width: 112px; height: 64px; }
+.banner-product-name { min-width: 300px; }
+.banner-order-controls { display: flex; align-items: center; gap: 4px; }
+.banner-order-controls > span { min-width: 24px; font-variant-numeric: tabular-nums; }
+.banner-order-controls .btn { min-width: 44px; min-height: 44px; display: grid; place-items: center; padding: 8px; }
+.banner-table { min-width: 900px; }
+.carousel-pagination { min-width: 0; max-width: 100%; overflow-x: auto; }
+.carousel-dot { flex-shrink: 0; }
+.carousel-navigation { flex-shrink: 0; }
+.carousel-slide { --banner-ribbon-width: 0px; }
+.carousel-slide.has-ribbon { --banner-ribbon-width: 68px; }
+.banner-ribbon { position: absolute; inset: 0 auto 0 0; width: var(--banner-ribbon-width); z-index: 3; display: grid; place-items: center; background: var(--cinema-accent); color: var(--cinema-on-action); }
+.banner-ribbon span { writing-mode: vertical-rl; transform: rotate(180deg); text-transform: uppercase; font: 600 24px 'Outfit', sans-serif; letter-spacing: .05em; white-space: nowrap; }
+.banner-ribbon.tag-oferta, .banner-ribbon.tag-estreno, .banner-ribbon.tag-estrenosemana { background: var(--cinema-gold); color: #29121a; }
+.banner-ribbon.tag-reestreno, .banner-ribbon.tag-funcionespecial { background: var(--cinema-wine); }
+.carousel-slide::after { left: var(--banner-ribbon-width); }
+.carousel-slide .carousel-caption { left: calc(var(--banner-ribbon-width) + 36px); width: min(calc(58% - var(--banner-ribbon-width)), 580px); }
+.carousel-slide .carousel-caption h2 { margin: 0 0 24px; }
+.carousel-slide .carousel-reserve { min-height: 48px; min-width: 176px; }
+.movie-carousel .carousel-controls { flex-wrap: nowrap; gap: 8px; }
+.movie-carousel .carousel-pagination { flex: 1 1 0; scrollbar-width: thin; scrollbar-color: var(--cinema-line) transparent; }
+.carousel-center { display: flex; align-items: center; justify-content: center; gap: 12px; flex-shrink: 0; }
+.banner-mobile-trigger { display: none; }
+@media (max-width: 900px) { .banner-editor-fields { grid-template-columns: 1fr; gap: 32px; } }
+@media (max-width: 600px) {
+    .banner-publishing { align-items: stretch; flex-direction: column; gap: 16px; padding: 20px; }
+    .banner-publishing select { width: 100%; }
+    .banner-editor { padding: 20px 16px; }
+    .banner-source-options button { gap: 6px; }
+    .banner-table { min-width: 850px; }
+}
+@media (max-width: 767px) {
+    .carousel-stage { height: clamp(300px,88vw,350px); }
+    .carousel-slide,.carousel-slide.has-ribbon { --banner-ribbon-width: 0px; }
+    .banner-ribbon { inset: 0 0 auto; width: 100%; max-width: none; min-height: 36px; padding: 10px 16px; border-radius: 0; pointer-events: none; }
+    .banner-ribbon span { writing-mode: horizontal-tb; transform: none; font-size: 12px; line-height: 16px; letter-spacing: .04em; white-space: normal; text-align: center; }
+    .carousel-slide .carousel-image { height: 100%; }
+    .carousel-slide.has-ribbon .carousel-image { margin-top: 36px; height: calc(100% - 36px); }
+    .carousel-slide::after { background: linear-gradient(180deg, transparent 40%, rgb(35 13 22 / 25%) 64%, #230d16 100%); }
+    .banner-mobile-trigger { position: absolute; inset: 0; z-index: 2; display: block; width: 100%; height: 100%; border: 0; padding: 0; border-radius: inherit; background: transparent; }
+    .banner-mobile-trigger:focus-visible { outline: 2px solid var(--cinema-paper); outline-offset: -4px; }
+    .carousel-slide .carousel-caption { left: 20px; right: 20px; bottom: 20px; width: auto; pointer-events: none; }
+    .carousel-slide .carousel-caption h2 { font-size: clamp(26px,6.5vw,30px); line-height: 1.12; margin: 0; transition: transform 240ms cubic-bezier(.16,1,.3,1); }
+    .banner-reserve-actions { position: absolute; inset: auto 0 0; opacity: 0; visibility: hidden; transform: translateY(8px); transition: transform 240ms cubic-bezier(.16,1,.3,1), opacity 180ms, visibility 180ms; }
+    .is-reservation-open .carousel-caption h2 { transform: translateY(-60px); }
+    .is-reservation-open .banner-reserve-actions { opacity: 1; visibility: visible; transform: translateY(0); }
+    .is-reservation-open .banner-reserve-actions .carousel-reserve { pointer-events: auto; }
+    .carousel-slide .carousel-reserve { min-width: 0; height: 44px; min-height: 44px; padding-inline: 16px; }
+    .movie-carousel .carousel-controls { display: grid; grid-template-columns: 44px minmax(0,1fr) 44px; gap: 12px; padding: 12px 0 4px; }
+    .movie-carousel .carousel-pagination { display: none; }
+    .movie-carousel .carousel-center { grid-column: 2; grid-row: 1; }
+    .movie-carousel .carousel-previous { grid-column: 1; grid-row: 1; }
+    .movie-carousel .carousel-next { grid-column: 3; grid-row: 1; }
+    .movie-carousel .carousel-control { border: 1px solid var(--cinema-line); border-radius: 50%; background: var(--cinema-surface); color: var(--cinema-heading); }
+    .movie-carousel .carousel-control:hover { background: var(--cinema-raised); }
+}
+@media (prefers-reduced-motion: reduce) { .carousel-slide .carousel-caption h2, .banner-reserve-actions { transition: none; } }

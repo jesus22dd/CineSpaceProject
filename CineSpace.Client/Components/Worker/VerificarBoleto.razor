@@ -1,0 +1,81 @@
+@page "/VerificarBoleto"
+@using CineSpace.Client.Components.Admin
+@inject UsuarioService UsuarioService
+@inject TrabajadorService TrabajadorService
+@inject TicketSalesService Ventas
+@inject SalaService Salas
+
+<PageTitle>Verificar boletos - CineSpace</PageTitle>
+@if (EsPersonal)
+{
+    <div class="movie-management ticket-verification">
+        <div class="management-heading"><div><h1>Verificar boletos</h1><p>Consulta las entradas de una compra antes de permitir el ingreso a la función.</p></div></div>
+        <section class="order-verify-panel" aria-labelledby="ticket-verify-title">
+            <h2 id="ticket-verify-title">Verificar un boleto</h2>
+            <p>Escanea el QR con la cámara, carga una imagen o escribe el código de tu entrada.</p>
+            <form class="order-verify-form" @onsubmit="Verificar" @onsubmit:preventDefault>
+                <label class="visually-hidden" for="ticket-code">Código de verificación del boleto</label>
+                <input id="ticket-code" class="form-control" placeholder="ABC-123" autocomplete="off" maxlength="4096" value="@codigoIngresado" @oninput="CambiarCodigo" />
+                <button type="submit" class="btn btn-primary" disabled="@string.IsNullOrWhiteSpace(codigoIngresado)"><i class="fas fa-qrcode" aria-hidden="true"></i>Verificar</button>
+            </form>
+            <OrderQrScanner Objeto="boleto" OnCodigo="LeerCodigo" OnIniciarLectura="Limpiar" />
+            @if (!string.IsNullOrEmpty(error)) { <div class="alert alert-danger mt-3" role="alert">@error</div> }
+        </section>
+        @if (ventaEncontrada is { } venta)
+        {
+            <section class="ticket-verified" aria-labelledby="ticket-verified-title" aria-live="polite">
+                <header><div><p class="ticket-verified-status"><i class="fas fa-check-circle" aria-hidden="true"></i>@(venta.FechaVerificacion.HasValue ? "Ingreso registrado" : "Boleto válido")</p><h2 id="ticket-verified-title">@venta.Pelicula</h2></div><strong class="ticket-code">@venta.CodigoValidacion</strong></header>
+                <dl class="ticket-verified-details">
+                    <div><dt>Fecha de función</dt><dd>@(venta.FechaFuncion?.ToString("dd/MM/yyyy") ?? "Sin fecha registrada")</dd></div>
+                    <div><dt>Horario</dt><dd>@venta.Horario</dd></div>
+                    <div><dt>Sala</dt><dd>@Salas.ObtenerNombreSala(venta.NumeroSala)</dd></div>
+                    <div><dt>Tipo de sala</dt><dd>@AnaliticaVentas.NombreTipoSala(venta)</dd></div>
+                    <div><dt>Experiencia</dt><dd>@AnaliticaVentas.NombreExperiencia(venta)</dd></div>
+                    <div><dt>Entradas</dt><dd>@venta.CantidadTickets @(venta.CantidadTickets == 1 ? "entrada general" : "entradas generales")</dd></div>
+                    <div class="ticket-seats"><dt>Butacas</dt><dd>@string.Join(", ", venta.Asientos.OrderBy(a => a))</dd></div>
+                    <div><dt>Cliente</dt><dd>@venta.Cliente</dd></div>
+                    <div><dt>CI / NIT</dt><dd>@venta.DocumentoCliente</dd></div>
+                    <div><dt>Comprobante</dt><dd>@venta.NumeroFactura</dd></div>
+                    <div><dt>Total pagado</dt><dd>@venta.TotalVenta.ToString("N2") Bs</dd></div>
+                </dl>
+                @if (venta.FechaVerificacion is { } fecha)
+                {
+                    <p role="status">Este boleto ya se utilizó el @fecha.ToString("dd/MM/yyyy 'a las' HH:mm").</p>
+                }
+                else
+                {
+                    <button type="button" class="btn btn-primary me-2" disabled="@confirmando" @onclick="ConfirmarIngreso">@(confirmando ? "Registrando…" : "Confirmar ingreso")</button>
+                }
+                <button type="button" class="btn btn-secondary" disabled="@confirmando" @onclick="Limpiar"><i class="fas fa-qrcode" aria-hidden="true"></i>Verificar otro boleto</button>
+            </section>
+        }
+    </div>
+}
+else { <div class="alert alert-danger" role="alert">Inicia sesión como trabajador o administrador para verificar boletos.</div> }
+
+@code {
+    private bool EsPersonal => TrabajadorService.EstaAutenticado() || UsuarioService.EsAdministrador();
+    private string codigoIngresado = "", error = "";
+    private VentaTicket? ventaEncontrada;
+    private bool confirmando;
+    private async Task ConfirmarIngreso()
+    {
+        if (confirmando || ventaEncontrada is null || ventaEncontrada.FechaVerificacion.HasValue) return;
+        confirmando = true; error = "";
+        try { ventaEncontrada = await Ventas.ConfirmarIngresoAsync(ventaEncontrada.CodigoValidacion); }
+        catch (InvalidOperationException ex) { error = ex.Message; await Verificar(); }
+        finally { confirmando = false; }
+    }
+    private void CambiarCodigo(ChangeEventArgs e) { codigoIngresado = e.Value?.ToString() ?? ""; ventaEncontrada = null; error = ""; }
+    private async Task LeerCodigo(string valor) { codigoIngresado = CodigoBoleto.Extraer(valor); await Verificar(); }
+    private async Task Verificar()
+    {
+        ventaEncontrada = null; error = "";
+        if (!EsPersonal) return;
+        var codigo = CodigoBoleto.Extraer(codigoIngresado);
+        var (valido, venta) = await Ventas.ValidarCodigoValidacion(codigo);
+        if (valido && venta != null) { ventaEncontrada = venta; codigoIngresado = codigo; }
+        else error = "No encontramos un boleto válido con ese QR o código. Revisa la entrada e inténtalo de nuevo.";
+    }
+    private void Limpiar() { codigoIngresado = error = ""; ventaEncontrada = null; }
+}

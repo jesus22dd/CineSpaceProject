@@ -1,0 +1,3 @@
+.room-preview { display: block; width: 88px; height: 60px; padding: 6px; border-radius: 4px; background: var(--cinema-canvas); }
+.preview-screen { fill: none; stroke: var(--cinema-muted); stroke-width: 1.5; }
+.preview-seats { fill: var(--cinema-accent); }

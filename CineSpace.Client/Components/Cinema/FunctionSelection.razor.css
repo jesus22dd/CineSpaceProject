@@ -1,0 +1,14 @@
+.function-selection { padding-top: 16px; }
+.function-date { width: min(100%,360px); margin-bottom: 32px; }
+.function-selection h4 { margin-bottom: 20px; font-size: 22px; }
+.function-options { display: grid; grid-template-columns: repeat(auto-fill,minmax(148px,1fr)); gap: 12px; }
+.function-option { position: relative; min-width: 0; }
+.function-option input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.function-option label { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-height: 112px; padding: 16px; border: 1px solid var(--cinema-control-border); border-radius: 6px; background: var(--cinema-input); cursor: pointer; }
+.function-option strong { color: var(--cinema-heading); font: 500 24px 'Outfit',sans-serif; }
+.function-option span { color: var(--cinema-muted); font-size: 12px; }
+.function-option input:checked + label { border-color: var(--cinema-accent); background: var(--cinema-accent-soft); }
+.function-option input:checked + label strong,.function-option input:checked + label span { color: var(--cinema-link); }
+.function-option input:focus-visible + label { outline: 2px solid var(--cinema-focus); outline-offset: 3px; }
+.function-help { margin: 20px 0 0; color: var(--cinema-muted); font-size: 12px; }
+@media(max-width:360px) { .function-options { grid-template-columns: repeat(2,minmax(0,1fr)); } .function-option label { padding: 12px; } }

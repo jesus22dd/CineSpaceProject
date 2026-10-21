@@ -1,0 +1,48 @@
+# Compilación, publicación y dependencias
+**/bin/
+**/obj/
+**/node_modules/
+/.publish/
+/artifacts/
+**/TestResults/
+**/coverage/
+*.trx
+*.coverage
+*.coveragexml
+
+# Configuración privada. Las plantillas y el JSON público del cliente se incluyen.
+.env
+.env.*
+!.env.example
+!supabase/.env.cli.example
+**/appsettings.Local.json
+**/appsettings.*.Local.json
+/CineSpace.Server/appsettings.Development.json
+**/secrets.json
+**/client_secret*.json
+*.pfx
+*.p12
+*.pem
+*.key
+
+# Estado local de ejecución y Supabase
+/.local/
+/supabase/.temp/
+/supabase/.branches/
+*.log
+*.tmp
+*.dmp
+
+# Archivos personales de IDE
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+Desktop.ini

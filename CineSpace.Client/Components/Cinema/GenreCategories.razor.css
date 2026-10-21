@@ -1,0 +1,41 @@
+.genre-categories { margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--cinema-line); scroll-margin-top: calc(var(--cinema-header-height, 80px) + 16px); }
+.genre-categories-heading { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-bottom: 24px; }
+.genre-categories-heading h2 { margin: 0 0 8px; color: var(--cinema-heading); font-size: 30px; line-height: 1.15; }
+.genre-categories-heading p { margin: 0; color: var(--cinema-muted); font-size: 14px; line-height: 1.5; }
+.genre-view-all { display: flex; align-items: center; justify-content: center; gap: 10px; flex-shrink: 0; min-height: 44px; padding: 10px 0 10px 12px; border: 0; border-radius: 4px; background: transparent; color: var(--cinema-heading); font: inherit; font-size: 13px; font-weight: 600; line-height: 1.4; }
+.genre-view-all:hover { color: var(--cinema-link); text-decoration: underline; text-underline-offset: 4px; }
+.genre-view-all i { font-size: 12px; }
+.genre-heading-actions { display: flex; align-items: center; gap: 24px; flex-shrink: 0; }
+.genre-carousel-controls { display: flex; align-items: center; gap: 8px; }
+.genre-carousel-arrow { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid var(--cinema-line); border-radius: 50%; background: transparent; color: var(--cinema-heading); font-size: 14px; transition: background-color 160ms, border-color 160ms, color 160ms; }
+.genre-carousel-arrow:hover:not(:disabled) { background: var(--cinema-wine); border-color: var(--cinema-wine); color: var(--cinema-paper); }
+.genre-carousel-arrow:disabled { opacity: .35; cursor: default; }
+.genre-carousel-arrow:focus-visible { outline: 2px solid var(--cinema-focus); outline-offset: 3px; }
+.genre-categories-grid { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 80px) / 6); gap: 16px; margin: 0; padding: 4px 0; list-style: none; overflow-x: auto; overscroll-behavior: contain auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.genre-categories-grid::-webkit-scrollbar { display: none; }
+.genre-categories-grid li { min-width: 0; }
+.genre-categories-grid li { scroll-snap-align: start; }
+.genre-category { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; width: 100%; min-height: 156px; height: 100%; padding: 20px 12px; border: 0; border-radius: 8px; background: var(--cinema-raised); color: var(--cinema-heading); font: inherit; line-height: 1.3; text-align: center; transition: background-color 160ms, color 160ms; }
+.genre-category-count { color: var(--cinema-muted); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.genre-category-icon { display: grid; place-items: center; height: 32px; font-size: 30px; }
+.genre-category-name { font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 500; letter-spacing: -.015em; overflow-wrap: anywhere; }
+.genre-category:hover { background: var(--cinema-gold-surface); }
+.genre-category.is-selected { background: var(--cinema-wine); color: var(--cinema-paper); }
+.genre-category.is-selected .genre-category-count { color: var(--cinema-paper); }
+.genre-category.is-selected .genre-category-icon { color: var(--cinema-gold); }
+.genre-category:focus-visible { outline: 2px solid var(--cinema-focus); outline-offset: -4px; }
+.genre-view-all:focus-visible { outline: 2px solid var(--cinema-focus); outline-offset: 4px; }
+@media (max-width: 1000px) { .genre-categories-grid { grid-auto-columns: calc((100% - 32px) / 3); } }
+@media (max-width: 600px) {
+    .genre-categories { margin-top: 36px; padding-top: 24px; scroll-margin-top: calc(var(--cinema-header-height, 80px) + 16px); }
+    .genre-categories-heading { align-items: flex-start; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+    .genre-categories-heading h2 { font-size: 26px; }
+    .genre-heading-actions { justify-content: space-between; gap: 12px; width: 100%; }
+    .genre-view-all { padding-inline: 0; }
+    .genre-categories-grid { grid-auto-columns: calc((100% - 12px) / 2); gap: 12px; }
+    .genre-category { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 16px 32px 1fr; min-height: 160px; height: 160px; gap: 14px; padding: 16px 12px; }
+    .genre-category-name { font-size: 19px; }
+    .genre-category-icon { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) { .genre-category, .genre-carousel-arrow { transition: none; } }
+

@@ -1,0 +1,172 @@
+@namespace CineSpace.Client.Components.Cinema
+@using CineSpace.Shared.Models
+@using Microsoft.AspNetCore.Components.Web
+@inject SalaService SalaService
+@inject TicketSalesService Ventas
+@inject QRService QRService
+
+<section class="purchase-completion" aria-labelledby="entry-confirmation-title">
+    <header class="completion-heading"><p class="entry-success"><i class="fas fa-check" aria-hidden="true"></i>Compra completada</p><h2 id="entry-confirmation-title" tabindex="-1">Tus entradas están listas</h2><p>Guarda este QR y preséntalo al ingresar a tu función.</p></header>
+<div class="purchase-documents">
+@if (VentaConfirmada is { } entrada && qrBase64.Length > 0)
+{
+    <section class="entry-confirmation" aria-label="Entrada de cine">
+        <div class="confirmed-entry">
+            <div class="entry-qr"><img src="@QRService.ObtenerUrlImagenQR(qrBase64)" width="220" height="220" alt="QR de entrada para @entrada.Pelicula, código @entrada.CodigoValidacion" /><span>@entrada.CodigoValidacion</span></div>
+            <div class="entry-copy"><h3>@entrada.Pelicula</h3><p>@entrada.CantidadTickets @(entrada.CantidadTickets == 1 ? "entrada" : "entradas") · @AnaliticaVentas.NombreTipoSala(entrada)</p>
+                <dl class="entry-metadata"><div><dt>Fecha</dt><dd>@entrada.FechaFuncion?.ToString("dd/MM/yyyy")</dd></div><div><dt>Horario</dt><dd>@entrada.Horario</dd></div><div><dt>Sala</dt><dd>@SalaService.ObtenerNombreSala(entrada.NumeroSala)</dd></div><div><dt>Experiencia</dt><dd>@AnaliticaVentas.NombreExperiencia(entrada)</dd></div><div class="entry-seats"><dt>Butacas</dt><dd>@string.Join(", ", entrada.Asientos)</dd></div></dl>
+                <button type="button" class="btn btn-primary" disabled="@descargandoQR" @onclick="DescargarEntradaQR"><i class="fas fa-download" aria-hidden="true"></i>@(descargandoQR ? "Descargando…" : "Descargar QR de entrada")</button>
+                @if (errorQR.Length > 0) { <p class="alert alert-danger" role="alert">@errorQR</p> }
+            </div>
+        </div>
+    </section>
+}
+
+@{
+    var venta = VentaConfirmada;
+    var cantidad = venta?.CantidadTickets ?? Cantidad;
+    var total = venta?.TotalVenta ?? 0;
+    var precioUnitario = cantidad > 0 ? total / cantidad : 0;
+}
+<div class="invoice-panel">
+<article class="invoice-sheet" id="facturaImprimir" aria-label="Comprobante de compra">
+    <header class="invoice-heading">
+        <div class="invoice-identity">
+            <p class="invoice-brand">CineSpace</p>
+            <h2>Comprobante de compra</h2>
+            <p>N.º @NumeroFactura</p>
+            <p>Emitido el @((venta?.FechaVenta ?? fechaEmision).ToString("dd/MM/yyyy · HH:mm"))</p>
+        </div>
+        @if (qrBase64.Length > 0)
+        {
+            <div class="invoice-qr">
+                <img src="@QRService.ObtenerUrlImagenQR(qrBase64)" width="136" height="136" alt="QR para ingresar a la función" />
+                <strong>@(venta?.CodigoValidacion ?? CodigoValidacion)</strong>
+                <span>Presenta este QR al ingresar</span>
+            </div>
+        }
+    </header>
+    <section class="invoice-section" aria-label="Datos del cliente">
+        <h3>Cliente</h3>
+        <p><strong>@(venta?.Cliente ?? NombreCliente)</strong></p>
+        <p>CI / NIT: @(venta?.DocumentoCliente ?? DocumentoCliente)</p>
+        @if (!string.IsNullOrWhiteSpace(EmailCliente)) { <p>@EmailCliente</p> }
+        @if (!string.IsNullOrWhiteSpace(TelefonoCliente)) { <p>Teléfono: @TelefonoCliente</p> }
+    </section>
+    <section class="invoice-section" aria-label="Datos de la función">
+        <h3>Función</h3>
+        <h4>@(venta?.Pelicula ?? PeliculaActual.Titulo)</h4>
+        <dl class="invoice-details">
+            <div><dt>Fecha y horario</dt><dd>@((venta?.FechaFuncion ?? PeliculaActual.FechaFuncion)?.ToString("dd/MM/yyyy")) · @(venta?.Horario ?? HorarioSeleccionado)</dd></div>
+            <div><dt>Sala</dt><dd>@SalaService.ObtenerNombreSala(venta?.NumeroSala ?? NumeroSala)</dd></div>
+            <div><dt>Tipo de sala</dt><dd>@ObtenerNombreTipoSala()</dd></div>
+            <div><dt>Experiencia</dt><dd>@ObtenerNombreExperiencia()</dd></div>
+            <div class="invoice-seats"><dt>Butacas</dt><dd>@string.Join(", ", venta?.Asientos ?? AsientosSeleccionados.OrderBy(a => a).ToList())</dd></div>
+        </dl>
+    </section>
+    <table class="invoice-table" aria-label="Detalle de tu compra">
+        <thead><tr><th>Detalle</th><th>Cant.</th><th>Precio unit.</th><th>Importe</th></tr></thead>
+        <tbody><tr><td>Entrada general</td><td>@cantidad</td><td>@precioUnitario.ToString("N2") Bs</td><td>@total.ToString("N2") Bs</td></tr></tbody>
+    </table>
+    <div class="invoice-amount"><span>Total pagado</span><strong>@total.ToString("N2") Bs</strong></div>
+    <footer class="invoice-footer">
+        <p><strong>Método de pago:</strong> @PagosReserva.Nombre(venta?.MetodoPago ?? MetodoPago)</p>
+        <p>Conserva este comprobante. El QR identifica todas las entradas de esta compra.</p>
+        <p>Gracias por elegir CineSpace.</p>
+    </footer>
+</article>
+<div class="invoice-actions">
+    <button type="button" class="btn btn-primary" disabled="@descargandoFactura" aria-busy="@descargandoFactura" @onclick="DescargarFactura"><i class="fas fa-file-pdf" aria-hidden="true"></i>@(descargandoFactura ? "Preparando PDF…" : "Descargar factura PDF")</button>
+    <button type="button" class="btn btn-secondary" @onclick="NuevaCompra">Nueva compra</button>
+</div>
+
+</div>
+</div>
+</section>
+
+@code {
+    private VentaTicket? VentaConfirmada => Ventas.ObtenerVentas().FirstOrDefault(v => v.NumeroFactura == NumeroFactura);
+    private string qrBase64 = "", facturaQR = "", errorQR = "";
+    private bool descargandoQR, descargandoFactura;
+    private readonly DateTime fechaEmision = DateTime.Now;
+    protected override void OnParametersSet()
+    {
+        if (facturaQR == NumeroFactura || VentaConfirmada is not { } venta) return;
+        qrBase64 = QRService.GenerarQRDesdeTicket(venta);
+        facturaQR = NumeroFactura;
+    }
+    private async Task DescargarEntradaQR()
+    {
+        if (descargandoQR || qrBase64.Length == 0) return;
+        descargandoQR = true; errorQR = "";
+        try { await QRService.DescargarQRAsync(qrBase64, $"Entradas_{NumeroFactura}.png"); }
+        catch { errorQR = "No se pudo descargar el QR. Vuelve a intentarlo; también está disponible en Mis compras."; }
+        finally { descargandoQR = false; }
+    }
+
+    [Parameter]
+    public string NumeroFactura { get; set; } = "";
+
+    [Parameter]
+    public string NombreCliente { get; set; } = "";
+
+    [Parameter]
+    public string DocumentoCliente { get; set; } = "";
+
+    [Parameter]
+    public string EmailCliente { get; set; } = "";
+
+    [Parameter]
+    public string TelefonoCliente { get; set; } = "";
+
+    [Parameter]
+    public Pelicula PeliculaActual { get; set; } = new();
+
+    [Parameter]
+    public string HorarioSeleccionado { get; set; } = "";
+
+    [Parameter]
+    public int NumeroSala { get; set; }
+
+    [Parameter]
+    public HashSet<string> AsientosSeleccionados { get; set; } = new();
+
+    [Parameter]
+    public int Cantidad { get; set; }
+
+    [Parameter]
+    public string MetodoPago { get; set; } = "";
+
+    // NUEVO: Código de validación
+    [Parameter]
+    public string CodigoValidacion { get; set; } = "";
+
+    [Parameter]
+    public EventCallback OnDescargarFactura { get; set; }
+
+    [Parameter]
+    public EventCallback OnNuevaCompra { get; set; }
+
+    private string ObtenerNombreTipoSala()
+    {
+        var venta = VentaConfirmada;
+        return venta != null ? AnaliticaVentas.NombreTipoSala(venta) : SalaService.NombreTipoSala(SalaService.ObtenerTipoSala(NumeroSala));
+    }
+
+    private string ObtenerNombreExperiencia()
+     => VentaConfirmada is { } venta ? AnaliticaVentas.NombreExperiencia(venta)
+            : SalaService.NombreExperiencia(PeliculaActual.ExperienciaFuncion ?? SalaService.ObtenerExperienciaPelicula(PeliculaActual.Id));
+
+    private async Task DescargarFactura()
+    {
+        if (descargandoFactura) return;
+        descargandoFactura = true;
+        try { await OnDescargarFactura.InvokeAsync(); }
+        finally { descargandoFactura = false; }
+    }
+
+    private async Task NuevaCompra()
+    {
+        await OnNuevaCompra.InvokeAsync();
+    }
+}

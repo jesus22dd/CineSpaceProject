@@ -1,0 +1,4 @@
+.email-access { max-width:34rem; margin:clamp(2rem,6vw,5rem) auto; padding:clamp(1.25rem,4vw,2.25rem); background:var(--cinema-surface); color:var(--cinema-ink); border:1px solid var(--cinema-line); border-radius:2px; }
+.email-access h1 { font-size: clamp(1.6rem,4vw,2rem); margin: 1.5rem 0; }
+.email-access form { display: grid; gap: .85rem; }
+.email-access form .btn { margin-top: .75rem; }

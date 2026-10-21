@@ -1,0 +1,20 @@
+.app-dialog { width: min(520px, calc(100% - 32px)); max-width: none; max-height: calc(100dvh - 32px); margin: auto; padding: 0; border: 0; border-radius: 14px; color: var(--cinema-ink); background: var(--cinema-surface); box-shadow: 0 24px 64px rgb(53 40 45 / 20%); overflow-y: auto; }
+.app-dialog.time-picker-clock { width: min(720px, calc(100% - 32px)); }
+.app-dialog.time-picker-clock .app-dialog-footer { position: sticky; bottom: 0; z-index: 3; background: var(--cinema-surface); }
+.app-dialog::backdrop { background: rgb(38 19 26 / 48%); backdrop-filter: blur(2px); }
+.app-dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px 12px 24px; background: var(--cinema-wine); }
+.app-dialog-heading h2 { margin: 0; color: var(--cinema-on-action); font-size: 22px; line-height: 1.2; }
+.app-dialog-close { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--cinema-on-action); }
+.app-dialog-close:hover { background: rgb(255 255 255 / 12%); }
+.app-dialog-close:focus-visible { outline-color: var(--cinema-gold); }
+.app-dialog-content { padding: 20px 24px; font-size: 14px; line-height: 1.5; }
+.app-dialog-footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--cinema-line); }
+.app-dialog-footer ::deep .btn { min-height: 44px; border-radius: 4px; }
+@media (max-width: 575px) { .app-dialog { width: calc(100% - 24px); max-height: calc(100dvh - 24px); } .app-dialog-heading { padding-left: 20px; } .app-dialog-heading h2 { font-size: 20px; } .app-dialog-content { padding: 16px 20px; } .app-dialog-footer { padding: 12px 20px; } .app-dialog-footer ::deep .btn { flex: 1; padding-inline: 12px; } }
+@media (max-width: 639px) { .app-dialog.time-picker-clock { width: calc(100% - 24px); } }
+@media (min-width: 640px) and (max-height: 500px) {
+    .app-dialog.time-picker-clock .app-dialog-heading { padding-block: 6px; }
+    .app-dialog.time-picker-clock .app-dialog-heading h2 { font-size: 20px; }
+    .app-dialog.time-picker-clock .app-dialog-content { position: relative; padding-block: 12px; }
+    .app-dialog.time-picker-clock .app-dialog-footer { padding-block: 8px; }
+}

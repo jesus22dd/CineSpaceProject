@@ -1,0 +1,101 @@
+@namespace CineSpace.Client.Components.Cinema
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<section class="upcoming-section @Clase" aria-labelledby="@Id" aria-busy="@(Cargando ? "true" : "false")" @ref="sectionElement">
+    <div class="upcoming-heading">
+        <h2 id="@Id">@Titulo</h2>
+        @if (Total > 1)
+        {
+            <div class="upcoming-controls" role="group" aria-label="Controles de @Titulo.ToLowerInvariant()">
+                <button type="button" class="upcoming-control" @onclick="CambiarReproduccion" aria-label="@(reproduciendo ? $"Pausar {Titulo.ToLowerInvariant()}" : $"Reproducir {Titulo.ToLowerInvariant()}")" title="@(reproduciendo ? "Pausar" : "Reproducir")"><i class="fas @(reproduciendo ? "fa-pause" : "fa-play")" aria-hidden="true"></i></button>
+                <button type="button" class="upcoming-control" @onclick="() => Mover(-1)" disabled="@(primero <= 1)" aria-label="Ver película anterior"><i class="fas fa-chevron-left" aria-hidden="true"></i></button>
+                <button type="button" class="upcoming-control" @onclick="() => Mover(1)" disabled="@(ultimo >= Total)" aria-label="Ver película siguiente"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+            </div>
+        }
+    </div>
+    @if (Total == 0)
+    {
+        @Estado
+    }
+    else
+    {
+        <div class="upcoming-track" role="group" aria-roledescription="carrusel" aria-label="@($"{Titulo}. Usa las flechas o desliza para explorar.")" tabindex="0" @ref="trackElement">
+            @Tarjetas
+        </div>
+        <div class="upcoming-footer">
+            <span>@Nota</span>
+            <div class="upcoming-position">
+                <div class="upcoming-progress" aria-hidden="true">@for (var index = 0; index < Total; index++) { <span class="@(index + 1 >= primero && index + 1 <= ultimo ? "is-visible" : "")"></span> }</div>
+                <p aria-live="@(reproduciendo ? "off" : "polite")" aria-atomic="true">@(primero == ultimo ? $"{primero} de {Total}" : $"{primero}–{ultimo} de {Total}")</p>
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public string Id { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Titulo { get; set; } = string.Empty;
+    [Parameter] public string? Clase { get; set; }
+    [Parameter] public string? Nota { get; set; }
+    [Parameter] public int Total { get; set; }
+    [Parameter] public bool Cargando { get; set; }
+    [Parameter] public RenderFragment? Tarjetas { get; set; }
+    [Parameter] public RenderFragment? Estado { get; set; }
+    private bool reproduciendo, disposed;
+    private int primero = 1, ultimo = 1, cantidadConectada;
+    private ElementReference sectionElement, trackElement, trackConectado;
+    private IJSObjectReference? module;
+    private DotNetObjectReference<MovieStripCarousel>? reference;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (disposed || cantidadConectada == Total) return;
+        if (module != null && cantidadConectada > 0)
+            await module.InvokeVoidAsync("disconnectUpcoming", trackConectado);
+        cantidadConectada = 0;
+        if (Total == 0) return;
+        if (module == null)
+        {
+            var cargado = await JS.InvokeAsync<IJSObjectReference>("import", "./js/upcoming-carousel.js");
+            if (disposed) { await cargado.DisposeAsync(); return; }
+            module = cargado;
+        }
+        if (disposed || Total == 0) return;
+        reference ??= DotNetObjectReference.Create(this);
+        trackConectado = trackElement;
+        cantidadConectada = Total;
+        var estado = await module.InvokeAsync<int[]>("connectUpcoming", sectionElement, trackElement, reference);
+        if (!disposed && estado.Length == 3) await ActualizarCarrusel(estado[0], estado[1], estado[2] == 1);
+    }
+
+    [JSInvokable] public Task ActualizarCarrusel(int inicio, int fin, bool playing) => InvokeAsync(() =>
+    {
+        if (disposed || (primero == inicio && ultimo == fin && reproduciendo == playing)) return;
+        primero = inicio;
+        ultimo = fin;
+        reproduciendo = playing;
+        StateHasChanged();
+    });
+
+    private async Task Mover(int direccion)
+    {
+        if (module != null) await module.InvokeVoidAsync("moveUpcoming", trackElement, direccion);
+    }
+
+    private async Task CambiarReproduccion()
+    {
+        if (module != null) await module.InvokeVoidAsync("toggleUpcomingPlayback", trackElement);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+        if (module != null)
+        {
+            try { if (cantidadConectada > 0) await module.InvokeVoidAsync("disconnectUpcoming", trackConectado); await module.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+        reference?.Dispose();
+    }
+}

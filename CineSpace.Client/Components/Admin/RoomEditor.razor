@@ -1,0 +1,185 @@
+@using CineSpace.Shared.Models
+@using CineSpace.Client.Components.Shared
+@using Microsoft.AspNetCore.Components.Routing
+@implements IAsyncDisposable
+@inject SalaService Salas
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<NavigationLock OnBeforeInternalNavigation="AntesDeSalir" ConfirmExternalNavigation="@HayCambios" />
+<section class="room-editor" aria-label="Editor de diseño de sala">
+    <form class="room-editor-fields" @onsubmit="Guardar" @onsubmit:preventDefault>
+        <div class="room-name-field"><label for="room-name">Nombre del diseño</label><input id="room-name" class="form-control" maxlength="80" placeholder="Ej. Dos bloques con pasillo central" @bind="plano.Nombre" @bind:event="oninput" /></div>
+        <div><label for="room-rows">Filas · alto</label><input id="room-rows" class="form-control" type="number" min="1" max="100" @bind="filas" disabled="@Bloqueada" /></div>
+        <div><label for="room-columns">Columnas · ancho</label><input id="room-columns" class="form-control" type="number" min="1" max="100" @bind="columnas" disabled="@Bloqueada" /></div>
+        <div class="room-dimension-actions"><div class="room-dimension-stepper" role="group" aria-label="Cambiar filas y columnas a la vez"><span>Filas y columnas</span><div><button type="button" class="room-tool" aria-label="Reducir una fila y una columna" title="Reducir una fila y una columna" @onclick="() => AjustarDimensiones(-1)" disabled="@(Bloqueada || filas <= 1 || columnas <= 1)"><i class="fas fa-minus" aria-hidden="true"></i>1</button><button type="button" class="room-tool" aria-label="Añadir una fila y una columna" title="Añadir una fila y una columna" @onclick="() => AjustarDimensiones(1)" disabled="@(Bloqueada || filas >= 100 || columnas >= 100)"><i class="fas fa-plus" aria-hidden="true"></i>1</button></div></div><button type="button" class="btn btn-secondary room-resize" @onclick="CambiarTamano" disabled="@Bloqueada"><i class="fas fa-expand" aria-hidden="true"></i>Aplicar tamaño</button></div>
+    </form>
+    @if (Bloqueada) { <div class="alert alert-info room-editor-message" role="status">Hay salas con funciones que usan este diseño. Puedes cambiar su nombre o duplicarlo para preparar otra distribución.</div> }
+    @if (!string.IsNullOrEmpty(error)) { <div class="alert alert-danger room-editor-message" role="alert">@error</div> }
+    <div class="room-editor-tools">
+        <div class="room-edit-actions" role="group" aria-label="Acciones del plano">
+            <button type="button" class="btn btn-secondary" aria-label="Rellenar matriz" @onclick="Rellenar" disabled="@Bloqueada"><i class="fas fa-border-all" aria-hidden="true"></i>Rellenar<span class="room-extended-label">matriz</span></button>
+            <button type="button" class="btn btn-secondary" @onclick="Vaciar" disabled="@Bloqueada"><i class="fas fa-eraser" aria-hidden="true"></i>Vaciar</button>
+            <button type="button" class="room-tool" aria-label="Deshacer cambio" title="Deshacer (Ctrl+Z)" @onclick="Deshacer" disabled="@(Bloqueada || anteriores.Count == 0)"><i class="fas fa-rotate-left" aria-hidden="true"></i><span>Deshacer</span></button>
+            <button type="button" class="room-tool" aria-label="Rehacer cambio" title="Rehacer (Ctrl+Mayús+Z)" @onclick="Rehacer" disabled="@(Bloqueada || siguientes.Count == 0)"><i class="fas fa-rotate-right" aria-hidden="true"></i><span>Rehacer</span></button>
+        </div>
+        <div class="room-zoom" role="group" aria-label="Ampliación de la vista del plano"><div class="room-zoom-heading"><span>Vista del plano</span><output aria-live="polite">@Math.Round(escala / 44.0 * 100)%</output></div><div class="room-zoom-buttons"><button type="button" class="room-tool" aria-label="Alejar vista del plano" @onclick="() => escala = Math.Max(28, escala - 4)" disabled="@(escala <= 28)"><i class="fas fa-magnifying-glass-minus" aria-hidden="true"></i><span>Alejar</span></button><button type="button" class="room-tool" aria-label="Acercar vista del plano" @onclick="() => escala = Math.Min(60, escala + 4)" disabled="@(escala >= 60)"><i class="fas fa-magnifying-glass-plus" aria-hidden="true"></i><span>Acercar</span></button></div></div>
+    </div>
+    <div class="room-editor-plan">
+        <div class="room-plan-heading"><h2>Diseño de butacas</h2><p role="status">@plano.Asientos.Count asientos <span>· @plano.Filas × @plano.Columnas posiciones</span></p></div>
+        <p id="room-edit-help" class="room-edit-help">Toca para alternar una posición o arrastra para dibujar asientos y pasillos.</p>
+        <details class="room-more-help"><summary>Atajos y edición por bloques</summary><p>Con Mayús, toca una segunda posición para rellenar o vaciar el bloque desde la primera. Las letras y números vacían una fila o columna con asientos; si está vacía, la rellenan. Usa las flechas para moverte, Espacio para alternar y Ctrl+Z para deshacer.</p></details>
+        <div class="room-grid-scroll" role="region" aria-label="Matriz editable de la sala" tabindex="0" aria-describedby="room-edit-help">
+            <div class="room-plan-canvas">
+            <div class="room-screen"><span>Pantalla</span></div>
+            <div class="room-matrix" style="@($"--room-columns: {plano.Columnas}; --room-cell: {escala}px")" data-rows="@plano.Filas" data-cols="@plano.Columnas" data-disabled="@(Bloqueada ? "true" : "false")" @ref="matriz">
+                <span class="room-axis room-corner" aria-hidden="true"></span>
+                @for (var c = 0; c < plano.Columnas; c++)
+                {
+                    var columna = c;
+                    <button type="button" class="room-axis room-column" data-axis-col="@columna" tabindex="-1" aria-label="Alternar columna @(columna + 1)" disabled="@Bloqueada" @onclick="() => AlternarColumna(columna)">@(columna + 1)</button>
+                }
+                @for (var r = 0; r < plano.Filas; r++)
+                {
+                    var fila = r;
+                    <button type="button" class="room-axis room-row" data-axis-row="@fila" tabindex="-1" aria-label="Alternar fila @PlanoSala.Fila(fila)" disabled="@Bloqueada" @onclick="() => AlternarFila(fila)">@PlanoSala.Fila(fila)</button>
+                    @for (var c = 0; c < plano.Columnas; c++)
+                    {
+                        var id = PlanoSala.Asiento(fila, c); var marcado = plano.Asientos.Contains(id);
+                        <button @key="id" type="button" class="room-cell @(marcado ? "is-seat" : "is-gap")" data-seat="@id" data-row="@fila" data-col="@c" tabindex="@(fila == 0 && c == 0 ? 0 : -1)" aria-pressed="@(marcado ? "true" : "false")" aria-label="@($"{id}, {(marcado ? "asiento" : "pasillo")}")" title="@($"{id} · {(marcado ? "Asiento" : "Pasillo")}")" disabled="@Bloqueada"><span>@id</span></button>
+                    }
+                }
+            </div>
+            </div>
+        </div>
+        <div class="room-plan-legend"><span><i class="room-sample is-seat" aria-hidden="true"></i>Asiento</span><span><i class="room-sample is-gap" aria-hidden="true"></i>Hueco o pasillo</span><p>Flechas para moverte · Espacio para alternar</p></div>
+    </div>
+    <div class="room-editor-savebar"><p>@(HayCambios ? "Cambios sin guardar" : "Plano sin cambios")</p><div><button type="button" class="btn btn-secondary" @onclick="SolicitarCancelar" disabled="@guardando">Cancelar</button><button type="button" class="btn btn-primary" @onclick="Guardar" disabled="@guardando"><i class="fas fa-check" aria-hidden="true"></i>@(guardando ? "Guardando…" : "Guardar diseño")</button></div></div>
+</section>
+@if (confirmarSalida)
+{
+    <AppDialog Title="¿Descartar los cambios?" OnClose="CerrarConfirmacion" @ref="confirmacion">
+        <ChildContent><p>El plano tiene cambios sin guardar. Puedes seguir editando o salir sin guardarlos.</p></ChildContent>
+        <Footer><button type="button" class="btn btn-secondary" @onclick="SeguirEditando">Seguir editando</button><button type="button" class="btn btn-primary" @onclick="Descartar">Descartar cambios</button></Footer>
+    </AppDialog>
+}
+
+@code {
+    [Parameter, EditorRequired] public PlanoSala Plano { get; set; } = new();
+    [Parameter] public bool Bloqueada { get; set; }
+    [Parameter] public EventCallback<int> OnGuardar { get; set; }
+    [Parameter] public EventCallback OnCancelar { get; set; }
+    private PlanoSala plano = new(), inicial = new();
+    private bool iniciado, guardando, confirmarSalida, permitirSalida;
+    private int filas, columnas, escala = 44;
+    private string error = string.Empty;
+    private string? destino;
+    private readonly List<PlanoSala> anteriores = new(), siguientes = new();
+    private ElementReference matriz;
+    private IJSObjectReference? modulo;
+    private DotNetObjectReference<RoomEditor>? referencia;
+    private AppDialog? confirmacion;
+    private bool HayCambios => iniciado && (plano.Nombre != inicial.Nombre || plano.Filas != inicial.Filas || plano.Columnas != inicial.Columnas || !plano.Asientos.SetEquals(inicial.Asientos));
+    protected override void OnParametersSet()
+    {
+        if (iniciado) return;
+        plano = Plano.Copiar(); inicial = plano.Copiar(); filas = plano.Filas; columnas = plano.Columnas; iniciado = true;
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            if (modulo != null) await modulo.InvokeVoidAsync("refreshRoomEditor", matriz);
+            return;
+        }
+        modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/room-editor.js");
+        referencia = DotNetObjectReference.Create(this);
+        await modulo.InvokeVoidAsync("connectRoomEditor", matriz, referencia);
+    }
+    private void Recordar()
+    {
+        anteriores.Add(plano.Copiar()); if (anteriores.Count > 30) anteriores.RemoveAt(0);
+        siguientes.Clear(); error = string.Empty;
+    }
+    [JSInvokable] public Task AplicarTrazo(string[] ids, bool marcar) => InvokeAsync(() =>
+    {
+        if (Bloqueada) return;
+        var validos = ids.Where(id => plano.Contiene(id) && plano.Asientos.Contains(id) != marcar).ToArray();
+        if (validos.Length == 0) return;
+        Recordar(); foreach (var id in validos) { if (marcar) plano.Asientos.Add(id); else plano.Asientos.Remove(id); }
+        StateHasChanged();
+    });
+    [JSInvokable] public Task Historia(bool rehacer) => InvokeAsync(() => { if (rehacer) Rehacer(); else Deshacer(); StateHasChanged(); });
+    private void AjustarDimensiones(int cambio)
+    {
+        if (Bloqueada || filas + cambio is < 1 or > 100 || columnas + cambio is < 1 or > 100) return;
+        filas += cambio; columnas += cambio; CambiarTamano();
+    }
+    private void CambiarTamano()
+    {
+        if (Bloqueada) return;
+        if (filas is < 1 or > 100 || columnas is < 1 or > 100) { error = "Usa entre 1 y 100 filas y entre 1 y 100 columnas."; return; }
+        if (filas == plano.Filas && columnas == plano.Columnas) return;
+        Recordar(); plano.Filas = filas; plano.Columnas = columnas;
+        plano.Asientos.RemoveWhere(id => !plano.Contiene(id));
+    }
+    private void Rellenar()
+    {
+        if (Bloqueada || plano.Asientos.Count == plano.Filas * plano.Columnas) return;
+        Recordar(); plano.Asientos = Enumerable.Range(0, plano.Filas).SelectMany(r => Enumerable.Range(0, plano.Columnas).Select(c => PlanoSala.Asiento(r, c))).ToHashSet();
+    }
+    private void Vaciar() { if (Bloqueada || plano.Asientos.Count == 0) return; Recordar(); plano.Asientos.Clear(); }
+    private void AlternarFila(int fila) => AlternarGrupo(Enumerable.Range(0, plano.Columnas).Select(c => PlanoSala.Asiento(fila, c)).ToArray());
+    private void AlternarColumna(int columna) => AlternarGrupo(Enumerable.Range(0, plano.Filas).Select(r => PlanoSala.Asiento(r, columna)).ToArray());
+    private void AlternarGrupo(string[] ids)
+    {
+        if (Bloqueada) return;
+        var marcar = !ids.Any(plano.Asientos.Contains); Recordar();
+        foreach (var id in ids) { if (marcar) plano.Asientos.Add(id); else plano.Asientos.Remove(id); }
+    }
+    private void Deshacer()
+    {
+        if (Bloqueada || anteriores.Count == 0) return;
+        siguientes.Add(plano.Copiar()); var nombre = plano.Nombre; plano = anteriores[^1]; anteriores.RemoveAt(anteriores.Count - 1);
+        plano.Nombre = nombre; filas = plano.Filas; columnas = plano.Columnas; error = string.Empty;
+    }
+    private void Rehacer()
+    {
+        if (Bloqueada || siguientes.Count == 0) return;
+        anteriores.Add(plano.Copiar()); var nombre = plano.Nombre; plano = siguientes[^1]; siguientes.RemoveAt(siguientes.Count - 1);
+        plano.Nombre = nombre; filas = plano.Filas; columnas = plano.Columnas; error = string.Empty;
+    }
+    private async Task Guardar()
+    {
+        if (guardando) return;
+        error = string.Empty; guardando = true;
+        try
+        {
+            if (filas != plano.Filas || columnas != plano.Columnas) { error = "Aplica el nuevo tamaño antes de guardar el diseño."; return; }
+            var numero = await Salas.GuardarDisenoAsync(plano); inicial = plano.Copiar(); permitirSalida = true;
+            await OnGuardar.InvokeAsync(numero);
+        }
+        catch (ArgumentException ex) { error = ex.Message; }
+        catch { error = "No pudimos guardar el plano en este navegador. Inténtalo de nuevo; tus cambios siguen aquí."; }
+        finally { guardando = false; }
+    }
+    private async Task SolicitarCancelar() { if (HayCambios) confirmarSalida = true; else await OnCancelar.InvokeAsync(); }
+    private void AntesDeSalir(LocationChangingContext contexto)
+    {
+        if (!HayCambios || permitirSalida) return;
+        contexto.PreventNavigation(); destino = contexto.TargetLocation; confirmarSalida = true;
+    }
+    private void CerrarConfirmacion() { confirmarSalida = false; destino = null; }
+    private Task SeguirEditando() => confirmacion?.CerrarDialogo() ?? Task.CompletedTask;
+    private async Task Descartar()
+    {
+        var ruta = destino; permitirSalida = true;
+        if (confirmacion != null) await confirmacion.CerrarDialogo();
+        if (ruta != null) Navigation.NavigateTo(ruta); else await OnCancelar.InvokeAsync();
+    }
+    public async ValueTask DisposeAsync()
+    {
+        if (modulo != null) { try { await modulo.InvokeVoidAsync("disconnectRoomEditor", matriz); await modulo.DisposeAsync(); } catch (JSDisconnectedException) { } }
+        referencia?.Dispose();
+    }
+}

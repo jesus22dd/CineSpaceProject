@@ -1,0 +1,45 @@
+.catalogue-select { min-width: 0; container-type: inline-size; }
+.is-compact .catalogue-select-trigger { height: 44px; padding: 6px 10px; gap: 8px; border-radius: 6px; }
+.is-compact .catalogue-select-symbol { flex-basis: 24px; height: 28px; font-size: 13px; background: transparent; }
+.is-compact .catalogue-select-copy { gap: 2px; }
+.is-compact .catalogue-select-label { font-size: 10px; }
+.is-compact .catalogue-select-value { font-size: 13px; font-weight: 600; }
+.is-compact .catalogue-select-menu-heading { display: none; }
+.hide-label .catalogue-select-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.catalogue-select-trigger { display: flex; align-items: center; gap: 12px; width: 100%; height: 64px; padding: 10px 12px; border: 1px solid var(--cinema-line); border-radius: var(--cinema-radius); color: var(--cinema-heading); background: var(--cinema-control); font: inherit; line-height: 1.2; text-align: left; cursor: pointer; transition: background-color 160ms, border-color 160ms; }
+.catalogue-select-symbol { display: grid; place-items: center; flex: 0 0 36px; height: 36px; border-radius: 6px; color: var(--cinema-heading); background: var(--cinema-accent-soft); font-size: 15px; }
+.catalogue-select-copy { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 4px; }
+.catalogue-select-label { display: flex; align-items: center; gap: 6px; color: var(--cinema-muted); font-size: 11px; font-weight: 600; }
+.catalogue-select-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 700; }
+.catalogue-select-arrow { display: grid; place-items: center; flex: 0 0 24px; height: 24px; border-radius: 4px; color: var(--cinema-heading); background: var(--cinema-canvas); }
+.catalogue-select-arrow i { font-size: 10px; transition: transform 160ms; }
+.catalogue-select-trigger:hover { border-color: var(--cinema-wine); background: var(--cinema-input); }
+.has-selection .catalogue-select-trigger { border-color: var(--cinema-accent); background: var(--cinema-accent); color: var(--cinema-on-action); }
+.has-selection .catalogue-select-trigger:hover { background: var(--cinema-accent-hover); border-color: var(--cinema-accent-hover); }
+.has-selection .catalogue-select-symbol, .has-selection .catalogue-select-arrow { color: var(--cinema-on-action); background: rgb(255 255 255 / 12%); }
+.has-selection .catalogue-select-label { color: var(--cinema-paper); }
+.catalogue-select-trigger[aria-expanded="true"], .catalogue-select-trigger[aria-expanded="true"]:hover { border-color: var(--cinema-wine); background: var(--cinema-wine); color: var(--cinema-on-action); }
+.catalogue-select-trigger[aria-expanded="true"] .catalogue-select-label { color: var(--cinema-paper); }
+.catalogue-select-trigger[aria-expanded="true"] .catalogue-select-symbol { background: rgb(255 255 255 / 12%); color: var(--cinema-gold-soft); }
+.catalogue-select-trigger[aria-expanded="true"] .catalogue-select-arrow { background: rgb(255 255 255 / 12%); color: var(--cinema-on-action); }
+.catalogue-select-trigger[aria-expanded="true"] .catalogue-select-arrow i { transform: rotate(180deg); }
+.catalogue-select-trigger:focus-visible { outline: 2px solid var(--cinema-focus); outline-offset: 3px; }
+.catalogue-select-menu { position: fixed; inset: auto; margin: 0; padding: 8px; border: 0; border-radius: 12px; color: var(--cinema-on-action); background: var(--cinema-detail-surface); box-shadow: 0 16px 36px rgb(53 40 45 / 22%); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--cinema-gold-soft) var(--cinema-detail-surface); }
+.catalogue-select-menu::selection { color: var(--cinema-heading); background: var(--cinema-gold-surface); }
+.catalogue-select-menu-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 8px 12px; margin-bottom: 4px; border-bottom: 1px solid rgb(255 255 255 / 16%); color: var(--cinema-paper); font-size: 12px; font-weight: 600; }
+.catalogue-select-menu-heading span:last-child { font-size: 11px; font-weight: 400; }
+.catalogue-select-option { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 10px 8px; border-radius: 6px; line-height: 1.3; cursor: pointer; }
+.catalogue-select-option + .catalogue-select-option { margin-top: 4px; }
+.catalogue-option-symbol { display: grid; place-items: center; flex: 0 0 32px; height: 32px; border-radius: 4px; color: var(--cinema-gold-soft); background: rgb(255 255 255 / 8%); font-size: 13px; }
+.catalogue-option-copy { display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; }
+.catalogue-option-name { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.catalogue-option-description { color: var(--cinema-paper); font-size: 11px; overflow-wrap: anywhere; }
+.catalogue-option-check { display: grid; place-items: center; flex: 0 0 20px; height: 20px; visibility: hidden; font-size: 11px; }
+.catalogue-select-option[aria-selected="true"] { background: var(--cinema-accent); color: var(--cinema-on-action); }
+.catalogue-select-option[aria-selected="true"] .catalogue-option-symbol { background: rgb(255 255 255 / 12%); color: var(--cinema-on-action); }
+.catalogue-select-option[aria-selected="true"] .catalogue-option-check { visibility: visible; }
+.catalogue-select-option:hover:not([aria-selected="true"]), .catalogue-select-option.is-active:not([aria-selected="true"]) { background: rgb(255 255 255 / 10%); }
+.catalogue-select-option.is-active { outline: 1px solid var(--cinema-gold-soft); outline-offset: -2px; }
+@container (max-width: 190px) { .catalogue-select-trigger { gap: 8px; padding-inline: 10px; } .catalogue-select-symbol { flex-basis: 28px; height: 32px; font-size: 13px; } .catalogue-select-arrow { flex-basis: 20px; } .catalogue-select-value { font-size: 13px; } }
+@container (max-width: 150px) { .catalogue-select-symbol { display: none; } }
+@media (prefers-reduced-motion: reduce) { .catalogue-select-trigger, .catalogue-select-arrow i { transition: none; } }

@@ -1,0 +1,10 @@
+.browse-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 2px; border: 0; background: transparent; color: var(--cinema-paper); font-size: 14px; font-weight: 600; }
+.browse-trigger:hover { color: var(--cinema-gold); }
+.browse-trigger > .fa-film { display: none; }
+.browse-trigger > .fa-chevron-down { font-size: 9px; }
+.browse-menu { position: fixed; inset: auto; margin: 0; padding: 8px; width: 220px; border: 0; border-radius: 8px; background: var(--cinema-detail-surface); box-shadow: 0 12px 32px rgb(0 0 0 / 20%); color: var(--cinema-on-action); }
+.browse-menu ::deep a { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 12px; border-radius: 4px; color: var(--cinema-on-action); text-decoration: none; font-size: 14px; }
+.browse-menu ::deep a:hover, .browse-menu ::deep a.active { background: var(--cinema-accent); }
+.browse-menu ::deep a i { width: 18px; color: var(--cinema-gold); }
+@media (max-width: 767px) { .browse-trigger { font-size: 12px; } }
+@media (max-width: 380px) { .browse-trigger { width: 44px; padding: 0; } .browse-trigger > span, .browse-trigger > .fa-chevron-down { display: none; } .browse-trigger > .fa-film { display: block; font-size: 16px; } }

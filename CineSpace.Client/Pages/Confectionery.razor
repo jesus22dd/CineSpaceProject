@@ -1,0 +1,56 @@
+@page "/confiteria"
+@using CineSpace.Client.Components.Admin
+@using CineSpace.Client.Components.Shared
+@using CineSpace.Client.Components.Cinema
+@inject CatalogosService Catalogos
+@inject UsuarioService Usuarios
+@inject PedidosConfiteriaService Pedidos
+@implements IDisposable
+
+<PageTitle>Confitería - CineSpace</PageTitle>
+<section class="public-confectionery" aria-labelledby="confectionery-title">
+    <div class="confectionery-heading"><div><h1 id="confectionery-title">Confitería</h1><p>Elige algo rico para acompañar tu próxima película.</p></div><div class="confectionery-heading-actions"><a class="confectionery-orders-link" href="/confiteria/pedidos">Mis pedidos</a>@if (Pedidos.CantidadCarrito > 0) { <a class="btn btn-secondary" href="/confiteria/carrito"><i class="fas fa-bag-shopping" aria-hidden="true"></i>Carrito <span class="confectionery-cart-count">@Pedidos.CantidadCarrito</span></a> }@if (Usuarios.EsAdministrador()) { <a class="btn btn-secondary" href="/admin/confiteria" aria-label="Gestionar combos" title="Gestionar combos"><i class="fas fa-pen" aria-hidden="true"></i></a> }</div></div>
+    @if (!string.IsNullOrEmpty(error) || Pedidos.ErrorCarga != null) { <div class="alert alert-danger" role="alert">@(Pedidos.ErrorCarga ?? error)</div> }
+    <span class="visually-hidden" role="status">@aviso</span>
+    <ConfectionCategories Categorias="CategoriasVisibles" Seleccionada="categoria" OnSeleccionar="ElegirCategoria" />
+    <div class="confectionery-shop-layout"><div class="confectionery-catalog">
+    <div class="confectionery-results-heading"><h2>@(categoria == 0 ? "Nuestros combos" : Catalogos.CategoriaNombre(categoria))</h2><span role="status">@Visibles.Count @(Visibles.Count == 1 ? "combo" : "combos")</span></div>
+    @if (Visibles.Count == 0)
+    {
+        <div class="confectionery-empty"><i class="fas fa-cookie-bite" aria-hidden="true"></i><h2>@(categoria == 0 ? "Todavía no hay combos disponibles" : "No hay combos en esta categoría")</h2><p>@(categoria == 0 ? "Consulta nuevamente antes de tu próxima visita." : "Explora las demás categorías para encontrar tu acompañamiento.")</p>@if (categoria != 0) { <button type="button" class="btn btn-secondary" @onclick="() => ElegirCategoria(0)">Ver todos los combos</button> }</div>
+    }
+    else
+    {
+        <div class="confectionery-grid">
+            @foreach (var entrada in Visibles.Select((combo, indice) => (combo, indice)))
+            {
+                var combo = entrada.combo;
+                <ConfectionCard @key="combo.Id" Combo="combo" Indice="entrada.indice" Abierta="@(detalleActivo == combo.Id)" OnAbiertaChanged="abierta => detalleActivo = abierta ? combo.Id : null" Categoria="@Catalogos.CategoriaNombre(combo.CategoriaId)" Cantidad="@(Pedidos.Carrito.FirstOrDefault(x => x.ComboId == combo.Id)?.Cantidad ?? 0)" Deshabilitada="@(añadiendo != 0 || Pedidos.ErrorCarga != null)" OnAñadir="Añadir" />
+            }
+        </div>
+        <Pagination CurrentPage="pagina" TotalPages="@Math.Max(1, (int)Math.Ceiling(totalItems / (double)PorPagina))" TotalItems="totalItems" PageSize="PorPagina" ShowPageSizeSelector="false" Label="Paginación de confitería" OnPageChanged="CambiarPagina" />
+    }
+    </div></div>
+    @if (Pedidos.CantidadCarrito > 0) { <details class="confectionery-mobile-cart"><summary><span><i class="fas fa-bag-shopping" aria-hidden="true"></i>@Pedidos.CantidadCarrito @(Pedidos.CantidadCarrito == 1 ? "producto" : "productos")</span><strong>@Pedidos.TotalCarrito.ToString("N2") Bs<i class="fas fa-chevron-up" aria-hidden="true"></i></strong></summary><ConfectionMiniCart /></details> }
+</section>
+@code {
+    private async Task Cargar() {
+        try { var p = await Catalogos.ConsultarCombosAsync(new() { Pagina = pagina, Tamano = PorPagina, Categoria = categoria == 0 ? null : categoria }); Visibles = p.Items; totalItems = p.Total; pagina = p.Numero; }
+        catch (Exception ex) { error = ex.Message; }
+    }
+
+    private const int PorPagina = 12;
+    private int? detalleActivo;
+    private int categoria, pagina = 1;
+    private int añadiendo;
+    private string error = "", aviso = "";
+    protected override async Task OnInitializedAsync() { Pedidos.Changed += Cambiado; Catalogos.Changed += Cambiado; await Pedidos.InicializarAsync(); await Cargar(); }
+    private void Cambiado() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() { Pedidos.Changed -= Cambiado; Catalogos.Changed -= Cambiado; }
+    private async Task Añadir((ComboConfiteria Combo, int Cantidad) entrada) { if (añadiendo != 0) return; añadiendo = entrada.Combo.Id; error = ""; try { await Pedidos.AñadirAsync(entrada.Combo.Id, entrada.Cantidad); aviso = $"{entrada.Cantidad} {(entrada.Cantidad == 1 ? "unidad añadida" : "unidades añadidas")} de {entrada.Combo.Nombre}."; } catch (ArgumentException ex) { error = ex.Message; } catch (InvalidOperationException ex) { error = ex.Message; } catch { error = "No pudimos guardar el carrito. Inténtalo de nuevo."; } finally { añadiendo = 0; } }
+    private IReadOnlyList<EtiquetaCatalogo> CategoriasVisibles => Catalogos.Categorias.Where(c => Catalogos.UsoCategoria(c.Id) > 0).OrderBy(x => x.Nombre).ToList();
+    private List<ComboConfiteria> Visibles = [];
+    private int totalItems;
+    private async Task ElegirCategoria(int id) { categoria = id; pagina = 1; detalleActivo = null; await Cargar(); }
+    private async Task CambiarPagina(int valor) { pagina = valor; detalleActivo = null; await Cargar(); }
+}

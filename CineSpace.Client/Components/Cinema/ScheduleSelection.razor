@@ -1,0 +1,59 @@
+@namespace CineSpace.Client.Components.Cinema
+@using CineSpace.Shared.Models
+@using Microsoft.AspNetCore.Components.Web
+
+<h3>Elige tu función</h3>
+<p class="text-muted">@PeliculaActual.Titulo</p>
+<div class="card p-4 mb-4">
+    <h5 class="mt-3">Horarios disponibles:</h5>
+    <div class="schedule-options" role="group" aria-label="Horarios disponibles">
+        @foreach (var horario in PeliculaActual.HorariosDisponibles)
+        {
+            <div class="form-check schedule-option">
+                <input class="form-check-input" type="radio" name="horario" id="horario_@horario.Replace(":", "")"
+                       value="@horario" checked="@(horario == HorarioSeleccionado)" @onchange="HandleHorarioSeleccionado" />
+                <label class="form-check-label" for="horario_@horario.Replace(":", "")">@horario</label>
+            </div>
+        }
+    </div>
+    <div class="booking-actions">
+        <button class="btn btn-secondary" @onclick="Volver">Atrás</button>
+        <button class="btn btn-primary" @onclick="Continuar" disabled="@string.IsNullOrEmpty(HorarioSeleccionado)">Continuar</button>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Pelicula PeliculaActual { get; set; } = new();
+
+    [Parameter]
+    public string HorarioSeleccionado { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<string> OnHorarioSeleccionado { get; set; }
+
+    [Parameter]
+    public EventCallback OnContinuar { get; set; }
+
+    [Parameter]
+    public EventCallback OnVolver { get; set; }
+
+    private async Task HandleHorarioSeleccionado(ChangeEventArgs e)
+    {
+        var horario = e.Value?.ToString();
+        if (!string.IsNullOrEmpty(horario))
+        {
+            await OnHorarioSeleccionado.InvokeAsync(horario);
+        }
+    }
+
+    private async Task Continuar()
+    {
+        await OnContinuar.InvokeAsync();
+    }
+
+    private async Task Volver()
+    {
+        await OnVolver.InvokeAsync();
+    }
+}

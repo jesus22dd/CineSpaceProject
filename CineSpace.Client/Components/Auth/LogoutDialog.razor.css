@@ -1,0 +1,14 @@
+.logout-dialog { width: min(440px, calc(100% - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 28px; border: 0; border-radius: 14px; background: var(--cinema-surface); color: var(--cinema-ink); box-shadow: 0 24px 64px rgb(53 40 45 / 20%); }
+.logout-dialog::backdrop { background: rgb(38 19 26 / 46%); }
+.logout-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.logout-symbol { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 12px; color: var(--cinema-heading); background: var(--cinema-gold-surface); font-size: 20px; }
+.logout-close { width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 6px; color: var(--cinema-muted); background: transparent; }
+.logout-close:hover { background: var(--cinema-raised); color: var(--cinema-ink); }
+h2 { margin: 0 0 12px; font-size: 28px; color: var(--cinema-heading); }
+p { margin: 0; font-size: 14px; line-height: 1.75; color: var(--cinema-muted); }
+.logout-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 28px; }
+.logout-actions button { padding-inline: 10px; }
+.logout-actions .btn-secondary, .logout-actions .btn-secondary:focus { background: var(--cinema-raised); border-color: transparent; color: var(--cinema-ink); box-shadow: none; }
+.logout-actions .btn-secondary:hover { background: var(--cinema-accent-soft); }
+.logout-actions button:focus-visible { outline: 2px solid var(--cinema-focus); outline-offset: 3px; box-shadow: none; }
+@media (max-width: 380px) { .logout-dialog { padding: 24px; } .logout-actions { gap: 8px; } }
