@@ -1,10 +1,11 @@
 @using CineSpace.Shared.Models
 @using CineSpace.Shared.Contracts
 @using CineSpace.Client.Services
+@using CineSpace.Client.Components.Shared
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 
-<article class="account-rating @(expandida ? "is-expanded" : "") @(Pendiente is not null ? "is-pending" : "")" @ref="elemento">
+<article class="account-rating @(Pendiente is not null ? "is-pending" : "")" @ref="elemento">
     @if(!string.IsNullOrWhiteSpace(Fondo)){<img class="account-rating-backdrop" src="@PeliculaService.UrlImagen(Fondo,"w780")" alt="" loading="lazy" decoding="async" onerror="this.hidden=true;" />}
     <div class="account-rating-heading" id="@tituloId">
         <h2>@Nombre</h2>
@@ -15,12 +16,22 @@
         <div class="account-rating-score" aria-label="@Calificacion.Calificacion de 5 estrellas">
             <span class="account-rating-stars" aria-hidden="true">@for(int i=1;i<=5;i++){<i class="@(i<=Calificacion.Calificacion ? "fas" : "far") fa-star"></i>}</span><span>@Calificacion.Calificacion/5</span>
         </div>
-        <p class="account-rating-comment" id="@comentarioId">@(string.IsNullOrWhiteSpace(Calificacion.Comentario) ? "Sin comentario." : Calificacion.Comentario)</p>
-        <button type="button" class="account-rating-expand" aria-expanded="@(expandida ? "true" : "false")" aria-controls="@($"{tituloId} {comentarioId}")" aria-label="@(expandida ? $"Ver menos de {Nombre}" : $"Ver más de {Nombre}")" @onclick="() => expandida = !expandida">@(expandida ? "Ver menos" : "Ver más")<i class="fas @(expandida ? "fa-chevron-up" : "fa-chevron-down")" aria-hidden="true"></i></button>
+        <span class="account-rating-source" hidden>@Comentario</span>
+        <p class="account-rating-comment" id="@comentarioId"><span class="account-rating-preview">@Comentario</span><button type="button" class="account-rating-expand" aria-haspopup="dialog" aria-label="Ver comentario completo de @Nombre" @onclick="() => mostrarComentario = true">Ver más</button></p>
     }else{
         <button type="button" class="btn btn-primary account-rating-action" aria-label="Calificar @Nombre" @onclick="() => OnCalificar.InvokeAsync(Pendiente)"><i class="far fa-star" aria-hidden="true"></i>Calificar película</button>
     }
 </article>
+
+@if(mostrarComentario){
+    <AppDialog Title="@Nombre" OnClose="() => mostrarComentario = false">
+        <ChildContent>
+            <p class="account-rating-detail-meta">@Calificacion.Calificacion/5 estrellas · Calificada el @Fecha.ToString("dd/MM/yyyy")</p>
+            <p class="account-rating-detail">@Comentario</p>
+        </ChildContent>
+        <Footer><button type="button" class="btn btn-secondary" @onclick="() => mostrarComentario = false">Cerrar</button></Footer>
+    </AppDialog>
+}
 
 @code {
     [Parameter] public CalificacionPelicula Calificacion { get; set; } = new();
@@ -28,11 +39,12 @@
     [Parameter] public EventCallback<CalificacionPendiente> OnCalificar { get; set; }
     private string Nombre => Pendiente?.NombrePelicula ?? Calificacion.NombrePelicula;
     private string Fondo => Pendiente?.ImagenPanoramicaUrl ?? Calificacion.ImagenPanoramicaUrl;
+    private string Comentario => string.IsNullOrWhiteSpace(Calificacion.Comentario) ? "Sin comentario." : Calificacion.Comentario;
     private DateTime Fecha => Pendiente?.FechaFuncion ?? Calificacion.FechaCalificacion;
     private readonly string tituloId = $"rating-title-{Guid.NewGuid():N}";
     private readonly string comentarioId = $"rating-comment-{Guid.NewGuid():N}";
     private ElementReference elemento;
-    private bool expandida, disposed;
+    private bool mostrarComentario, disposed;
     private IJSObjectReference? modulo, observador;
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

@@ -1,4 +1,41 @@
-.email-access { max-width:34rem; margin:clamp(2rem,6vw,5rem) auto; padding:clamp(1.25rem,4vw,2.25rem); background:var(--cinema-surface); color:var(--cinema-ink); border:1px solid var(--cinema-line); border-radius:2px; }
-.email-access h1 { font-size: clamp(1.6rem,4vw,2rem); margin: 1.5rem 0; }
-.email-access form { display: grid; gap: .85rem; }
-.email-access form .btn { margin-top: .75rem; }
+.email-access-page { width:min(100%, 480px); margin:clamp(24px,5vw,64px) auto; }
+.email-access-back { display:inline-flex; align-items:center; gap:8px; min-height:44px; margin-bottom:12px; color:var(--cinema-muted); font-size:13px; text-decoration:none; }
+.email-access-back:hover { color:var(--cinema-link); }
+.email-access { padding:32px; border:1px solid var(--cinema-line); border-radius:12px; background:var(--cinema-surface); color:var(--cinema-ink); }
+.email-access-heading { margin-bottom:28px; }
+.email-access-symbol { display:grid; place-items:center; width:48px; height:48px; margin-bottom:20px; border-radius:12px; background:var(--cinema-accent-soft); color:var(--cinema-link); font-size:20px; }
+.email-access-symbol.is-success { background:var(--cinema-success-soft); color:var(--cinema-success); }
+.email-access-eyebrow { margin:0 0 8px; color:var(--cinema-muted); font-size:12px; font-weight:600; }
+.email-access h1 { margin:0 0 12px; color:var(--cinema-heading); font-size:clamp(25px,4vw,30px); line-height:1.2; text-wrap:balance; }
+.email-access h1:focus { outline:none; }
+.email-access-intro { margin:0; color:var(--cinema-muted); font-size:14px; line-height:1.65; }
+.email-access-form fieldset { display:grid; gap:20px; margin:0; padding:0; border:0; min-width:0; }
+.email-access-field { display:grid; gap:8px; }
+.email-access-field label { color:var(--cinema-ink); font-size:13px; font-weight:600; }
+.email-access-field input { min-height:48px; font-size:16px; }
+.email-access-field input[aria-invalid="true"] { border-color:var(--cinema-danger); }
+.email-access-submit { width:100%; min-height:48px; gap:10px; }
+.email-access-state { margin-bottom:24px; font-size:14px; line-height:1.7; }
+.email-access-state p { margin:0; }
+.email-access-state strong { overflow-wrap:anywhere; }
+.email-access-state .email-access-hint { margin-top:16px; color:var(--cinema-muted); font-size:13px; }
+.email-access-footer { display:flex; flex-direction:column; align-items:center; gap:0; margin-top:24px; padding-top:20px; border-top:1px solid var(--cinema-line); color:var(--cinema-muted); font-size:13px; }
+.email-access-footer button { min-height:44px; padding:8px; border:0; background:transparent; color:var(--cinema-link); font-size:13px; font-weight:600; }
+.email-access-footer button:hover, .email-access-secondary:hover { text-decoration:underline; }
+.email-access-account { display:flex; align-items:center; gap:10px; padding:12px 14px; margin:0 0 24px; border:1px solid var(--cinema-line); border-radius:6px; color:var(--cinema-muted); font-size:13px; }
+.email-access-account span { min-width:0; overflow-wrap:anywhere; }
+.email-access-account i { flex-shrink:0; }
+.email-access-rules { display:grid; gap:8px; list-style:none; padding:0; margin:-8px 0 0; color:var(--cinema-muted); font-size:12px; line-height:1.5; }
+.email-access-rules li { display:flex; align-items:baseline; gap:8px; }
+.email-access-rules i { flex-shrink:0; font-size:7px; }
+.email-access-rules li.is-met { color:var(--cinema-success); }
+.email-access-rules li.is-met i { font-size:12px; }
+.email-access-field-error { margin:0; color:var(--cinema-danger); font-size:12px; line-height:1.5; }
+.email-access-form fieldset > .email-access-field-error { margin-top:-12px; }
+.email-access-error { display:flex; align-items:baseline; gap:10px; padding:14px 16px; margin-bottom:20px; border:1px solid var(--cinema-danger); border-radius:6px; background:var(--cinema-danger-soft); color:var(--cinema-danger); font-size:13px; line-height:1.6; }
+.email-access-error p { margin:0; }
+.email-access-secondary { display:flex; justify-content:center; align-items:center; min-height:44px; margin-top:12px; color:var(--cinema-link); font-size:13px; }
+.email-access-security { display:flex; align-items:baseline; justify-content:center; gap:8px; margin:20px 0 0; color:var(--cinema-muted); font-size:12px; line-height:1.6; }
+.email-access-security i { flex-shrink:0; font-size:10px; }
+.email-access-progress { display:flex; align-items:center; gap:8px; color:var(--cinema-muted); font-size:14px; }
+@media(max-width:480px) { .email-access-page { margin:20px auto 32px; }.email-access { padding:24px 20px; }.email-access-heading { margin-bottom:24px; } }

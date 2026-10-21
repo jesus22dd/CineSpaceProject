@@ -13,13 +13,13 @@ public interface ICorreoCuentaService
     Task RecuperacionAsync(Usuario usuario, CancellationToken cancelacion = default);
 }
 
-public sealed class CorreoCuentaService(HttpClient http, IConfiguration configuration, UserManager<Usuario> usuarios, Microsoft.Extensions.Caching.Memory.IMemoryCache cache) : ICorreoCuentaService
+public sealed class CorreoCuentaService(HttpClient http, IConfiguration configuration, UserManager<Usuario> usuarios, Microsoft.Extensions.Caching.Memory.IMemoryCache cache, Microsoft.Extensions.Options.IOptions<DataProtectionTokenProviderOptions> opcionesToken) : ICorreoCuentaService
 {
     public async Task ConfirmacionAsync(Usuario usuario, CancellationToken cancelacion = default)
     {
         var token = await usuarios.GenerateEmailConfirmationTokenAsync(usuario);
         var url = Enlace("confirmar-cuenta", new() { ["usuario"] = usuario.Id.ToString(), ["token"] = Codificar(token) });
-        await EnviarAsync(usuario, "Confirma tu cuenta de CineSpace", "Confirma tu correo", "Completa tu registro para reservar tus proximas funciones.", url, cancelacion);
+        await EnviarAsync(usuario, PlantillaCorreoCuenta.Confirmacion(usuario.Nombre, url, opcionesToken.Value.TokenLifespan), cancelacion);
     }
 
     public async Task RecuperacionAsync(Usuario usuario, CancellationToken cancelacion = default)
@@ -32,7 +32,7 @@ public sealed class CorreoCuentaService(HttpClient http, IConfiguration configur
         }
         var token = await usuarios.GeneratePasswordResetTokenAsync(usuario);
         var url = Enlace("restablecer-clave", new() { ["email"] = usuario.Email, ["token"] = Codificar(token) });
-        await EnviarAsync(usuario, "Restablece tu contraseña de CineSpace", "Cambiar contraseña", "Recibimos una solicitud para cambiar tu contraseña. Si no fuiste tu, puedes ignorar este correo.", url, cancelacion);
+        await EnviarAsync(usuario, PlantillaCorreoCuenta.Recuperacion(usuario.Nombre, url, opcionesToken.Value.TokenLifespan), cancelacion);
     }
 
     private string Enlace(string ruta, Dictionary<string, string?> valores)
@@ -48,21 +48,18 @@ public sealed class CorreoCuentaService(HttpClient http, IConfiguration configur
         catch (FormatException) { throw new ArgumentException("El enlace no es valido o ha caducado."); }
     }
 
-    private async Task EnviarAsync(Usuario usuario, string asunto, string accion, string texto, string url, CancellationToken cancelacion)
+    private async Task EnviarAsync(Usuario usuario, ContenidoCorreoCuenta contenido, CancellationToken cancelacion)
     {
         var apiKey = configuration["BrevoSettings:ApiKey"];
         var remitente = configuration["BrevoSettings:FromEmail"];
         if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(remitente))
             throw new OperacionCineException("El envio de correo no esta configurado. Intentalo mas tarde.");
-        var nombre = WebUtility.HtmlEncode(usuario.Nombre);
-        var enlace = WebUtility.HtmlEncode(url);
-        var html = $"<html lang='es'><body style='margin:0;background:#111114;font-family:Arial,sans-serif;color:#222'><main style='max-width:560px;margin:32px auto;padding:32px;background:#fff;border-top:6px solid #a63c59'><h1 style='color:#642633'>CineSpace</h1><p>Hola, {nombre}.</p><p>{WebUtility.HtmlEncode(texto)}</p><p style='margin:32px 0'><a style='background:#a63c59;color:#fff;padding:14px 20px;text-decoration:none;border-radius:2px;display:inline-block;font-weight:bold' href='{enlace}'>{WebUtility.HtmlEncode(accion)}</a></p><p>Este enlace es personal y tiene una validez limitada.</p><p style='font-size:12px;color:#625d60'>CineSpace · Tu próxima experiencia comienza aquí.</p></main></body></html>";
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.brevo.com/v3/smtp/email");
         request.Headers.Add("api-key", apiKey);
         request.Content = JsonContent.Create(new
         {
             sender = new { email = remitente, name = configuration["BrevoSettings:FromName"] ?? "CineSpace" },
-            to = new[] { new { email = usuario.Email, name = usuario.Nombre } }, subject = asunto, htmlContent = html
+            to = new[] { new { email = usuario.Email, name = usuario.Nombre } }, subject = contenido.Asunto, htmlContent = contenido.Html, textContent = contenido.Texto
         });
         using var response = await http.SendAsync(request, cancelacion);
         if (response.StatusCode != HttpStatusCode.Created)

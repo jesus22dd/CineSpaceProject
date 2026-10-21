@@ -1,23 +1,63 @@
 export function observeRating(element) {
+    const source = element?.querySelector('.account-rating-source');
+    const preview = element?.querySelector('.account-rating-preview');
+    const paragraph = element?.querySelector('.account-rating-comment');
+    const button = element?.querySelector('.account-rating-expand');
+    const heading = element?.querySelector('h2');
+    if (!source || !preview || !paragraph) return { dispose() {} };
+
     let disposed = false;
     let width = -1;
-    function measure() {
-        if (disposed || !element?.isConnected) return;
-        element.classList.add('is-measuring');
-        const overflowing = [...element.querySelectorAll('h2, .account-rating-comment')]
-            .some(text => text.scrollHeight > text.clientHeight + 1);
-        element.classList.remove('is-measuring');
-        element.dataset.overflow = String(overflowing);
+    let frame = 0;
+    function fits() {
+        // The enlarged touch target is outside the line box; measure only visible content.
+        // Local offsets also avoid viewport scroll anchoring during text measurement.
+        return preview.offsetHeight <= paragraph.clientHeight + 1 &&
+            preview.offsetWidth <= paragraph.clientWidth + 1 &&
+            button.offsetTop + button.offsetHeight <= paragraph.clientHeight + 1 &&
+            button.offsetLeft + button.offsetWidth <= paragraph.clientWidth + 1;
     }
-    const observer = new ResizeObserver(entries => {
-        const nextWidth = entries[0].contentRect.width;
+    function measure() {
+        frame = 0;
+        if (disposed || !element.isConnected) return;
+        const text = source.textContent;
+        element.dataset.overflow = 'false';
+        preview.textContent = text;
+        const truncated = !fits();
+        if (!truncated && heading.scrollWidth <= heading.clientWidth + 1) return;
+        element.dataset.overflow = 'true';
+        preview.textContent = text + ' ';
+        if (fits()) return;
+
+        // Reserve the inline button while measuring the final visible line.
+        const characters = Array.from(text);
+        let low = 0;
+        let high = characters.length;
+        while (low < high) {
+            const middle = Math.ceil((low + high) / 2);
+            preview.textContent = characters.slice(0, middle).join('').trimEnd() + '… ';
+            if (fits()) low = middle; else high = middle - 1;
+        }
+        let excerpt = characters.slice(0, low).join('');
+        const word = excerpt.search(/\s+\S*$/u);
+        if (word > excerpt.length * .7 && /\S/u.test(characters[low] ?? '')) excerpt = excerpt.slice(0, word);
+        preview.textContent = excerpt.trimEnd() + '… ';
+    }
+    function schedule() {
+        if (!disposed && !frame) frame = requestAnimationFrame(measure);
+    }
+    const observer = new ResizeObserver(() => {
+        const nextWidth = paragraph.clientWidth;
         if (nextWidth === width) return;
         width = nextWidth;
-        measure();
+        schedule();
     });
-    if (element?.isConnected) { observer.observe(element); measure(); }
-    const content = new MutationObserver(measure);
-    if(element)content.observe(element,{childList:true,characterData:true,subtree:true});
-    document.fonts.ready.then(measure);
-    return { dispose() { disposed = true; observer.disconnect(); content.disconnect(); } };
+    observer.observe(paragraph);
+    const content = new MutationObserver(schedule);
+    content.observe(source, { childList:true, characterData:true, subtree:true });
+    content.observe(heading, { childList:true, characterData:true, subtree:true });
+    document.fonts.ready.then(schedule);
+    document.fonts.addEventListener('loadingdone', schedule);
+    schedule();
+    return { dispose() { disposed = true; cancelAnimationFrame(frame); observer.disconnect(); content.disconnect(); document.fonts.removeEventListener('loadingdone', schedule); } };
 }
