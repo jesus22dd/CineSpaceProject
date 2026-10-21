@@ -25,7 +25,7 @@ public sealed class AnaliticaService(CineSpaceDbContext db, Microsoft.Extensions
               (SELECT count(*)::int FROM cine.salas) AS "Salas",
               coalesce((SELECT sum(cantidad)::int FROM cine.ventas),0) AS "Tickets",
               coalesce((SELECT sum(total) FROM cine.ventas),0) AS "Ingresos",
-              coalesce((SELECT sum(total) FROM cine.pedidos WHERE estado='Retirado'),0) AS "IngresosConfiteria",
+              coalesce((SELECT sum(total) FROM cine.pedidos WHERE estado<>'Cancelado'),0) AS "IngresosConfiteria",
               coalesce((SELECT sum(sueldo) FROM cine.trabajadores),0) AS "Sueldos",
               coalesce((SELECT avg(extract(year FROM age((CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date,nacimiento)))::double precision FROM cine.trabajadores),0) AS "EdadPromedio"
             """).SingleAsync(ct);
@@ -50,9 +50,9 @@ public sealed class AnaliticaService(CineSpaceDbContext db, Microsoft.Extensions
             UNION ALL (SELECT 'generos',g.nombre,sum(v.cantidad)::numeric,count(*)::int,sum(v.cantidad)::int,NULL::numeric FROM cine.ventas v JOIN cine.funciones f ON f.id=v.funcion_id JOIN cine.peliculas_generos pg ON pg.pelicula_id=f.pelicula_id JOIN cine.generos g ON g.id=pg.genero_id GROUP BY g.nombre ORDER BY sum(v.cantidad) DESC LIMIT 5)
             UNION ALL (SELECT 'salas',s.nombre,count(*)::numeric,count(*)::int,sum(v.cantidad)::int,NULL::numeric FROM cine.ventas v JOIN cine.funciones f ON f.id=v.funcion_id JOIN cine.salas s ON s.id=f.sala_id GROUP BY s.nombre ORDER BY count(*) DESC LIMIT 5)
             UNION ALL (SELECT 'experiencias',e.nombre,count(*)::numeric,count(*)::int,sum(v.cantidad)::int,NULL::numeric FROM cine.ventas v JOIN cine.funciones f ON f.id=v.funcion_id JOIN cine.experiencias e ON e.id=f.experiencia_id GROUP BY e.nombre ORDER BY count(*) DESC LIMIT 5)
-            UNION ALL (SELECT 'categorias',l.categoria,sum(l.cantidad*l.precio_unitario)::numeric,count(*)::int,sum(l.cantidad)::int,NULL::numeric FROM cine.pedido_lineas l JOIN cine.pedidos p ON p.id=l.pedido_id WHERE p.estado='Retirado' GROUP BY l.categoria ORDER BY sum(l.cantidad*l.precio_unitario) DESC LIMIT 5)
+            UNION ALL (SELECT 'categorias',l.categoria,sum(l.cantidad*l.precio_unitario)::numeric,count(*)::int,sum(l.cantidad)::int,NULL::numeric FROM cine.pedido_lineas l JOIN cine.pedidos p ON p.id=l.pedido_id WHERE p.estado<>'Cancelado' GROUP BY l.categoria ORDER BY sum(l.cantidad*l.precio_unitario) DESC LIMIT 5)
             UNION ALL SELECT 'cine',to_char(fecha_utc AT TIME ZONE 'America/La_Paz','YYYY-MM-DD'),sum(total)::numeric,count(*)::int,sum(cantidad)::int,NULL::numeric FROM cine.ventas WHERE fecha_utc >= (((CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date - 29)::timestamp AT TIME ZONE 'America/La_Paz') GROUP BY 2
-            UNION ALL SELECT 'confiteria',to_char(retirado_utc AT TIME ZONE 'America/La_Paz','YYYY-MM-DD'),sum(total)::numeric,count(*)::int,0,NULL::numeric FROM cine.pedidos WHERE estado='Retirado' AND retirado_utc >= (((CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date - 29)::timestamp AT TIME ZONE 'America/La_Paz') GROUP BY 2
+            UNION ALL SELECT 'confiteria',to_char(pagado_utc AT TIME ZONE 'America/La_Paz','YYYY-MM-DD'),sum(total)::numeric,count(*)::int,0,NULL::numeric FROM cine.pedidos WHERE estado<>'Cancelado' AND pagado_utc >= (((CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date - 29)::timestamp AT TIME ZONE 'America/La_Paz') GROUP BY 2
             """).ToListAsync(ct);
         }) ?? [];
         List<DatoGrafico> Serie(string tipo) => filas.Where(x => x.Tipo == tipo).Select(x => new DatoGrafico(x.Nombre,x.Valor,x.Cantidad,x.Tickets,x.Ingresos)).ToList();

@@ -43,8 +43,10 @@ public sealed record TokenAntiforgery(string Token);
 public sealed record ImagenGuardada(string Url, string Ruta);
 public sealed record CambiarEstado(bool Activo);
 public sealed record MoverElemento(int Direccion);
-public sealed record EntregarPedido(string MetodoPago);
-public sealed record SolicitudPedido(string Nombre, string Solicitud, List<LineaPedidoSolicitud> Items, decimal? TotalEsperado = null);
+public sealed record PagoPedidoSolicitud([Required] string MetodoPago, bool QrConfirmado = false,
+    [MaxLength(100)] string Titular = "", [MaxLength(23)] string Numero = "",
+    [MaxLength(5)] string Vencimiento = "", [MaxLength(3)] string Cvv = "");
+public sealed record SolicitudPedido(string Nombre, string Solicitud, List<LineaPedidoSolicitud> Items, decimal? TotalEsperado = null, PagoPedidoSolicitud? Pago = null);
 public sealed record LineaPedidoSolicitud(int ComboId, int Cantidad);
 public sealed record FiltroOpcion(string Id, string Nombre);
 public sealed record RecuentoCatalogo(int Id, int Uso);

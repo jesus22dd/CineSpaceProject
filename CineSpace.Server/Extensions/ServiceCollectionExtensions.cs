@@ -97,6 +97,13 @@ public static class ServiceCollectionExtensions
         services.AddRateLimiter(options => options.AddPolicy("cuentas", context => RateLimitPartition.GetFixedWindowLimiter(
             context.Connection.RemoteIpAddress?.ToString() ?? "local", _ => new FixedWindowRateLimiterOptions
             { PermitLimit = 12, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 })));
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.AddPolicy("pedidos", context => RateLimitPartition.GetFixedWindowLimiter(
+                context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "local",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = 12, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+        });
         services.AddExceptionHandler<CineSpace.Server.Filters.ErrorApiHandler>();
         services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
         // Cada escritura valida este token junto a la cookie de sesion.

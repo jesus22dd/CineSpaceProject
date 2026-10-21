@@ -14,23 +14,6 @@
 .payment-heading p > span { color:var(--cinema-muted); font-size:11px; }
 .payment-heading strong { color:var(--cinema-heading); font-size:24px; font-variant-numeric:tabular-nums; line-height:1.2; }
 .payment-heading small { font-size:13px; }
-.payment-methods { display:flex; flex-wrap:wrap; gap:8px; min-width:0; padding:0; border:0; margin:0 0 20px; }
-.payment-choice { display:flex; align-items:center; gap:8px; flex:1 1 160px; min-height:48px; padding:10px 12px; margin:0; border:1px solid var(--cinema-line); background:var(--cinema-canvas); border-radius:4px; font-size:13px; cursor:pointer; color:var(--cinema-ink); }
-.payment-choice.is-selected { border-color:var(--cinema-accent); background:var(--cinema-accent-soft); }
-.payment-choice input,.payment-qr-confirm input { width:18px; height:18px; accent-color:var(--cinema-accent); flex-shrink:0; margin:0; }
-.payment-choice:focus-within { outline:2px solid var(--cinema-focus); outline-offset:2px; }
-.payment-simulation-note { padding:14px 16px; margin-bottom:20px; background:var(--cinema-canvas); border-radius:4px; }
-.payment-simulation-note > strong { font-size:13px; color:var(--cinema-heading); }
-.payment-simulation-note p,.payment-qr p { margin:6px 0 0; font-size:13px; line-height:1.5; color:var(--cinema-muted); }
-.payment-test-fill { display:inline-flex; align-items:center; gap:8px; min-height:44px; padding:8px 0; border:0; background:transparent; color:var(--cinema-link); font-size:13px; font-weight:600; }
-.payment-test-fill:hover { text-decoration:underline; }
-.payment-qr { display:grid; justify-items:center; text-align:center; gap:12px; }
-.payment-qr-frame { padding:12px; background:#fff; border-radius:4px; max-width:100%; }
-.payment-qr img { display:block; width:220px; max-width:100%; height:auto; }
-.payment-qr > strong { font-size:15px; color:var(--cinema-heading); }
-.payment-qr p { margin:0; max-width:40ch; }
-.payment-qr-confirm { display:flex; align-items:center; gap:12px; min-height:44px; margin:20px 0 0; font-size:13px; color:var(--cinema-heading); cursor:pointer; }
-.payment-error { margin:20px 0 0; font-size:13px; }
 .booking-actions { display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-top:24px; }
 @media(max-width:900px) { .customer-payment-layout { grid-template-columns:minmax(0,1fr); } }
-@media(max-width:480px) { .checkout-section { padding:20px 16px; }.customer-checkout > header h3 { font-size:24px; }.checkout-fields { gap:16px 12px; }.payment-heading h4 { font-size:18px; }.payment-heading strong { font-size:22px; }.payment-choice { flex-basis:100%; }.booking-actions > button { width:100%; } }
+@media(max-width:480px) { .checkout-section { padding:20px 16px; }.customer-checkout > header h3 { font-size:24px; }.checkout-fields { gap:16px 12px; }.payment-heading h4 { font-size:18px; }.payment-heading strong { font-size:22px; }.booking-actions > button { width:100%; } }

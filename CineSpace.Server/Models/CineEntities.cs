@@ -167,6 +167,7 @@ public sealed class PedidoRegistro
     public string MetodoPago { get; set; } = "";
     public decimal Total { get; set; }
     public DateTime CreadoUtc { get; set; } = DateTime.UtcNow;
+    public DateTime PagadoUtc { get; set; }
     public DateTime? RetiradoUtc { get; set; }
     public Guid? EntregadoPorId { get; set; }
     public Usuario? Usuario { get; set; }

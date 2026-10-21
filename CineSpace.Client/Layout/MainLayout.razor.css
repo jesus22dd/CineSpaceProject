@@ -16,7 +16,7 @@
 .has-management-nav .header-brand-group { margin-left: calc(var(--nav-width) + 24px - var(--header-inset)); transition: margin-left var(--nav-duration) var(--nav-ease); }
 .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--cinema-paper); font: 600 25px 'Outfit', sans-serif; letter-spacing: -.03em; white-space: nowrap; }
 .brand:hover { color: var(--cinema-paper); }
-.brand svg { width: 28px; height: 28px; fill: none; stroke: var(--cinema-gold); stroke-width: 1.5; flex-shrink: 0; }
+.brand .brand-logo { width: 28px; height: 28px; border-radius:5px; object-fit:contain; flex-shrink:0; }
 .brand-space { color: var(--cinema-gold); }
 .public-navigation { display: flex; align-items: center; gap: 28px; flex-shrink: 0; }
 .public-section-links { display: flex; align-items: center; gap: 28px; }
@@ -72,7 +72,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
     .site-header { padding: 12px var(--header-inset); gap: 12px; }
     .header-brand-group { gap: 10px; }
     .brand { font-size: 23px; gap: 8px; }
-    .brand svg { width: 24px; height: 24px; }
+    .brand .brand-logo { width: 24px; height: 24px; }
     .public-navigation { gap: 8px; }
     .public-navigation ::deep .catalogue-link, .header-login { font-size: 12px; }
     .header-login { padding: 10px 12px; }
@@ -83,7 +83,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
     .site-header { gap: 8px; }
     .header-brand-group { gap: 6px; }
     .brand { font-size: 20px; gap: 6px; }
-    .brand svg { width: 21px; height: 21px; }
+    .brand .brand-logo { width: 21px; height: 21px; }
     .public-navigation { gap: 8px; }
     .header-login { padding-inline: 10px; }
     .header-login { width: 44px; padding: 0; }
@@ -94,7 +94,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
     .page { --header-inset: 12px; }
     .site-header { gap: 8px; }
     .brand { font-size: 20px; gap: 6px; }
-    .brand svg { width: 22px; height: 22px; }
+    .brand .brand-logo { width: 22px; height: 22px; }
     .public-navigation { gap: 6px; }
     .header-login { width: 44px; padding: 0; }
     .login-label { display: none; }
@@ -104,12 +104,12 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
     .page { --header-inset: 8px; }
     .site-header { gap: 4px; }
     .brand { font-size: 18px; gap: 4px; }
-    .brand svg { width: 20px; height: 20px; }
+    .brand .brand-logo { width: 20px; height: 20px; }
     .public-navigation { gap: 2px; }
     .public-navigation ::deep .catalogue-link { width: 44px; justify-content: center; }
     .public-navigation ::deep .explore-label { display: none; }
     .public-navigation ::deep .explore-icon { display: block; font-size: 16px; }
-    .has-management-nav .brand svg { display: none; }
+    .has-management-nav .brand .brand-logo { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
     .has-management-nav .app-frame, .has-management-nav .app-frame.is-nav-open, .sidebar, .sidebar.is-open, .has-management-nav .header-brand-group, .has-management-nav .site-header::before { transition: none; }

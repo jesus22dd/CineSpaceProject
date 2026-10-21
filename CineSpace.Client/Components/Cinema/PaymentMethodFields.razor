@@ -1,0 +1,55 @@
+@namespace CineSpace.Client.Components.Cinema
+@using CineSpace.Shared.Contracts
+<fieldset class="payment-fields" disabled="@Procesando">
+<legend class="visually-hidden">Datos del pago</legend>
+<fieldset class="payment-methods"><legend class="visually-hidden">Selecciona el método de pago</legend>
+                <label class="payment-choice @(MetodoPago == "Tarjeta" ? "is-selected" : "")" for="@Id("tarjeta")"><input type="radio" name="@Id("metodoPago")" id="@Id("tarjeta")" value="Tarjeta" checked="@(MetodoPago == "Tarjeta")" @onchange="HandleMetodoPagoChanged" disabled="@Procesando" /><i class="far fa-credit-card" aria-hidden="true"></i><span>Tarjeta de débito</span></label>
+                <label class="payment-choice @(MetodoPago == "QR" ? "is-selected" : "")" for="@Id("qr")"><input type="radio" name="@Id("metodoPago")" id="@Id("qr")" value="QR" checked="@(MetodoPago == "QR")" @onchange="HandleMetodoPagoChanged" disabled="@Procesando" /><i class="fas fa-qrcode" aria-hidden="true"></i><span>Pago QR</span></label>
+                @if (PermiteEfectivo) { <label class="payment-choice @(MetodoPago == "Efectivo" ? "is-selected" : "")" for="@Id("efectivo")"><input type="radio" name="@Id("metodoPago")" id="@Id("efectivo")" value="Efectivo" checked="@(MetodoPago == "Efectivo")" @onchange="HandleMetodoPagoChanged" disabled="@Procesando" /><i class="fas fa-money-bill-wave" aria-hidden="true"></i><span>Efectivo</span></label> }
+            </fieldset>
+            @if (MetodoPago == "Tarjeta")
+            {
+                <div class="payment-simulation-note" id="@Id("debit-test-note")"><button type="button" class="payment-test-fill" @onclick="CompletarDatosPrueba" disabled="@Procesando">Usar datos de prueba<i class="fas fa-arrow-down" aria-hidden="true"></i></button></div>
+                <div class="checkout-fields debit-fields" aria-describedby="@Id("debit-test-note")">
+                    <div class="field-full"><label for="@Id("debit-holder")">Titular de la tarjeta</label><input id="@Id("debit-holder")" class="form-control" autocomplete="off" required maxlength="100" @bind="titular" @bind:event="oninput" /></div>
+                    <div class="field-full"><label for="@Id("debit-number")">Número de tarjeta</label><input id="@Id("debit-number")" class="form-control" autocomplete="off" inputmode="numeric" placeholder="4242 4242 4242 4242" required maxlength="23" @bind="numero" @bind:event="oninput" /></div>
+                    <div><label for="@Id("debit-expiry")">Vencimiento</label><input id="@Id("debit-expiry")" class="form-control" autocomplete="off" inputmode="numeric" placeholder="MM/AA" required maxlength="5" @bind="vencimiento" @bind:event="oninput" /></div>
+                    <div><label for="@Id("debit-cvv")">CVV</label><input id="@Id("debit-cvv")" type="password" class="form-control" autocomplete="off" inputmode="numeric" placeholder="123" required maxlength="3" @bind="cvv" @bind:event="oninput" /></div>
+                </div>
+            }
+            else if (MetodoPago == "QR")
+            {
+                <div class="payment-qr"><span class="payment-qr-frame"><img src="/images/payment-qr.png" alt="Código QR para realizar el pago" width="220" height="220" /></span><strong>Paga con QR</strong><p>Escanea el QR y confirma el pago para continuar.</p></div>
+                <label class="payment-qr-confirm" for="@Id("qr-payment-confirmed")"><input id="@Id("qr-payment-confirmed")" type="checkbox" required @bind="qrConfirmado" disabled="@Procesando" />He realizado el pago</label>
+            }
+            else if (MetodoPago == "Efectivo" && PermiteEfectivo)
+            {
+                <div class="payment-simulation-note"><strong>Cobro en caja</strong><p>Registra el importe recibido antes de finalizar la compra del cliente.</p></div>
+            }
+            @if (!string.IsNullOrEmpty(errorPago)) { <p class="alert alert-danger payment-error" role="alert">@errorPago</p> }
+</fieldset>
+@code {
+    [Parameter] public string MetodoPago { get; set; } = "Tarjeta";
+    [Parameter] public EventCallback<string> OnMetodoPagoChanged { get; set; }
+    [Parameter] public bool PermiteEfectivo { get; set; }
+    [Parameter] public bool Procesando { get; set; }
+    [Parameter] public decimal Total { get; set; }
+    [Parameter] public string Prefijo { get; set; } = "";
+    private string titular="", numero="", vencimiento="", cvv="", errorPago="", metodoAnterior="";
+    private decimal totalAnterior=-1;
+    private bool qrConfirmado;
+    private string Id(string value) => Prefijo.Length == 0 ? value : Prefijo + "-" + value;
+    protected override void OnParametersSet() { if(metodoAnterior == MetodoPago && totalAnterior == Total)return;metodoAnterior=MetodoPago;totalAnterior=Total;LimpiarPago(); }
+    public void LimpiarPago() { titular=numero=vencimiento=cvv=errorPago="";qrConfirmado=false; }
+    private void CompletarDatosPrueba() { titular="CLIENTE DE PRUEBA";numero="4242 4242 4242 4242";vencimiento=DateTime.Today.AddYears(1).ToString("MM/yy");cvv="123";errorPago=""; }
+    private async Task HandleMetodoPagoChanged(ChangeEventArgs args) { var metodo=args.Value?.ToString()??"";if(PagosReserva.MetodoPermitido(metodo,PermiteEfectivo))await OnMetodoPagoChanged.InvokeAsync(metodo); }
+    public PagoPedidoSolicitud? PrepararPago()
+    {
+        if(Procesando)return null;
+        errorPago=!PagosReserva.MetodoPermitido(MetodoPago,PermiteEfectivo)?"Selecciona un método de pago disponible."
+            :MetodoPago=="Tarjeta"?PagosReserva.ValidarDebito(titular,numero,vencimiento,cvv,DateTime.Today)
+            :MetodoPago=="QR"&&!qrConfirmado?"Confirma el pago QR antes de continuar.":"";
+        if(errorPago.Length>0){StateHasChanged();return null;}
+        return new(MetodoPago,qrConfirmado,titular,numero,vencimiento,cvv);
+    }
+}

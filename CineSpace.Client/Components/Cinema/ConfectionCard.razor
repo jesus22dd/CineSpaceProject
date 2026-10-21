@@ -1,8 +1,6 @@
 @namespace CineSpace.Client.Components.Cinema
-@implements IAsyncDisposable
-@inject IJSRuntime JS
 
-<article class="movie-card confectionery-card @(abierta ? "is-expanded" : Revelada ? "is-revealed" : "")" style="--confectionery-row: @(Indice / 2 + 1); --confectionery-column: @(Indice % 2 + 1)" @ref="elemento" @onpointerenter="Entrar" @onpointerleave="Salir" @onfocusin="Enfocar" @onfocusout="Desenfocar" @onkeydown="Tecla">
+<article class="confectionery-card @(abierta ? "is-expanded" : "")" style="--confectionery-row: @(Indice / 2 + 1); --confectionery-column: @(Indice % 2 + 1)" @onkeydown="Tecla">
     @if (abierta)
     {
         <div class="confectionery-inline-detail" id="@IdDetalle">
@@ -18,10 +16,9 @@
     }
     else
     {
-        <div class="movie-poster-container"><img src="@Combo.Foto" alt="@Combo.Nombre" loading="lazy" decoding="async" /></div>
+        <button type="button" class="confectionery-photo" aria-label="Ver detalles de @Combo.Nombre" aria-expanded="false" aria-controls="@IdDetalle" @ref="disparador" @onclick="Abrir"><img src="@Combo.Foto" alt="" loading="lazy" decoding="async" width="768" height="768" /></button>
         @if (Cantidad > 0) { <span class="confectionery-in-cart"><i class="fas fa-check" aria-hidden="true"></i>@Cantidad en carrito</span> }
-        <button type="button" class="movie-card-trigger" aria-label="Ver detalles de @Combo.Nombre" aria-expanded="false" aria-controls="@IdDetalle" @ref="disparador" @onclick="Abrir"></button>
-        <div class="movie-card-body"><h2>@Combo.Nombre</h2><strong class="confectionery-card-price">@(Combo.Precio > 0 ? $"{Combo.Precio:N2} Bs" : "Precio por definir")</strong><div class="movie-actions" inert="@(!Revelada)"><button type="button" class="btn btn-primary confectionery-add" aria-label="Añadir @Combo.Nombre al carrito" disabled="@NoDisponible" @onclick="() => OnAñadir.InvokeAsync((Combo, 1))"><i class="fas fa-plus" aria-hidden="true"></i>Añadir</button></div></div>
+        <div class="confectionery-card-body"><h2><button type="button" @onclick="Abrir">@Combo.Nombre</button></h2><strong class="confectionery-card-price">@(Combo.Precio > 0 ? $"{Combo.Precio:N2} Bs" : "Precio por definir")</strong><button type="button" class="btn btn-primary confectionery-add" aria-label="Añadir @Combo.Nombre al carrito" disabled="@NoDisponible" @onclick="() => OnAñadir.InvokeAsync((Combo, 1))"><i class="fas fa-plus" aria-hidden="true"></i>Añadir</button></div>
     }
 </article>
 @code {
@@ -37,19 +34,12 @@
     private int Maximo => Math.Max(1, 20 - Cantidad);
     private bool NoDisponible => Deshabilitada || Combo.Precio <= 0 || Cantidad >= 20;
     private bool abierta => Abierta;
-    private bool raton, foco, omitirFoco, enfocarDetalle, devolverFoco;
-    private bool Revelada => raton || foco;
+    private bool enfocarDetalle, devolverFoco;
     private string IdDetalle => $"confection-detail-{Combo.Id}";
-    private ElementReference elemento, disparador, cerrar;
-    private IJSObjectReference? modulo;
+    private ElementReference disparador, cerrar;
     protected override void OnParametersSet() => seleccion = abierta ? Math.Clamp(seleccion, 1, Maximo) : 1;
-    protected override async Task OnAfterRenderAsync(bool firstRender) { if (firstRender) modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/catalogue.js"); if (enfocarDetalle) { enfocarDetalle = false; await cerrar.FocusAsync(preventScroll: true); } if (devolverFoco) { devolverFoco = false; await disparador.FocusAsync(preventScroll: true); } }
+    protected override async Task OnAfterRenderAsync(bool firstRender) { if (enfocarDetalle) { enfocarDetalle = false; await cerrar.FocusAsync(preventScroll: true); } if (devolverFoco) { devolverFoco = false; await disparador.FocusAsync(preventScroll: true); } }
     private async Task Abrir() { enfocarDetalle = true; await OnAbiertaChanged.InvokeAsync(true); }
-    private async Task Cerrar() { raton = foco = false; omitirFoco = true; devolverFoco = true; seleccion = 1; await OnAbiertaChanged.InvokeAsync(false); }
-    private void Entrar(PointerEventArgs e) { if (e.PointerType == "mouse") raton = true; }
-    private void Salir(PointerEventArgs e) { if (e.PointerType == "mouse") raton = false; }
-    private void Enfocar() { if (omitirFoco) { omitirFoco = false; return; } foco = true; }
-    private async Task Desenfocar() { if (modulo != null && !await modulo.InvokeAsync<bool>("containsFocus", elemento)) foco = false; }
-    private async Task Tecla(KeyboardEventArgs e) { if (e.Key == "Escape") { if (abierta) await Cerrar(); else { raton = foco = false; } } }
-    public async ValueTask DisposeAsync() { if (modulo != null) { try { await modulo.DisposeAsync(); } catch (JSDisconnectedException) { } } }
+    private async Task Cerrar() { devolverFoco = true; seleccion = 1; await OnAbiertaChanged.InvokeAsync(false); }
+    private async Task Tecla(KeyboardEventArgs e) { if (e.Key == "Escape" && abierta) await Cerrar(); }
 }

@@ -12,7 +12,7 @@ public interface IPedidosService
     Task<PedidoConfiteria> CrearAsync(SolicitudPedido solicitud, Guid? usuario, string invitado, CancellationToken ct);
     Task<Pagina<PedidoConfiteria>> ListarAsync(ConsultaPagina filtro, Guid? usuario, string invitado, bool personal, CancellationToken ct);
     Task<PedidoConfiteria> ObtenerAsync(string token, Guid? usuario, string invitado, bool personal, CancellationToken ct);
-    Task<PedidoConfiteria> EntregarAsync(string token, string metodo, Guid operador, CancellationToken ct);
+    Task<PedidoConfiteria> EntregarAsync(string token, Guid operador, CancellationToken ct);
     Task CancelarAsync(string token, Guid? usuario, string invitado, bool personal, CancellationToken ct);
 }
 
@@ -23,7 +23,9 @@ public sealed class PedidosService(CineSpaceDbContext db, IRepositorioCine repos
     {
         var nombre = ReglasCine.Texto(solicitud.Nombre, 160, "el nombre de retiro");
         var clave = ReglasCine.Texto(solicitud.Solicitud, 64, "la solicitud");
-        if (solicitud.Items.Count is < 1 or > 30 || solicitud.Items.Any(x => x.Cantidad is < 1 or > 20) || solicitud.Items.Select(x => x.ComboId).Distinct().Count() != solicitud.Items.Count)
+        var metodo = ValidarPago(solicitud.Pago);
+        if (!solicitud.TotalEsperado.HasValue || solicitud.TotalEsperado <= 0) throw new ArgumentException("Revisa el total del carrito antes de pagar.");
+        if (solicitud.Items is null || solicitud.Items.Count is < 1 or > 30 || solicitud.Items.Any(x => x.Cantidad is < 1 or > 20) || solicitud.Items.Select(x => x.ComboId).Distinct().Count() != solicitud.Items.Count)
             throw new ArgumentException("Revisa las cantidades del carrito.");
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         // Serializa los reintentos del mismo carrito sin bloquear otros pedidos.
@@ -33,9 +35,11 @@ public sealed class PedidosService(CineSpaceDbContext db, IRepositorioCine repos
         var ids = solicitud.Items.Select(x => x.ComboId).ToArray();
         var productos = await db.Combos.AsNoTracking().Include(x => x.Categoria).Where(x => ids.Contains(x.Id) && x.Publicado).ToListAsync(ct);
         if (productos.Count != ids.Length) throw new OperacionCineException("Un producto ya no esta disponible. Actualiza tu carrito.");
+        var ahora = DateTime.UtcNow;
         var pedido = new PedidoRegistro { Numero = "P-" + ReglasCine.Codigo(12), Codigo = ReglasCine.Codigo(12), Token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24)).ToLowerInvariant(),
-            Solicitud = clave, UsuarioId = usuario, PropietarioInvitado = usuario is null ? invitado : "", NombreRetiro = nombre };
-        pedido.Lineas = solicitud.Items.Select(linea => { var combo = productos.Single(x => x.Id == linea.ComboId); return new PedidoLineaRegistro
+            Solicitud = clave, UsuarioId = usuario, PropietarioInvitado = usuario is null ? invitado : "", NombreRetiro = nombre, MetodoPago = metodo, CreadoUtc = ahora, PagadoUtc = ahora };
+        var catalogo = productos.ToDictionary(x => x.Id);
+        pedido.Lineas = solicitud.Items.Select(linea => { var combo = catalogo[linea.ComboId]; return new PedidoLineaRegistro
             { ComboId = combo.Id, Nombre = combo.Nombre, Categoria = combo.Categoria.Nombre, Cantidad = linea.Cantidad, PrecioUnitario = combo.Precio }; }).ToList();
         pedido.Total = pedido.Lineas.Sum(x => x.Cantidad * x.PrecioUnitario);
         if (solicitud.TotalEsperado.HasValue && solicitud.TotalEsperado.Value != pedido.Total)
@@ -57,19 +61,26 @@ public sealed class PedidosService(CineSpaceDbContext db, IRepositorioCine repos
         var pedido = await Consulta.SingleOrDefaultAsync(x => x.Token == token || personal && x.Codigo == token.ToUpper(), ct) ?? throw new KeyNotFoundException("No encontramos este pedido.");
         ExigirPropietario(pedido, usuario, invitado, personal); return MapasCine.Pedido(pedido);
     }
-    public async Task<PedidoConfiteria> EntregarAsync(string token, string metodo, Guid operador, CancellationToken ct)
+    public async Task<PedidoConfiteria> EntregarAsync(string token, Guid operador, CancellationToken ct)
     {
-        metodo = ReglasCine.MetodoPago(metodo, true);
-        var cambios = await db.Pedidos.Where(x => x.Token == token && x.Estado == "Pendiente").ExecuteUpdateAsync(p => p
-            .SetProperty(x => x.Estado, "Retirado").SetProperty(x => x.MetodoPago, metodo).SetProperty(x => x.EntregadoPorId, operador).SetProperty(x => x.RetiradoUtc, DateTime.UtcNow), ct);
-        if (cambios != 1) throw new OperacionCineException("El pedido ya fue entregado, cancelado o no existe.");
+        var ahora = DateTime.UtcNow;
+        var cambios = await db.Pedidos.Where(x => x.Token == token && x.Estado == "Pendiente" && x.PagadoUtc <= ahora && (x.MetodoPago == "QR" || x.MetodoPago == "Tarjeta")).ExecuteUpdateAsync(p => p
+            .SetProperty(x => x.Estado, "Retirado").SetProperty(x => x.EntregadoPorId, operador).SetProperty(x => x.RetiradoUtc, ahora), ct);
+        if (cambios != 1) throw new OperacionCineException("El pedido no tiene un pago confirmado, ya fue entregado o no está disponible.");
         return await ObtenerAsync(token, operador, "", true, ct);
     }
-    public async Task CancelarAsync(string token, Guid? usuario, string invitado, bool personal, CancellationToken ct)
+    public Task CancelarAsync(string token, Guid? usuario, string invitado, bool personal, CancellationToken ct)
+        => throw new OperacionCineException("Los pedidos pagados no admiten cancelación en línea. Contacta con el personal del cine.");
+    private static string ValidarPago(PagoPedidoSolicitud? pago)
     {
-        var q = db.Pedidos.Where(x => x.Token == token && x.Estado == "Pendiente");
-        if (!personal) q = q.Where(x => usuario.HasValue ? x.UsuarioId == usuario : x.UsuarioId == null && x.PropietarioInvitado == invitado);
-        if (await q.ExecuteUpdateAsync(p => p.SetProperty(x => x.Estado, "Cancelado"), ct) != 1) throw new OperacionCineException("El pedido ya no puede cancelarse.");
+        if (pago is null || pago.MetodoPago is not ("QR" or "Tarjeta")) throw new ArgumentException("Confirma un pago con QR o tarjeta de débito antes de crear el pedido.");
+        if (pago.MetodoPago == "QR" && !pago.QrConfirmado) throw new ArgumentException("Confirma el pago QR antes de continuar.");
+        if (pago.MetodoPago == "Tarjeta")
+        {
+            var error = PagosReserva.ValidarDebito(pago.Titular ?? "", pago.Numero ?? "", pago.Vencimiento ?? "", pago.Cvv ?? "", ReglasCine.Ahora.Date);
+            if (error.Length > 0) throw new ArgumentException(error);
+        }
+        return pago.MetodoPago;
     }
     private static void ExigirPropietario(PedidoRegistro pedido, Guid? usuario, string invitado, bool personal)
     {

@@ -9,15 +9,15 @@
 
 <PageTitle>Confitería - CineSpace</PageTitle>
 <section class="public-confectionery" aria-labelledby="confectionery-title">
-    <div class="confectionery-heading"><div><h1 id="confectionery-title">Confitería</h1><p>Elige algo rico para acompañar tu próxima película.</p></div><div class="confectionery-heading-actions"><a class="confectionery-orders-link" href="/confiteria/pedidos">Mis pedidos</a>@if (Pedidos.CantidadCarrito > 0) { <a class="btn btn-secondary" href="/confiteria/carrito"><i class="fas fa-bag-shopping" aria-hidden="true"></i>Carrito <span class="confectionery-cart-count">@Pedidos.CantidadCarrito</span></a> }@if (Usuarios.EsAdministrador()) { <a class="btn btn-secondary" href="/admin/confiteria" aria-label="Gestionar combos" title="Gestionar combos"><i class="fas fa-pen" aria-hidden="true"></i></a> }</div></div>
+    <div class="confectionery-heading"><div><h1 id="confectionery-title">Confitería</h1><p>Elige algo rico para acompañar tu próxima película.</p></div><div class="confectionery-heading-actions"><a class="confectionery-orders-link" href="/confiteria/pedidos">Mis pedidos</a>@if (Pedidos.CantidadCarrito > 0) { <a class="btn btn-secondary" href="/confiteria/carrito"><i class="fas fa-bag-shopping" aria-hidden="true"></i>Carrito <span class="confectionery-cart-count">@Pedidos.CantidadCarrito</span></a> }@if (Usuarios.EsAdministrador()) { <a class="btn btn-secondary" href="/admin/confiteria" aria-label="Gestionar productos" title="Gestionar productos"><i class="fas fa-pen" aria-hidden="true"></i></a> }</div></div>
     @if (!string.IsNullOrEmpty(error) || Pedidos.ErrorCarga != null) { <div class="alert alert-danger" role="alert">@(Pedidos.ErrorCarga ?? error)</div> }
     <span class="visually-hidden" role="status">@aviso</span>
     <ConfectionCategories Categorias="CategoriasVisibles" Seleccionada="categoria" OnSeleccionar="ElegirCategoria" />
     <div class="confectionery-shop-layout"><div class="confectionery-catalog">
-    <div class="confectionery-results-heading"><h2>@(categoria == 0 ? "Nuestros combos" : Catalogos.CategoriaNombre(categoria))</h2><span role="status">@Visibles.Count @(Visibles.Count == 1 ? "combo" : "combos")</span></div>
+    <div class="confectionery-results-heading"><h2>@(categoria == 0 ? "Nuestros productos" : Catalogos.CategoriaNombre(categoria))</h2><span role="status">@totalItems @(totalItems == 1 ? "producto" : "productos")</span></div>
     @if (Visibles.Count == 0)
     {
-        <div class="confectionery-empty"><i class="fas fa-cookie-bite" aria-hidden="true"></i><h2>@(categoria == 0 ? "Todavía no hay combos disponibles" : "No hay combos en esta categoría")</h2><p>@(categoria == 0 ? "Consulta nuevamente antes de tu próxima visita." : "Explora las demás categorías para encontrar tu acompañamiento.")</p>@if (categoria != 0) { <button type="button" class="btn btn-secondary" @onclick="() => ElegirCategoria(0)">Ver todos los combos</button> }</div>
+        <div class="confectionery-empty"><i class="fas fa-cookie-bite" aria-hidden="true"></i><h2>@(categoria == 0 ? "Todavía no hay productos disponibles" : "No hay productos en esta categoría")</h2><p>@(categoria == 0 ? "Consulta nuevamente antes de tu próxima visita." : "Explora las demás categorías para encontrar tu acompañamiento.")</p>@if (categoria != 0) { <button type="button" class="btn btn-secondary" @onclick="() => ElegirCategoria(0)">Ver todos los productos</button> }</div>
     }
     else
     {

@@ -11,6 +11,7 @@ public sealed class PedidoConfiteria
     public string NombreRetiro { get; set; } = "";
     public string EmailUsuario { get; set; } = "";
     public DateTime FechaCreacion { get; set; }
+    public DateTime FechaPago { get; set; }
     public DateTime? FechaRetiro { get; set; }
     public string EntregadoPor { get; set; } = "";
     public string MedioPago { get; set; } = "";
@@ -18,7 +19,7 @@ public sealed class PedidoConfiteria
     public List<LineaVentaConfiteria> Lineas { get; set; } = new();
     public decimal Total => Lineas.Sum(x => x.Cantidad * x.PrecioUnitario);
     public int Unidades => Lineas.Sum(x => x.Cantidad);
-    public PedidoConfiteria Copiar() => new() { Numero = Numero, Token = Token, Solicitud = Solicitud, CodigoRetiro = CodigoRetiro, NombreRetiro = NombreRetiro, EmailUsuario = EmailUsuario, FechaCreacion = FechaCreacion, FechaRetiro = FechaRetiro, EntregadoPor = EntregadoPor, MedioPago = MedioPago, Estado = Estado, Lineas = Lineas.Select(x => x with { }).ToList() };
+    public PedidoConfiteria Copiar() => new() { Numero = Numero, Token = Token, Solicitud = Solicitud, CodigoRetiro = CodigoRetiro, NombreRetiro = NombreRetiro, EmailUsuario = EmailUsuario, FechaCreacion = FechaCreacion, FechaPago = FechaPago, FechaRetiro = FechaRetiro, EntregadoPor = EntregadoPor, MedioPago = MedioPago, Estado = Estado, Lineas = Lineas.Select(x => x with { }).ToList() };
 }
 public sealed class EstadoPedidosConfiteria
 {

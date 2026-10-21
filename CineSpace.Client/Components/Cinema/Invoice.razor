@@ -32,10 +32,10 @@
 <article class="invoice-sheet" id="facturaImprimir" aria-label="Comprobante de compra">
     <header class="invoice-heading">
         <div class="invoice-identity">
-            <p class="invoice-brand">CineSpace</p>
-            <h2>Comprobante de compra</h2>
-            <p>N.º @NumeroFactura</p>
-            <p>Emitido el @((venta?.FechaVenta ?? fechaEmision).ToString("dd/MM/yyyy · HH:mm"))</p>
+            <p class="invoice-brand"><img class="invoice-logo" src="/android-chrome-192x192.png" width="40" height="40" alt="" />CineSpace</p>
+            <h2>Factura de compra</h2>
+            <p class="invoice-number">N.º @NumeroFactura</p>
+            <p class="invoice-issued">Emitido el @((venta?.FechaVenta ?? fechaEmision).ToString("dd/MM/yyyy · HH:mm"))</p>
         </div>
         @if (qrBase64.Length > 0)
         {
@@ -46,6 +46,7 @@
             </div>
         }
     </header>
+    <div class="invoice-parties">
     <section class="invoice-section" aria-label="Datos del cliente">
         <h3>Cliente</h3>
         <p><strong>@(venta?.Cliente ?? NombreCliente)</strong></p>
@@ -64,6 +65,7 @@
             <div class="invoice-seats"><dt>Butacas</dt><dd>@string.Join(", ", venta?.Asientos ?? AsientosSeleccionados.OrderBy(a => a).ToList())</dd></div>
         </dl>
     </section>
+    </div>
     <table class="invoice-table" aria-label="Detalle de tu compra">
         <thead><tr><th>Detalle</th><th>Cant.</th><th>Precio unit.</th><th>Importe</th></tr></thead>
         <tbody><tr><td>Entrada general</td><td>@cantidad</td><td>@precioUnitario.ToString("N2") Bs</td><td>@total.ToString("N2") Bs</td></tr></tbody>

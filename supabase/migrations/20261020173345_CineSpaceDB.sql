@@ -215,6 +215,7 @@ CREATE TABLE cine.pedidos (
     metodo_pago text NOT NULL,
     total numeric(12,2) NOT NULL,
     creado_utc timestamp with time zone NOT NULL,
+    pagado_utc timestamp with time zone NOT NULL,
     retirado_utc timestamp with time zone,
     entregado_por_id uuid,
     CONSTRAINT "PK_pedidos" PRIMARY KEY (id),
@@ -472,6 +473,7 @@ CREATE UNIQUE INDEX "IX_pedidos_solicitud" ON cine.pedidos (solicitud);
 
 
 CREATE UNIQUE INDEX "IX_pedidos_token" ON cine.pedidos (token);
+CREATE UNIQUE INDEX "IX_pedidos_codigo" ON cine.pedidos (codigo);
 
 
 CREATE INDEX "IX_pedidos_usuario_id" ON cine.pedidos (usuario_id);
@@ -571,6 +573,8 @@ ALTER TABLE cine.funciones ADD CONSTRAINT funcion_valida CHECK(duracion BETWEEN 
 ALTER TABLE cine.programaciones ADD CONSTRAINT periodo_valido CHECK(hasta >= desde AND hasta - desde <= 90);
 ALTER TABLE cine.trabajadores ADD CONSTRAINT trabajador_valido CHECK(sueldo > 0 AND cargo BETWEEN 0 AND 5);
 ALTER TABLE cine.pedidos ADD CONSTRAINT estado_pedido_valido CHECK(estado IN ('Pendiente','Retirado','Cancelado'));
+ALTER TABLE cine.pedidos ADD CONSTRAINT pedido_pagado CHECK(metodo_pago IN ('QR','Tarjeta') AND pagado_utc >= creado_utc AND total > 0);
+ALTER TABLE cine.pedidos ADD CONSTRAINT entrega_pagada CHECK(estado <> 'Retirado' OR (retirado_utc IS NOT NULL AND retirado_utc >= pagado_utc AND entregado_por_id IS NOT NULL));
 CREATE INDEX peliculas_titulo_busqueda ON cine.peliculas USING gin(titulo extensions.gin_trgm_ops);
 CREATE INDEX usuarios_registro_orden ON cine.usuarios(fecha_registro_utc DESC,id);
 CREATE INDEX usuarios_rol_cuenta ON cine.usuarios_roles(role_id,user_id);
@@ -581,9 +585,9 @@ CREATE INDEX combos_nombre_busqueda ON cine.combos USING gin(nombre extensions.g
 CREATE INDEX ventas_usuario_fecha ON cine.ventas(usuario_id, fecha_utc DESC, id);
 CREATE INDEX ventas_fecha ON cine.ventas(fecha_utc DESC, id);
 CREATE INDEX resenas_usuario_fecha ON cine.resenas(usuario_id, fecha_utc DESC, id);
-CREATE INDEX pedidos_usuario_fecha ON cine.pedidos(usuario_id, creado_utc DESC, id);
-CREATE INDEX pedidos_invitado_fecha ON cine.pedidos(propietario_invitado, creado_utc DESC) WHERE usuario_id IS NULL;
-CREATE INDEX pedidos_estado_fecha ON cine.pedidos(estado, creado_utc DESC);
+CREATE INDEX pedidos_usuario_fecha ON cine.pedidos(usuario_id, creado_utc DESC, id) WHERE usuario_id IS NOT NULL;
+CREATE INDEX pedidos_invitado_fecha ON cine.pedidos(propietario_invitado, creado_utc DESC, id) WHERE usuario_id IS NULL;
+CREATE INDEX pedidos_pagado_fecha ON cine.pedidos(pagado_utc DESC) WHERE estado <> 'Cancelado';
 CREATE INDEX funciones_pelicula_fecha ON cine.funciones(pelicula_id, inicio_utc, sala_id);
 CREATE INDEX funciones_fecha_experiencia ON cine.funciones(inicio_utc, experiencia_id) INCLUDE(sala_id,pelicula_id);
 CREATE INDEX funciones_sala_periodo ON cine.funciones(sala_id, inicio_utc, sala_lista_utc);
@@ -772,12 +776,11 @@ INSERT INTO cine.generos (id, nombre, descripcion, creado_utc) VALUES
 (19, 'Cine', '', (CURRENT_TIMESTAMP - interval '49 days'));
 
 INSERT INTO cine.categorias (id, nombre, descripcion, creado_utc) VALUES
-(1, 'Clásicos', '', (CURRENT_TIMESTAMP - interval '49 days')),
-(2, 'Para compartir', '', (CURRENT_TIMESTAMP - interval '49 days')),
-(3, 'Dulces', '', (CURRENT_TIMESTAMP - interval '49 days')),
-(4, 'Nachos', '', (CURRENT_TIMESTAMP - interval '49 days')),
-(5, 'Bebidas', '', (CURRENT_TIMESTAMP - interval '49 days')),
-(6, 'Infantil', '', (CURRENT_TIMESTAMP - interval '49 days'));
+(1, 'Pipocas', 'Pipocas recién preparadas en tres tamaños.', (CURRENT_TIMESTAMP - interval '49 days')),
+(2, 'Combos', 'Pipocas y bebidas para disfrutar solo o en compañía.', (CURRENT_TIMESTAMP - interval '49 days')),
+(3, 'Dulces', 'Chocolates, galletas y gomitas para tu función.', (CURRENT_TIMESTAMP - interval '49 days')),
+(4, 'Snacks', 'Nachos y papas para un antojo crujiente.', (CURRENT_TIMESTAMP - interval '49 days')),
+(5, 'Bebidas', 'Agua y gaseosas en botella o vaso CineSpace.', (CURRENT_TIMESTAMP - interval '49 days'));
 
 INSERT INTO cine.distribuidoras (id, nombre, descripcion, creado_utc, contacto, email, telefono) VALUES
 (1, 'Walt Disney Studios Motion Pictures', '', (CURRENT_TIMESTAMP - interval '49 days'), 'Equipo de distribución (datos de prueba)', 'distribucion.disney@example.test', '+591 7000 0001'),
@@ -1012,24 +1015,36 @@ INSERT INTO cine.peliculas_generos (pelicula_id, genero_id) VALUES
 (1426142, 4);
 
 INSERT INTO cine.combos (id, nombre, descripcion, creado_utc, categoria_id, precio, foto, publicado) VALUES
-(1, 'Combo individual', 'Palomitas medianas y una bebida de 500 ml.', (CURRENT_TIMESTAMP - interval '49 days'), 1, 35, '/images/confiteria/combo-1.webp', TRUE),
-(2, 'Combo clásico grande', 'Palomitas grandes y una bebida de 750 ml.', (CURRENT_TIMESTAMP - interval '49 days'), 1, 48, '/images/confiteria/combo-2.webp', TRUE),
-(3, 'Combo pareja', 'Palomitas grandes y dos bebidas de 500 ml.', (CURRENT_TIMESTAMP - interval '49 days'), 2, 62, '/images/confiteria/combo-3.webp', TRUE),
-(4, 'Combo familiar', 'Dos palomitas grandes y cuatro bebidas de 500 ml.', (CURRENT_TIMESTAMP - interval '49 days'), 2, 115, '/images/confiteria/combo-4.webp', TRUE),
-(5, 'Combo amigos', 'Tres palomitas grandes y tres bebidas de 750 ml.', (CURRENT_TIMESTAMP - interval '49 days'), 2, 135, '/images/confiteria/combo-5.webp', TRUE),
-(6, 'Combo caramelo', 'Palomitas acarameladas y una bebida de 500 ml.', (CURRENT_TIMESTAMP - interval '49 days'), 1, 42, '/images/confiteria/combo-6.webp', TRUE),
-(7, 'Dúo de golosinas', 'Dos porciones de golosinas surtidas para compartir.', (CURRENT_TIMESTAMP - interval '49 days'), 3, 28, '/images/confiteria/combo-7.webp', TRUE),
-(8, 'Combo chocolate', 'Chocolate y una porción de golosinas.', (CURRENT_TIMESTAMP - interval '49 days'), 3, 32, '/images/confiteria/combo-8.webp', TRUE),
-(9, 'Mix dulce', 'Selección de caramelos, gomitas y chocolates.', (CURRENT_TIMESTAMP - interval '49 days'), 3, 38, '/images/confiteria/combo-9.webp', TRUE),
-(10, 'Nachos clásicos', 'Nachos crujientes con salsa de queso.', (CURRENT_TIMESTAMP - interval '49 days'), 4, 30, '/images/confiteria/combo-10.webp', TRUE),
-(11, 'Combo nachos', 'Nachos con queso y una bebida de 500 ml.', (CURRENT_TIMESTAMP - interval '49 days'), 4, 45, '/images/confiteria/combo-11.webp', TRUE),
-(12, 'Nachos para dos', 'Dos porciones de nachos y dos bebidas de 500 ml.', (CURRENT_TIMESTAMP - interval '49 days'), 4, 82, '/images/confiteria/combo-12.webp', TRUE),
-(13, 'Bebidas para compartir', 'Dos bebidas de 750 ml con una porción pequeña de palomitas.', (CURRENT_TIMESTAMP - interval '49 days'), 5, 34, '/images/confiteria/combo-13.webp', TRUE),
-(14, 'Combo refrescante', 'Una bebida de 1 litro con palomitas pequeñas.', (CURRENT_TIMESTAMP - interval '49 days'), 5, 31, '/images/confiteria/combo-14.webp', TRUE),
-(15, 'Combo infantil', 'Palomitas pequeñas, bebida de 350 ml y golosinas.', (CURRENT_TIMESTAMP - interval '49 days'), 6, 32, '/images/confiteria/combo-15.webp', TRUE),
-(16, 'Dúo infantil', 'Dos combos pequeños con bebidas y golosinas.', (CURRENT_TIMESTAMP - interval '49 days'), 6, 58, '/images/confiteria/combo-16.webp', TRUE),
-(17, 'Edición de temporada', 'Combo especial disponible próximamente.', (CURRENT_TIMESTAMP - interval '49 days'), 1, 49, '/images/confiteria/combo-17.webp', FALSE),
-(18, 'Selección dulce de temporada', 'Golosinas especiales de temporada.', (CURRENT_TIMESTAMP - interval '49 days'), 3, 29, '/images/confiteria/combo-18.webp', FALSE);
+(1, 'Pipoca pequeña', 'Pipoca recién preparada en presentación pequeña. El clásico para disfrutar tu película.', (CURRENT_TIMESTAMP - interval '49 days'), 1, 18, '/images/confiteria/pipoca-pequena.webp', TRUE),
+(2, 'Pipoca mediana', 'Pipoca recién preparada en presentación mediana para acompañar toda la función.', (CURRENT_TIMESTAMP - interval '49 days'), 1, 25, '/images/confiteria/pipoca-mediana.webp', TRUE),
+(3, 'Pipoca grande', 'Una porción grande de pipoca recién preparada, ideal para compartir.', (CURRENT_TIMESTAMP - interval '49 days'), 1, 32, '/images/confiteria/pipoca-grande.webp', TRUE),
+(4, 'Combo pipoca dúo', 'Una pipoca pequeña y dos gaseosas pequeñas en botella para disfrutar en compañía.', (CURRENT_TIMESTAMP - interval '49 days'), 2, 35, '/images/confiteria/combo-pipoca-duo.webp', TRUE),
+(5, 'Combo Coca-Cola dúo', 'Una pipoca grande y dos Coca-Cola personales en botella para compartir tu película favorita.', (CURRENT_TIMESTAMP - interval '49 days'), 2, 48, '/images/confiteria/combo-coca-cola-duo.webp', TRUE),
+(6, 'Combo CineSpace dúo', 'Una pipoca grande y dos gaseosas medianas en vaso. Un clásico para dos.', (CURRENT_TIMESTAMP - interval '49 days'), 2, 52, '/images/confiteria/combo-cinespace-duo.webp', TRUE),
+(7, 'Combo personal XL', 'Una pipoca XL y una gaseosa XL en vaso para disfrutar una función a lo grande.', (CURRENT_TIMESTAMP - interval '49 days'), 2, 45, '/images/confiteria/combo-personal-xl.webp', TRUE),
+(8, 'Agua Vital personal', 'Agua Vital en botella individual, una opción refrescante para tu función.', (CURRENT_TIMESTAMP - interval '49 days'), 5, 8, '/images/confiteria/agua-vital-personal.webp', TRUE),
+(9, 'Coca-Cola pequeña', 'Coca-Cola sabor original en botella pequeña.', (CURRENT_TIMESTAMP - interval '49 days'), 5, 7, '/images/confiteria/coca-cola-pequena.webp', TRUE),
+(10, 'Coca-Cola sin azúcar pequeña', 'Coca-Cola sin azúcar en botella pequeña.', (CURRENT_TIMESTAMP - interval '49 days'), 5, 7, '/images/confiteria/coca-cola-sin-azucar-pequena.webp', TRUE),
+(11, 'Coca-Cola personal', 'Coca-Cola sabor original en botella personal.', (CURRENT_TIMESTAMP - interval '49 days'), 5, 10, '/images/confiteria/coca-cola-personal.webp', TRUE),
+(12, 'Coca-Cola sin azúcar personal', 'Coca-Cola sin azúcar en botella personal.', (CURRENT_TIMESTAMP - interval '49 days'), 5, 10, '/images/confiteria/coca-cola-sin-azucar-personal.webp', TRUE),
+(13, 'Fanta pequeña', 'Fanta sabor naranja en botella pequeña.', (CURRENT_TIMESTAMP - interval '49 days'), 5, 7, '/images/confiteria/fanta-pequena.webp', TRUE),
+(14, 'Fanta personal', 'Fanta sabor naranja en botella personal.', (CURRENT_TIMESTAMP - interval '49 days'), 5, 10, '/images/confiteria/fanta-personal.webp', TRUE),
+(15, 'Sprite pequeña', 'Sprite sabor lima-limón en botella pequeña.', (CURRENT_TIMESTAMP - interval '49 days'), 5, 7, '/images/confiteria/sprite-pequena.webp', TRUE),
+(16, 'Sprite personal', 'Sprite sabor lima-limón en botella personal.', (CURRENT_TIMESTAMP - interval '49 days'), 5, 10, '/images/confiteria/sprite-personal.webp', TRUE),
+(17, 'Gaseosa pequeña', 'Tu gaseosa en vaso CineSpace pequeño, lista para acompañar la película.', (CURRENT_TIMESTAMP - interval '49 days'), 5, 10, '/images/confiteria/gaseosa-pequena.webp', TRUE),
+(18, 'Gaseosa mediana', 'Tu gaseosa en vaso CineSpace mediano para refrescar tu función.', (CURRENT_TIMESTAMP - interval '49 days'), 5, 14, '/images/confiteria/gaseosa-mediana.webp', TRUE),
+(19, 'Gaseosa grande', 'Tu gaseosa en vaso CineSpace grande para disfrutar por más tiempo.', (CURRENT_TIMESTAMP - interval '49 days'), 5, 18, '/images/confiteria/gaseosa-grande.webp', TRUE),
+(20, 'Chocolate Bon o Bon', 'Bombón Bon o Bon: un bocado dulce para acompañar tu película.', (CURRENT_TIMESTAMP - interval '49 days'), 3, 3, '/images/confiteria/chocolate-bon-o-bon.webp', TRUE),
+(21, 'Chupete Bon Bon Bum', 'Chupete Bon Bon Bum con centro de chicle, en presentación individual.', (CURRENT_TIMESTAMP - interval '49 days'), 3, 2, '/images/confiteria/chupete-bon-bon-bum.webp', TRUE),
+(22, 'Galletas Frac chocolate', 'Galletas Frac con crema sabor chocolate en paquete individual.', (CURRENT_TIMESTAMP - interval '49 days'), 3, 7, '/images/confiteria/galletas-frac-chocolate.webp', TRUE),
+(23, 'Galletas Frac clásica', 'Galletas Frac clásica en paquete individual para disfrutar durante la función.', (CURRENT_TIMESTAMP - interval '49 days'), 3, 7, '/images/confiteria/galletas-frac-clasica.webp', TRUE),
+(24, 'Galletas Oreo', 'Galletas Oreo de chocolate con su clásica crema, en paquete individual.', (CURRENT_TIMESTAMP - interval '49 days'), 3, 8, '/images/confiteria/galletas-oreo.webp', TRUE),
+(25, 'Gomitas Mogul surtidas', 'Gomitas Mogul de sabores frutales en bolsa, ideales para compartir.', (CURRENT_TIMESTAMP - interval '49 days'), 3, 12, '/images/confiteria/gomitas-mogul-surtidas.webp', TRUE),
+(26, 'Gomitas Mogul mini', 'Gomitas Mogul en presentación pequeña para darte un gusto durante la película.', (CURRENT_TIMESTAMP - interval '49 days'), 3, 5, '/images/confiteria/gomitas-mogul-mini.webp', TRUE),
+(27, 'Gomitas Mogul ositos', 'Gomitas Mogul con forma de ositos y sabores frutales, en bolsa.', (CURRENT_TIMESTAMP - interval '49 days'), 3, 12, '/images/confiteria/gomitas-mogul-ositos.webp', TRUE),
+(28, 'Chocolate Snickers', 'Barra Snickers con maní, caramelo y cobertura de chocolate.', (CURRENT_TIMESTAMP - interval '49 days'), 3, 12, '/images/confiteria/chocolate-snickers.webp', TRUE),
+(29, 'Nachos Mexican Food', 'Nachos crujientes Mexican Food en bolsa individual.', (CURRENT_TIMESTAMP - interval '49 days'), 4, 15, '/images/confiteria/nachos-mexican-food.webp', TRUE),
+(30, 'Papas Hippita picantes', 'Papas fritas Hippita con sabor picante, en bolsa individual.', (CURRENT_TIMESTAMP - interval '49 days'), 4, 12, '/images/confiteria/papas-hippita-picantes.webp', TRUE);
 
 INSERT INTO cine.programaciones (id, pelicula_id, sala_id, experiencia_id, desde, hasta, horario_json, creado_utc) VALUES
 ('abe172bb-a8c3-5182-b9b1-0aa0a61ad4ed', 986056, 1, 0, ((CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date + -30), ((CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date + 30), '{"horaInicio":"10:00","duracionMinutos":127,"limpiezaMinutos":20,"horarios":["10:00","14:00","18:00","22:00"],"configurada":true,"enPreventa":false}', (CURRENT_TIMESTAMP - interval '49 days')),
@@ -2336,92 +2351,92 @@ INSERT INTO cine.resenas(id,pelicula_id,usuario_id,destacada,puntuacion,comentar
  SELECT r.id::uuid,r.pelicula_id,a.usuario_id,r.destacada,r.puntuacion,r.comentario,greatest(r.fecha_utc,a.fin),a.funcion_id
  FROM borradores r JOIN asistencias a ON a.pelicula_id=r.pelicula_id AND a.posicion=r.posicion;
 
-INSERT INTO cine.pedidos (id, numero, token, solicitud, codigo, usuario_id, propietario_invitado, nombre_retiro, estado, metodo_pago, total, creado_utc, retirado_utc, entregado_por_id) VALUES
-('d9acd038-89d5-55c2-b77c-4a44b36c3ff3', 'P-DEMO-00001', '713cdebcbc81576092eca30a6b4a12070000000000000000', '05bdcbbf-4746-5327-a79d-98a3b1b1a1e5', 'PED000000001', 'aa9f3573-9b46-5622-a528-391ee942d06d', '', 'Usuario', 'Pendiente', '', 83, CURRENT_TIMESTAMP - interval '0 days' - interval '2 hours', NULL, NULL),
-('191f622e-0225-5f3d-be2d-dc3a8801cce3', 'P-DEMO-00002', '912cf96a66fe569990a82d4476c5bf9d0000000000000001', '3a2b0911-d593-5bfc-a2ec-1329215e1124', 'PED000000002', 'c1485a5f-398e-5e9b-bb2a-4bac17d4394d', '', 'JUAN', 'Retirado', 'Efectivo', 220, CURRENT_TIMESTAMP - interval '1 days' - interval '2 hours', CURRENT_TIMESTAMP - interval '1 days' - interval '1 hour', '5e8a05c4-8556-5a66-9618-a11465917cc9'),
-('fa4065ff-2070-506a-8023-b2a2b8ed17e3', 'P-DEMO-00003', '32c5d5b90c0156d5bc9359bcd0ec469f0000000000000002', '664b57b5-c428-55c1-a920-f1afe5d56b4b', 'PED000000003', 'aa352068-747a-57b0-853a-b6ce8d2e9596', '', 'SAMARA', 'Cancelado', '', 177, CURRENT_TIMESTAMP - interval '2 days' - interval '2 hours', NULL, NULL),
-('5d1b2a22-7cd8-5a63-b428-382f76074c2a', 'P-DEMO-00004', 'a69be785d2825838a5e37c48301053130000000000000003', 'a283b9be-85ca-57c5-947f-7890e145121e', 'PED000000004', 'ca85c960-4ff7-5ccf-93e3-5e852d9dc65c', '', 'XIOMARA', 'Pendiente', '', 500, CURRENT_TIMESTAMP - interval '3 days' - interval '2 hours', NULL, NULL),
-('b974e809-3e48-5157-b483-57460ae37a7d', 'P-DEMO-00005', '90fbde0d31f252a5a75c69a3fe3290360000000000000004', 'ad90c632-f51c-5a16-90de-83d50fd9c215', 'PED000000005', 'dd77a631-dd03-5df9-907d-6fb5621e1875', '', 'Valeria', 'Retirado', 'Efectivo', 177, CURRENT_TIMESTAMP - interval '4 days' - interval '2 hours', CURRENT_TIMESTAMP - interval '4 days' - interval '1 hour', '5e8a05c4-8556-5a66-9618-a11465917cc9'),
-('f5271f6f-66a0-57f7-a709-050f9af7fb1a', 'P-DEMO-00006', 'a8fde4aef8db5b9da10879401ae163800000000000000005', 'f18fc4e5-2e0c-5933-b578-a494a66d6f58', 'PED000000006', 'd322997b-21ba-54d1-ad7e-3c9d1ddf8127', '', 'Mateo', 'Cancelado', '', 140, CURRENT_TIMESTAMP - interval '5 days' - interval '2 hours', NULL, NULL),
-('b871e73f-43ab-5a7f-838a-0de4bc7f2498', 'P-DEMO-00007', 'f0a91a3e819557be9f4cf560dcf204f30000000000000006', '79f8574f-2a36-5e53-a9ce-7c18787f1798', 'PED000000007', '05ff7ac1-dcf7-5a2f-8bc0-4259796d89d8', '', 'Camila', 'Pendiente', '', 60, CURRENT_TIMESTAMP - interval '6 days' - interval '2 hours', NULL, NULL),
-('32ebb6b8-ef08-51d0-a96b-6eeaba3008ee', 'P-DEMO-00008', 'a92bc7812e7b5855b5487ea0421bec260000000000000007', 'c23f24ce-2458-5155-adaa-0226acd5d664', 'PED000000008', 'c0b917f4-524a-5f2e-baf0-c17d98c9a2c4', '', 'Diego', 'Retirado', 'Efectivo', 140, CURRENT_TIMESTAMP - interval '7 days' - interval '2 hours', CURRENT_TIMESTAMP - interval '7 days' - interval '1 hour', '5e8a05c4-8556-5a66-9618-a11465917cc9'),
-('0bd57d29-c980-51f5-8594-60b5d52923cd', 'P-DEMO-00009', 'a775563d1f8a5bd9a635109d54c6430a0000000000000008', '5b0767cb-c1d1-5dc0-9cf6-e7d71b121d01', 'PED000000009', 'a6692ffe-16c6-5028-bbb7-d53f4364c88a', '', 'Lucía', 'Cancelado', '', 68, CURRENT_TIMESTAMP - interval '8 days' - interval '2 hours', NULL, NULL),
-('ff528372-359f-5947-9153-11b79eadcb23', 'P-DEMO-00010', '648791cacd7b5efcae76edec873ae0500000000000000009', 'a7f55049-5a8a-59c2-b903-b3331c4fb4d7', 'PED000000010', '65ae868d-5dbd-53d7-a230-fc3ebafe59ce', '', 'Santiago', 'Pendiente', '', 150, CURRENT_TIMESTAMP - interval '9 days' - interval '2 hours', NULL, NULL),
-('6a5dea24-9ad6-5491-b081-1778e48a6401', 'P-DEMO-00011', 'f639e636996a51418bdca73878e6355d000000000000000a', '6fd6539f-af7a-5c6d-bd1c-c63e47452956', 'PED000000011', '0a76fad3-eba1-5000-a8a1-2b5d21e3d62d', '', 'Daniela', 'Retirado', 'Efectivo', 127, CURRENT_TIMESTAMP - interval '10 days' - interval '2 hours', CURRENT_TIMESTAMP - interval '10 days' - interval '1 hour', '5e8a05c4-8556-5a66-9618-a11465917cc9'),
-('0dbdde21-62c8-504c-8c91-6f1dd5720274', 'P-DEMO-00012', 'f8ea3d415dff5421bb4d3001ce0ee8a5000000000000000b', '393cde01-98fb-5913-a852-7663d5945d15', 'PED000000012', '5d03fa6f-53ec-5964-8a5e-5bbe19c3a967', '', 'Gabriel', 'Cancelado', '', 232, CURRENT_TIMESTAMP - interval '11 days' - interval '2 hours', NULL, NULL),
-('6c066ca6-fa90-5132-8116-7e9ea4b89108', 'P-DEMO-00013', '141768842a1a5964a0ce39a266aef6fe000000000000000c', 'e039a298-598b-5b9a-9026-bf66b1942190', 'PED000000013', '5c2c1d2f-2025-55bd-8096-5020a49ad4f1', '', 'Mariana', 'Pendiente', '', 65, CURRENT_TIMESTAMP - interval '12 days' - interval '2 hours', NULL, NULL),
-('505a1fdb-9fe1-5831-969d-3392550dd0f0', 'P-DEMO-00014', '8bea478bdfdf58d1a3d5e355aa1837f2000000000000000d', '7334534f-1260-5482-8c10-7407d71c6cf1', 'PED000000014', '9c87bf4f-87aa-5e1b-a7e8-e042b56ba65a', '', 'Nicolás', 'Retirado', 'Efectivo', 126, CURRENT_TIMESTAMP - interval '13 days' - interval '2 hours', CURRENT_TIMESTAMP - interval '13 days' - interval '1 hour', '5e8a05c4-8556-5a66-9618-a11465917cc9'),
-('9d33e2a8-c3cd-5ead-b68c-4f9f7fd93ae6', 'P-DEMO-00015', '4421b4782a635871a7132d6acf253131000000000000000e', 'f36322f0-36fd-55f2-b2d1-46fbdf1f4030', 'PED000000015', '492ec502-d4e1-5dfb-bbdd-061198651b36', '', 'Renata', 'Cancelado', '', 90, CURRENT_TIMESTAMP - interval '14 days' - interval '2 hours', NULL, NULL),
-('f5812206-168b-5be3-9c48-6bd19deb9055', 'P-DEMO-00016', '3475cc230022551b9ceae3df49884a2b000000000000000f', '8cb2b7ff-8d09-53a9-bdff-b41c0087d841', 'PED000000016', 'f83edd0a-9eec-5abd-afff-846c20683a97', '', 'Joaquín', 'Pendiente', '', 214, CURRENT_TIMESTAMP - interval '15 days' - interval '2 hours', NULL, NULL),
-('a0b3c917-f3f2-5969-a6ad-da0d3f5b4ce9', 'P-DEMO-00017', '39445ebb940f565f8ccebd65ef54e3e60000000000000010', '78c7548e-cc99-5d4b-809a-c680251595a0', 'PED000000017', 'af2eb4e2-4b55-5321-afa1-26b7ae9674fb', '', 'Alejandra', 'Retirado', 'Efectivo', 78, CURRENT_TIMESTAMP - interval '16 days' - interval '2 hours', CURRENT_TIMESTAMP - interval '16 days' - interval '1 hour', '5e8a05c4-8556-5a66-9618-a11465917cc9'),
-('7ac3823e-316b-5adf-afd9-96c8ef6fce11', 'P-DEMO-00018', '4a650f6763745cc0ae8604ccab8e1e640000000000000011', '63c5d492-e797-5617-8a27-fb33e62dd51b', 'PED000000018', 'd1ab1c71-c2c2-5983-86fd-5204052338af', '', 'Sebastián', 'Cancelado', '', 58, CURRENT_TIMESTAMP - interval '17 days' - interval '2 hours', NULL, NULL),
-('f8c06fbf-33f0-535a-af32-7b8a6d0fbbb8', 'P-DEMO-00019', 'e538cd2b22c357dd940cdfd549a055120000000000000012', 'b9bfbe04-f702-51ff-b20b-269858062949', 'PED000000019', '22143335-3a01-5ff1-827c-16017bcc4fea', '', 'Isabella', 'Pendiente', '', 83, CURRENT_TIMESTAMP - interval '18 days' - interval '2 hours', NULL, NULL),
-('93299f6a-9a41-5dec-8670-fd9f44c70fb8', 'P-DEMO-00020', '0ca9b808a79154e4bfeff3f861f2cc3e0000000000000013', 'de9ddf8a-7025-5c18-8d53-eb63327e90f9', 'PED000000020', 'beac8d3e-bc14-5d92-a3ee-d4c1a48982ea', '', 'Adrián', 'Retirado', 'Efectivo', 220, CURRENT_TIMESTAMP - interval '19 days' - interval '2 hours', CURRENT_TIMESTAMP - interval '19 days' - interval '1 hour', '5e8a05c4-8556-5a66-9618-a11465917cc9'),
-('88f0e72a-6084-564a-93b1-cff67c060021', 'P-DEMO-00021', 'f89d628c214a5b90b54d37c7e69bc4430000000000000014', 'd07b3bca-1ae1-57a3-ba4a-df621ef67240', 'PED000000021', 'ca562ac0-7ec3-5708-b85f-df210978e030', '', 'Sofía', 'Cancelado', '', 177, CURRENT_TIMESTAMP - interval '20 days' - interval '2 hours', NULL, NULL),
-('c5cc3772-48ac-558b-afd2-56ce8d488514', 'P-DEMO-00022', '7d211c7b21245f3d88bf399f6be2f5b70000000000000015', '355d3ec5-2b51-577d-b2b5-014e94662013', 'PED000000022', '530cb6d4-b1d9-5c85-bbab-90f0d4ae6131', '', 'Emilio', 'Pendiente', '', 500, CURRENT_TIMESTAMP - interval '21 days' - interval '2 hours', NULL, NULL),
-('85672135-461a-5247-a3fa-5af4e18835ab', 'P-DEMO-00023', '6cced7ab879d51a0aef5b1d471f7cb020000000000000016', 'ff19f726-d1fb-5cf0-802e-6223d14930b9', 'PED000000023', 'aa9f3573-9b46-5622-a528-391ee942d06d', '', 'Usuario', 'Retirado', 'Efectivo', 177, CURRENT_TIMESTAMP - interval '22 days' - interval '2 hours', CURRENT_TIMESTAMP - interval '22 days' - interval '1 hour', '5e8a05c4-8556-5a66-9618-a11465917cc9'),
-('50751d3f-7b92-5dc6-bc4e-07efe7d76fe1', 'P-DEMO-00024', '632ac8ae7aba585e981aefbcfc1f1d4f0000000000000017', '1848d624-5e81-56a1-ad60-e9ab0f79acc9', 'PED000000024', 'c1485a5f-398e-5e9b-bb2a-4bac17d4394d', '', 'JUAN', 'Cancelado', '', 140, CURRENT_TIMESTAMP - interval '23 days' - interval '2 hours', NULL, NULL),
-('900e4214-eee5-5e24-995a-59aefd5dbf59', 'P-DEMO-00025', '0364612580a254b4ab4a6e5401b7ed770000000000000018', 'fe95ea22-eab6-5ecc-8c73-2da2dd653722', 'PED000000025', 'aa352068-747a-57b0-853a-b6ce8d2e9596', '', 'SAMARA', 'Pendiente', '', 60, CURRENT_TIMESTAMP - interval '24 days' - interval '2 hours', NULL, NULL),
-('efe92bf2-1206-5c86-83ef-37024e6a8658', 'P-DEMO-00026', 'a6df8cf9d64c5d859a399125ea2d011a0000000000000019', '526b2204-1e2a-5c3d-8cf9-5962a6c6bea5', 'PED000000026', 'ca85c960-4ff7-5ccf-93e3-5e852d9dc65c', '', 'XIOMARA', 'Retirado', 'Efectivo', 140, CURRENT_TIMESTAMP - interval '25 days' - interval '2 hours', CURRENT_TIMESTAMP - interval '25 days' - interval '1 hour', '5e8a05c4-8556-5a66-9618-a11465917cc9'),
-('c9928888-f795-5750-aa3a-3fd580967a7e', 'P-DEMO-00027', '25e3805d2a63581ebea01c22aec1bd86000000000000001a', '6822e9eb-7a5c-5bef-aabf-431a6495e7e0', 'PED000000027', 'dd77a631-dd03-5df9-907d-6fb5621e1875', '', 'Valeria', 'Cancelado', '', 68, CURRENT_TIMESTAMP - interval '26 days' - interval '2 hours', NULL, NULL),
-('0353db94-09ad-5dd6-a42a-e624c3a897fc', 'P-DEMO-00028', '9e3eeb557c265c96844e56a538c329c8000000000000001b', '4de52a32-07d7-5793-9ea7-86d6d555e725', 'PED000000028', 'd322997b-21ba-54d1-ad7e-3c9d1ddf8127', '', 'Mateo', 'Pendiente', '', 150, CURRENT_TIMESTAMP - interval '27 days' - interval '2 hours', NULL, NULL);
+INSERT INTO cine.pedidos (id, numero, token, solicitud, codigo, usuario_id, propietario_invitado, nombre_retiro, estado, metodo_pago, total, creado_utc, retirado_utc, entregado_por_id, pagado_utc) VALUES
+('d9acd038-89d5-55c2-b77c-4a44b36c3ff3', 'P-DEMO-00001', '713cdebcbc81576092eca30a6b4a12070000000000000000', '05bdcbbf-4746-5327-a79d-98a3b1b1a1e5', 'PED000000001', 'aa9f3573-9b46-5622-a528-391ee942d06d', '', 'Usuario', 'Pendiente', 'QR', 43, CURRENT_TIMESTAMP - interval '0 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '0 days' - interval '2 hours'),
+('191f622e-0225-5f3d-be2d-dc3a8801cce3', 'P-DEMO-00002', '912cf96a66fe569990a82d4476c5bf9d0000000000000001', '3a2b0911-d593-5bfc-a2ec-1329215e1124', 'PED000000002', 'c1485a5f-398e-5e9b-bb2a-4bac17d4394d', '', 'JUAN', 'Retirado', 'Tarjeta', 134, CURRENT_TIMESTAMP - interval '1 days' - interval '2 hours', CURRENT_TIMESTAMP - interval '1 days' - interval '1 hour', '5e8a05c4-8556-5a66-9618-a11465917cc9', CURRENT_TIMESTAMP - interval '1 days' - interval '2 hours'),
+('fa4065ff-2070-506a-8023-b2a2b8ed17e3', 'P-DEMO-00003', '32c5d5b90c0156d5bc9359bcd0ec469f0000000000000002', '664b57b5-c428-55c1-a920-f1afe5d56b4b', 'PED000000003', 'aa352068-747a-57b0-853a-b6ce8d2e9596', '', 'SAMARA', 'Cancelado', 'QR', 100, CURRENT_TIMESTAMP - interval '2 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '2 days' - interval '2 hours'),
+('5d1b2a22-7cd8-5a63-b428-382f76074c2a', 'P-DEMO-00004', 'a69be785d2825838a5e37c48301053130000000000000003', 'a283b9be-85ca-57c5-947f-7890e145121e', 'PED000000004', 'ca85c960-4ff7-5ccf-93e3-5e852d9dc65c', '', 'XIOMARA', 'Pendiente', 'Tarjeta', 106, CURRENT_TIMESTAMP - interval '3 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '3 days' - interval '2 hours'),
+('b974e809-3e48-5157-b483-57460ae37a7d', 'P-DEMO-00005', '90fbde0d31f252a5a75c69a3fe3290360000000000000004', 'ad90c632-f51c-5a16-90de-83d50fd9c215', 'PED000000005', 'dd77a631-dd03-5df9-907d-6fb5621e1875', '', 'Valeria', 'Retirado', 'QR', 14, CURRENT_TIMESTAMP - interval '4 days' - interval '2 hours', CURRENT_TIMESTAMP - interval '4 days' - interval '1 hour', '5e8a05c4-8556-5a66-9618-a11465917cc9', CURRENT_TIMESTAMP - interval '4 days' - interval '2 hours'),
+('f5271f6f-66a0-57f7-a709-050f9af7fb1a', 'P-DEMO-00006', 'a8fde4aef8db5b9da10879401ae163800000000000000005', 'f18fc4e5-2e0c-5933-b578-a494a66d6f58', 'PED000000006', 'd322997b-21ba-54d1-ad7e-3c9d1ddf8127', '', 'Mateo', 'Cancelado', 'Tarjeta', 40, CURRENT_TIMESTAMP - interval '5 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '5 days' - interval '2 hours'),
+('b871e73f-43ab-5a7f-838a-0de4bc7f2498', 'P-DEMO-00007', 'f0a91a3e819557be9f4cf560dcf204f30000000000000006', '79f8574f-2a36-5e53-a9ce-7c18787f1798', 'PED000000007', '05ff7ac1-dcf7-5a2f-8bc0-4259796d89d8', '', 'Camila', 'Pendiente', 'QR', 17, CURRENT_TIMESTAMP - interval '6 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '6 days' - interval '2 hours'),
+('32ebb6b8-ef08-51d0-a96b-6eeaba3008ee', 'P-DEMO-00008', 'a92bc7812e7b5855b5487ea0421bec260000000000000007', 'c23f24ce-2458-5155-adaa-0226acd5d664', 'PED000000008', 'c0b917f4-524a-5f2e-baf0-c17d98c9a2c4', '', 'Diego', 'Retirado', 'Tarjeta', 34, CURRENT_TIMESTAMP - interval '7 days' - interval '2 hours', CURRENT_TIMESTAMP - interval '7 days' - interval '1 hour', '5e8a05c4-8556-5a66-9618-a11465917cc9', CURRENT_TIMESTAMP - interval '7 days' - interval '2 hours'),
+('0bd57d29-c980-51f5-8594-60b5d52923cd', 'P-DEMO-00009', 'a775563d1f8a5bd9a635109d54c6430a0000000000000008', '5b0767cb-c1d1-5dc0-9cf6-e7d71b121d01', 'PED000000009', 'a6692ffe-16c6-5028-bbb7-d53f4364c88a', '', 'Lucía', 'Cancelado', 'QR', 24, CURRENT_TIMESTAMP - interval '8 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '8 days' - interval '2 hours'),
+('ff528372-359f-5947-9153-11b79eadcb23', 'P-DEMO-00010', '648791cacd7b5efcae76edec873ae0500000000000000009', 'a7f55049-5a8a-59c2-b903-b3331c4fb4d7', 'PED000000010', '65ae868d-5dbd-53d7-a230-fc3ebafe59ce', '', 'Santiago', 'Pendiente', 'Tarjeta', 42, CURRENT_TIMESTAMP - interval '9 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '9 days' - interval '2 hours'),
+('6a5dea24-9ad6-5491-b081-1778e48a6401', 'P-DEMO-00011', 'f639e636996a51418bdca73878e6355d000000000000000a', '6fd6539f-af7a-5c6d-bd1c-c63e47452956', 'PED000000011', '0a76fad3-eba1-5000-a8a1-2b5d21e3d62d', '', 'Daniela', 'Retirado', 'QR', 9, CURRENT_TIMESTAMP - interval '10 days' - interval '2 hours', CURRENT_TIMESTAMP - interval '10 days' - interval '1 hour', '5e8a05c4-8556-5a66-9618-a11465917cc9', CURRENT_TIMESTAMP - interval '10 days' - interval '2 hours'),
+('0dbdde21-62c8-504c-8c91-6f1dd5720274', 'P-DEMO-00012', 'f8ea3d415dff5421bb4d3001ce0ee8a5000000000000000b', '393cde01-98fb-5913-a852-7663d5945d15', 'PED000000012', '5d03fa6f-53ec-5964-8a5e-5bbe19c3a967', '', 'Gabriel', 'Cancelado', 'Tarjeta', 30, CURRENT_TIMESTAMP - interval '11 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '11 days' - interval '2 hours'),
+('6c066ca6-fa90-5132-8116-7e9ea4b89108', 'P-DEMO-00013', '141768842a1a5964a0ce39a266aef6fe000000000000000c', 'e039a298-598b-5b9a-9026-bf66b1942190', 'PED000000013', '5c2c1d2f-2025-55bd-8096-5020a49ad4f1', '', 'Mariana', 'Pendiente', 'QR', 17, CURRENT_TIMESTAMP - interval '12 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '12 days' - interval '2 hours'),
+('505a1fdb-9fe1-5831-969d-3392550dd0f0', 'P-DEMO-00014', '8bea478bdfdf58d1a3d5e355aa1837f2000000000000000d', '7334534f-1260-5482-8c10-7407d71c6cf1', 'PED000000014', '9c87bf4f-87aa-5e1b-a7e8-e042b56ba65a', '', 'Nicolás', 'Retirado', 'Tarjeta', 48, CURRENT_TIMESTAMP - interval '13 days' - interval '2 hours', CURRENT_TIMESTAMP - interval '13 days' - interval '1 hour', '5e8a05c4-8556-5a66-9618-a11465917cc9', CURRENT_TIMESTAMP - interval '13 days' - interval '2 hours'),
+('9d33e2a8-c3cd-5ead-b68c-4f9f7fd93ae6', 'P-DEMO-00015', '4421b4782a635871a7132d6acf253131000000000000000e', 'f36322f0-36fd-55f2-b2d1-46fbdf1f4030', 'PED000000015', '492ec502-d4e1-5dfb-bbdd-061198651b36', '', 'Renata', 'Cancelado', 'QR', 27, CURRENT_TIMESTAMP - interval '14 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '14 days' - interval '2 hours'),
+('f5812206-168b-5be3-9c48-6bd19deb9055', 'P-DEMO-00016', '3475cc230022551b9ceae3df49884a2b000000000000000f', '8cb2b7ff-8d09-53a9-bdff-b41c0087d841', 'PED000000016', 'f83edd0a-9eec-5abd-afff-846c20683a97', '', 'Joaquín', 'Pendiente', 'Tarjeta', 86, CURRENT_TIMESTAMP - interval '15 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '15 days' - interval '2 hours'),
+('a0b3c917-f3f2-5969-a6ad-da0d3f5b4ce9', 'P-DEMO-00017', '39445ebb940f565f8ccebd65ef54e3e60000000000000010', '78c7548e-cc99-5d4b-809a-c680251595a0', 'PED000000017', 'af2eb4e2-4b55-5321-afa1-26b7ae9674fb', '', 'Alejandra', 'Retirado', 'QR', 67, CURRENT_TIMESTAMP - interval '16 days' - interval '2 hours', CURRENT_TIMESTAMP - interval '16 days' - interval '1 hour', '5e8a05c4-8556-5a66-9618-a11465917cc9', CURRENT_TIMESTAMP - interval '16 days' - interval '2 hours'),
+('7ac3823e-316b-5adf-afd9-96c8ef6fce11', 'P-DEMO-00018', '4a650f6763745cc0ae8604ccab8e1e640000000000000011', '63c5d492-e797-5617-8a27-fb33e62dd51b', 'PED000000018', 'd1ab1c71-c2c2-5983-86fd-5204052338af', '', 'Sebastián', 'Cancelado', 'Tarjeta', 96, CURRENT_TIMESTAMP - interval '17 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '17 days' - interval '2 hours'),
+('f8c06fbf-33f0-535a-af32-7b8a6d0fbbb8', 'P-DEMO-00019', 'e538cd2b22c357dd940cdfd549a055120000000000000012', 'b9bfbe04-f702-51ff-b20b-269858062949', 'PED000000019', '22143335-3a01-5ff1-827c-16017bcc4fea', '', 'Isabella', 'Pendiente', 'QR', 97, CURRENT_TIMESTAMP - interval '18 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '18 days' - interval '2 hours'),
+('93299f6a-9a41-5dec-8670-fd9f44c70fb8', 'P-DEMO-00020', '0ca9b808a79154e4bfeff3f861f2cc3e0000000000000013', 'de9ddf8a-7025-5c18-8d53-eb63327e90f9', 'PED000000020', 'beac8d3e-bc14-5d92-a3ee-d4c1a48982ea', '', 'Adrián', 'Retirado', 'Tarjeta', 30, CURRENT_TIMESTAMP - interval '19 days' - interval '2 hours', CURRENT_TIMESTAMP - interval '19 days' - interval '1 hour', '5e8a05c4-8556-5a66-9618-a11465917cc9', CURRENT_TIMESTAMP - interval '19 days' - interval '2 hours'),
+('88f0e72a-6084-564a-93b1-cff67c060021', 'P-DEMO-00021', 'f89d628c214a5b90b54d37c7e69bc4430000000000000014', 'd07b3bca-1ae1-57a3-ba4a-df621ef67240', 'PED000000021', 'ca562ac0-7ec3-5708-b85f-df210978e030', '', 'Sofía', 'Cancelado', 'QR', 17, CURRENT_TIMESTAMP - interval '20 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '20 days' - interval '2 hours'),
+('c5cc3772-48ac-558b-afd2-56ce8d488514', 'P-DEMO-00022', '7d211c7b21245f3d88bf399f6be2f5b70000000000000015', '355d3ec5-2b51-577d-b2b5-014e94662013', 'PED000000022', '530cb6d4-b1d9-5c85-bbab-90f0d4ae6131', '', 'Emilio', 'Pendiente', 'Tarjeta', 34, CURRENT_TIMESTAMP - interval '21 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '21 days' - interval '2 hours'),
+('85672135-461a-5247-a3fa-5af4e18835ab', 'P-DEMO-00023', '6cced7ab879d51a0aef5b1d471f7cb020000000000000016', 'ff19f726-d1fb-5cf0-802e-6223d14930b9', 'PED000000023', 'aa9f3573-9b46-5622-a528-391ee942d06d', '', 'Usuario', 'Retirado', 'QR', 17, CURRENT_TIMESTAMP - interval '22 days' - interval '2 hours', CURRENT_TIMESTAMP - interval '22 days' - interval '1 hour', '5e8a05c4-8556-5a66-9618-a11465917cc9', CURRENT_TIMESTAMP - interval '22 days' - interval '2 hours'),
+('50751d3f-7b92-5dc6-bc4e-07efe7d76fe1', 'P-DEMO-00024', '632ac8ae7aba585e981aefbcfc1f1d4f0000000000000017', '1848d624-5e81-56a1-ad60-e9ab0f79acc9', 'PED000000024', 'c1485a5f-398e-5e9b-bb2a-4bac17d4394d', '', 'JUAN', 'Cancelado', 'Tarjeta', 40, CURRENT_TIMESTAMP - interval '23 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '23 days' - interval '2 hours'),
+('900e4214-eee5-5e24-995a-59aefd5dbf59', 'P-DEMO-00025', '0364612580a254b4ab4a6e5401b7ed770000000000000018', 'fe95ea22-eab6-5ecc-8c73-2da2dd653722', 'PED000000025', 'aa352068-747a-57b0-853a-b6ce8d2e9596', '', 'SAMARA', 'Pendiente', 'QR', 32, CURRENT_TIMESTAMP - interval '24 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '24 days' - interval '2 hours'),
+('efe92bf2-1206-5c86-83ef-37024e6a8658', 'P-DEMO-00026', 'a6df8cf9d64c5d859a399125ea2d011a0000000000000019', '526b2204-1e2a-5c3d-8cf9-5962a6c6bea5', 'PED000000026', 'ca85c960-4ff7-5ccf-93e3-5e852d9dc65c', '', 'XIOMARA', 'Retirado', 'Tarjeta', 10, CURRENT_TIMESTAMP - interval '25 days' - interval '2 hours', CURRENT_TIMESTAMP - interval '25 days' - interval '1 hour', '5e8a05c4-8556-5a66-9618-a11465917cc9', CURRENT_TIMESTAMP - interval '25 days' - interval '2 hours'),
+('c9928888-f795-5750-aa3a-3fd580967a7e', 'P-DEMO-00027', '25e3805d2a63581ebea01c22aec1bd86000000000000001a', '6822e9eb-7a5c-5bef-aabf-431a6495e7e0', 'PED000000027', 'dd77a631-dd03-5df9-907d-6fb5621e1875', '', 'Valeria', 'Cancelado', 'QR', 14, CURRENT_TIMESTAMP - interval '26 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '26 days' - interval '2 hours'),
+('0353db94-09ad-5dd6-a42a-e624c3a897fc', 'P-DEMO-00028', '9e3eeb557c265c96844e56a538c329c8000000000000001b', '4de52a32-07d7-5793-9ea7-86d6d555e725', 'PED000000028', 'd322997b-21ba-54d1-ad7e-3c9d1ddf8127', '', 'Mateo', 'Pendiente', 'Tarjeta', 40, CURRENT_TIMESTAMP - interval '27 days' - interval '2 hours', NULL, NULL, CURRENT_TIMESTAMP - interval '27 days' - interval '2 hours');
 
 INSERT INTO cine.pedido_lineas (id, pedido_id, combo_id, nombre, categoria, cantidad, precio_unitario) VALUES
-(1, 'd9acd038-89d5-55c2-b77c-4a44b36c3ff3', 1, 'Combo individual', 'Clásicos', 1, 35),
-(2, 'd9acd038-89d5-55c2-b77c-4a44b36c3ff3', 2, 'Combo clásico grande', 'Clásicos', 1, 48),
-(3, '191f622e-0225-5f3d-be2d-dc3a8801cce3', 2, 'Combo clásico grande', 'Clásicos', 2, 48),
-(4, '191f622e-0225-5f3d-be2d-dc3a8801cce3', 3, 'Combo pareja', 'Para compartir', 2, 62),
-(5, 'fa4065ff-2070-506a-8023-b2a2b8ed17e3', 3, 'Combo pareja', 'Para compartir', 1, 62),
-(6, 'fa4065ff-2070-506a-8023-b2a2b8ed17e3', 4, 'Combo familiar', 'Para compartir', 1, 115),
-(7, '5d1b2a22-7cd8-5a63-b428-382f76074c2a', 4, 'Combo familiar', 'Para compartir', 2, 115),
-(8, '5d1b2a22-7cd8-5a63-b428-382f76074c2a', 5, 'Combo amigos', 'Para compartir', 2, 135),
-(9, 'b974e809-3e48-5157-b483-57460ae37a7d', 5, 'Combo amigos', 'Para compartir', 1, 135),
-(10, 'b974e809-3e48-5157-b483-57460ae37a7d', 6, 'Combo caramelo', 'Clásicos', 1, 42),
-(11, 'f5271f6f-66a0-57f7-a709-050f9af7fb1a', 6, 'Combo caramelo', 'Clásicos', 2, 42),
-(12, 'f5271f6f-66a0-57f7-a709-050f9af7fb1a', 7, 'Dúo de golosinas', 'Dulces', 2, 28),
-(13, 'b871e73f-43ab-5a7f-838a-0de4bc7f2498', 7, 'Dúo de golosinas', 'Dulces', 1, 28),
-(14, 'b871e73f-43ab-5a7f-838a-0de4bc7f2498', 8, 'Combo chocolate', 'Dulces', 1, 32),
-(15, '32ebb6b8-ef08-51d0-a96b-6eeaba3008ee', 8, 'Combo chocolate', 'Dulces', 2, 32),
-(16, '32ebb6b8-ef08-51d0-a96b-6eeaba3008ee', 9, 'Mix dulce', 'Dulces', 2, 38),
-(17, '0bd57d29-c980-51f5-8594-60b5d52923cd', 9, 'Mix dulce', 'Dulces', 1, 38),
-(18, '0bd57d29-c980-51f5-8594-60b5d52923cd', 10, 'Nachos clásicos', 'Nachos', 1, 30),
-(19, 'ff528372-359f-5947-9153-11b79eadcb23', 10, 'Nachos clásicos', 'Nachos', 2, 30),
-(20, 'ff528372-359f-5947-9153-11b79eadcb23', 11, 'Combo nachos', 'Nachos', 2, 45),
-(21, '6a5dea24-9ad6-5491-b081-1778e48a6401', 11, 'Combo nachos', 'Nachos', 1, 45),
-(22, '6a5dea24-9ad6-5491-b081-1778e48a6401', 12, 'Nachos para dos', 'Nachos', 1, 82),
-(23, '0dbdde21-62c8-504c-8c91-6f1dd5720274', 12, 'Nachos para dos', 'Nachos', 2, 82),
-(24, '0dbdde21-62c8-504c-8c91-6f1dd5720274', 13, 'Bebidas para compartir', 'Bebidas', 2, 34),
-(25, '6c066ca6-fa90-5132-8116-7e9ea4b89108', 13, 'Bebidas para compartir', 'Bebidas', 1, 34),
-(26, '6c066ca6-fa90-5132-8116-7e9ea4b89108', 14, 'Combo refrescante', 'Bebidas', 1, 31),
-(27, '505a1fdb-9fe1-5831-969d-3392550dd0f0', 14, 'Combo refrescante', 'Bebidas', 2, 31),
-(28, '505a1fdb-9fe1-5831-969d-3392550dd0f0', 15, 'Combo infantil', 'Infantil', 2, 32),
-(29, '9d33e2a8-c3cd-5ead-b68c-4f9f7fd93ae6', 15, 'Combo infantil', 'Infantil', 1, 32),
-(30, '9d33e2a8-c3cd-5ead-b68c-4f9f7fd93ae6', 16, 'Dúo infantil', 'Infantil', 1, 58),
-(31, 'f5812206-168b-5be3-9c48-6bd19deb9055', 16, 'Dúo infantil', 'Infantil', 2, 58),
-(32, 'f5812206-168b-5be3-9c48-6bd19deb9055', 17, 'Edición de temporada', 'Clásicos', 2, 49),
-(33, 'a0b3c917-f3f2-5969-a6ad-da0d3f5b4ce9', 17, 'Edición de temporada', 'Clásicos', 1, 49),
-(34, 'a0b3c917-f3f2-5969-a6ad-da0d3f5b4ce9', 18, 'Selección dulce de temporada', 'Dulces', 1, 29),
-(35, '7ac3823e-316b-5adf-afd9-96c8ef6fce11', 18, 'Selección dulce de temporada', 'Dulces', 2, 29),
-(36, 'f8c06fbf-33f0-535a-af32-7b8a6d0fbbb8', 1, 'Combo individual', 'Clásicos', 1, 35),
-(37, 'f8c06fbf-33f0-535a-af32-7b8a6d0fbbb8', 2, 'Combo clásico grande', 'Clásicos', 1, 48),
-(38, '93299f6a-9a41-5dec-8670-fd9f44c70fb8', 2, 'Combo clásico grande', 'Clásicos', 2, 48),
-(39, '93299f6a-9a41-5dec-8670-fd9f44c70fb8', 3, 'Combo pareja', 'Para compartir', 2, 62),
-(40, '88f0e72a-6084-564a-93b1-cff67c060021', 3, 'Combo pareja', 'Para compartir', 1, 62),
-(41, '88f0e72a-6084-564a-93b1-cff67c060021', 4, 'Combo familiar', 'Para compartir', 1, 115),
-(42, 'c5cc3772-48ac-558b-afd2-56ce8d488514', 4, 'Combo familiar', 'Para compartir', 2, 115),
-(43, 'c5cc3772-48ac-558b-afd2-56ce8d488514', 5, 'Combo amigos', 'Para compartir', 2, 135),
-(44, '85672135-461a-5247-a3fa-5af4e18835ab', 5, 'Combo amigos', 'Para compartir', 1, 135),
-(45, '85672135-461a-5247-a3fa-5af4e18835ab', 6, 'Combo caramelo', 'Clásicos', 1, 42),
-(46, '50751d3f-7b92-5dc6-bc4e-07efe7d76fe1', 6, 'Combo caramelo', 'Clásicos', 2, 42),
-(47, '50751d3f-7b92-5dc6-bc4e-07efe7d76fe1', 7, 'Dúo de golosinas', 'Dulces', 2, 28),
-(48, '900e4214-eee5-5e24-995a-59aefd5dbf59', 7, 'Dúo de golosinas', 'Dulces', 1, 28),
-(49, '900e4214-eee5-5e24-995a-59aefd5dbf59', 8, 'Combo chocolate', 'Dulces', 1, 32),
-(50, 'efe92bf2-1206-5c86-83ef-37024e6a8658', 8, 'Combo chocolate', 'Dulces', 2, 32),
-(51, 'efe92bf2-1206-5c86-83ef-37024e6a8658', 9, 'Mix dulce', 'Dulces', 2, 38),
-(52, 'c9928888-f795-5750-aa3a-3fd580967a7e', 9, 'Mix dulce', 'Dulces', 1, 38),
-(53, 'c9928888-f795-5750-aa3a-3fd580967a7e', 10, 'Nachos clásicos', 'Nachos', 1, 30),
-(54, '0353db94-09ad-5dd6-a42a-e624c3a897fc', 10, 'Nachos clásicos', 'Nachos', 2, 30),
-(55, '0353db94-09ad-5dd6-a42a-e624c3a897fc', 11, 'Combo nachos', 'Nachos', 2, 45);
+(1, 'd9acd038-89d5-55c2-b77c-4a44b36c3ff3', 1, 'Pipoca pequeña', 'Pipocas', 1, 18),
+(2, 'd9acd038-89d5-55c2-b77c-4a44b36c3ff3', 2, 'Pipoca mediana', 'Pipocas', 1, 25),
+(3, '191f622e-0225-5f3d-be2d-dc3a8801cce3', 3, 'Pipoca grande', 'Pipocas', 2, 32),
+(4, '191f622e-0225-5f3d-be2d-dc3a8801cce3', 4, 'Combo pipoca dúo', 'Combos', 2, 35),
+(5, 'fa4065ff-2070-506a-8023-b2a2b8ed17e3', 5, 'Combo Coca-Cola dúo', 'Combos', 1, 48),
+(6, 'fa4065ff-2070-506a-8023-b2a2b8ed17e3', 6, 'Combo CineSpace dúo', 'Combos', 1, 52),
+(7, '5d1b2a22-7cd8-5a63-b428-382f76074c2a', 7, 'Combo personal XL', 'Combos', 2, 45),
+(8, '5d1b2a22-7cd8-5a63-b428-382f76074c2a', 8, 'Agua Vital personal', 'Bebidas', 2, 8),
+(9, 'b974e809-3e48-5157-b483-57460ae37a7d', 9, 'Coca-Cola pequeña', 'Bebidas', 1, 7),
+(10, 'b974e809-3e48-5157-b483-57460ae37a7d', 10, 'Coca-Cola sin azúcar pequeña', 'Bebidas', 1, 7),
+(11, 'f5271f6f-66a0-57f7-a709-050f9af7fb1a', 11, 'Coca-Cola personal', 'Bebidas', 2, 10),
+(12, 'f5271f6f-66a0-57f7-a709-050f9af7fb1a', 12, 'Coca-Cola sin azúcar personal', 'Bebidas', 2, 10),
+(13, 'b871e73f-43ab-5a7f-838a-0de4bc7f2498', 13, 'Fanta pequeña', 'Bebidas', 1, 7),
+(14, 'b871e73f-43ab-5a7f-838a-0de4bc7f2498', 14, 'Fanta personal', 'Bebidas', 1, 10),
+(15, '32ebb6b8-ef08-51d0-a96b-6eeaba3008ee', 15, 'Sprite pequeña', 'Bebidas', 2, 7),
+(16, '32ebb6b8-ef08-51d0-a96b-6eeaba3008ee', 16, 'Sprite personal', 'Bebidas', 2, 10),
+(17, '0bd57d29-c980-51f5-8594-60b5d52923cd', 17, 'Gaseosa pequeña', 'Bebidas', 1, 10),
+(18, '0bd57d29-c980-51f5-8594-60b5d52923cd', 18, 'Gaseosa mediana', 'Bebidas', 1, 14),
+(19, 'ff528372-359f-5947-9153-11b79eadcb23', 19, 'Gaseosa grande', 'Bebidas', 2, 18),
+(20, 'ff528372-359f-5947-9153-11b79eadcb23', 20, 'Chocolate Bon o Bon', 'Dulces', 2, 3),
+(21, '6a5dea24-9ad6-5491-b081-1778e48a6401', 21, 'Chupete Bon Bon Bum', 'Dulces', 1, 2),
+(22, '6a5dea24-9ad6-5491-b081-1778e48a6401', 22, 'Galletas Frac chocolate', 'Dulces', 1, 7),
+(23, '0dbdde21-62c8-504c-8c91-6f1dd5720274', 23, 'Galletas Frac clásica', 'Dulces', 2, 7),
+(24, '0dbdde21-62c8-504c-8c91-6f1dd5720274', 24, 'Galletas Oreo', 'Dulces', 2, 8),
+(25, '6c066ca6-fa90-5132-8116-7e9ea4b89108', 25, 'Gomitas Mogul surtidas', 'Dulces', 1, 12),
+(26, '6c066ca6-fa90-5132-8116-7e9ea4b89108', 26, 'Gomitas Mogul mini', 'Dulces', 1, 5),
+(27, '505a1fdb-9fe1-5831-969d-3392550dd0f0', 27, 'Gomitas Mogul ositos', 'Dulces', 2, 12),
+(28, '505a1fdb-9fe1-5831-969d-3392550dd0f0', 28, 'Chocolate Snickers', 'Dulces', 2, 12),
+(29, '9d33e2a8-c3cd-5ead-b68c-4f9f7fd93ae6', 29, 'Nachos Mexican Food', 'Snacks', 1, 15),
+(30, '9d33e2a8-c3cd-5ead-b68c-4f9f7fd93ae6', 30, 'Papas Hippita picantes', 'Snacks', 1, 12),
+(31, 'f5812206-168b-5be3-9c48-6bd19deb9055', 1, 'Pipoca pequeña', 'Pipocas', 2, 18),
+(32, 'f5812206-168b-5be3-9c48-6bd19deb9055', 2, 'Pipoca mediana', 'Pipocas', 2, 25),
+(33, 'a0b3c917-f3f2-5969-a6ad-da0d3f5b4ce9', 3, 'Pipoca grande', 'Pipocas', 1, 32),
+(34, 'a0b3c917-f3f2-5969-a6ad-da0d3f5b4ce9', 4, 'Combo pipoca dúo', 'Combos', 1, 35),
+(35, '7ac3823e-316b-5adf-afd9-96c8ef6fce11', 5, 'Combo Coca-Cola dúo', 'Combos', 2, 48),
+(36, 'f8c06fbf-33f0-535a-af32-7b8a6d0fbbb8', 6, 'Combo CineSpace dúo', 'Combos', 1, 52),
+(37, 'f8c06fbf-33f0-535a-af32-7b8a6d0fbbb8', 7, 'Combo personal XL', 'Combos', 1, 45),
+(38, '93299f6a-9a41-5dec-8670-fd9f44c70fb8', 8, 'Agua Vital personal', 'Bebidas', 2, 8),
+(39, '93299f6a-9a41-5dec-8670-fd9f44c70fb8', 9, 'Coca-Cola pequeña', 'Bebidas', 2, 7),
+(40, '88f0e72a-6084-564a-93b1-cff67c060021', 10, 'Coca-Cola sin azúcar pequeña', 'Bebidas', 1, 7),
+(41, '88f0e72a-6084-564a-93b1-cff67c060021', 11, 'Coca-Cola personal', 'Bebidas', 1, 10),
+(42, 'c5cc3772-48ac-558b-afd2-56ce8d488514', 12, 'Coca-Cola sin azúcar personal', 'Bebidas', 2, 10),
+(43, 'c5cc3772-48ac-558b-afd2-56ce8d488514', 13, 'Fanta pequeña', 'Bebidas', 2, 7),
+(44, '85672135-461a-5247-a3fa-5af4e18835ab', 14, 'Fanta personal', 'Bebidas', 1, 10),
+(45, '85672135-461a-5247-a3fa-5af4e18835ab', 15, 'Sprite pequeña', 'Bebidas', 1, 7),
+(46, '50751d3f-7b92-5dc6-bc4e-07efe7d76fe1', 16, 'Sprite personal', 'Bebidas', 2, 10),
+(47, '50751d3f-7b92-5dc6-bc4e-07efe7d76fe1', 17, 'Gaseosa pequeña', 'Bebidas', 2, 10),
+(48, '900e4214-eee5-5e24-995a-59aefd5dbf59', 18, 'Gaseosa mediana', 'Bebidas', 1, 14),
+(49, '900e4214-eee5-5e24-995a-59aefd5dbf59', 19, 'Gaseosa grande', 'Bebidas', 1, 18),
+(50, 'efe92bf2-1206-5c86-83ef-37024e6a8658', 20, 'Chocolate Bon o Bon', 'Dulces', 2, 3),
+(51, 'efe92bf2-1206-5c86-83ef-37024e6a8658', 21, 'Chupete Bon Bon Bum', 'Dulces', 2, 2),
+(52, 'c9928888-f795-5750-aa3a-3fd580967a7e', 22, 'Galletas Frac chocolate', 'Dulces', 1, 7),
+(53, 'c9928888-f795-5750-aa3a-3fd580967a7e', 23, 'Galletas Frac clásica', 'Dulces', 1, 7),
+(54, '0353db94-09ad-5dd6-a42a-e624c3a897fc', 24, 'Galletas Oreo', 'Dulces', 2, 8),
+(55, '0353db94-09ad-5dd6-a42a-e624c3a897fc', 25, 'Gomitas Mogul surtidas', 'Dulces', 2, 12);
 
 INSERT INTO cine.banners (id, pelicula_id, imagen, etiqueta, foco, orden, activo) VALUES
 (1, 986056, '/images/peliculas/986056-fondo.webp', 0, 35, 0, TRUE),
@@ -2532,10 +2547,10 @@ UPDATE cine.ventas v SET snapshot_json=v.snapshot_json || jsonb_build_object(
  FROM cine.funciones f JOIN cine.peliculas p ON p.id=f.pelicula_id JOIN cine.salas s ON s.id=f.sala_id JOIN cine.tipos_sala ts ON ts.id=s.tipo_sala_id JOIN cine.experiencias e ON e.id=f.experiencia_id WHERE f.id=v.funcion_id;
 
 -- Confitería: una compra realista por día y categoría para poblar las tendencias.
-INSERT INTO cine.pedidos (id,numero,token,solicitud,codigo,usuario_id,propietario_invitado,nombre_retiro,estado,metodo_pago,total,creado_utc,retirado_utc,entregado_por_id)
+INSERT INTO cine.pedidos (id,numero,token,solicitud,codigo,usuario_id,propietario_invitado,nombre_retiro,estado,metodo_pago,total,creado_utc,retirado_utc,entregado_por_id,pagado_utc)
 SELECT md5('seed-pedido:'||dia||':'||c.id)::uuid,'P-SEED-'||dia||'-'||c.id,md5('token:'||dia||':'||c.id)||substr(md5(c.id::text),1,16),'seed-pedido:'||dia||':'||c.id,
- 'CF-SEED-'||dia||'-'||c.id,u.id,'',u.nombre||' '||u.apellido,'Retirado',CASE WHEN c.id%2=0 THEN 'Pago QR' ELSE 'Efectivo' END,c.precio*(1+(dia+c.id)%3),
- CURRENT_TIMESTAMP-make_interval(days=>dia)-interval '2 hours',CURRENT_TIMESTAMP-make_interval(days=>dia),w.usuario_id
+ 'CF-SEED-'||dia||'-'||c.id,u.id,'',u.nombre||' '||u.apellido,'Retirado',CASE WHEN c.id%2=0 THEN 'QR' ELSE 'Tarjeta' END,c.precio*(1+(dia+c.id)%3),
+ CURRENT_TIMESTAMP-make_interval(days=>dia)-interval '2 hours',CURRENT_TIMESTAMP-make_interval(days=>dia),w.usuario_id,CURRENT_TIMESTAMP-make_interval(days=>dia)-interval '2 hours'
 FROM generate_series(0,29) dia CROSS JOIN cine.combos c
 CROSS JOIN (SELECT id,nombre,apellido FROM cine.usuarios WHERE email='cliente@cliente.com') u
 CROSS JOIN (SELECT usuario_id FROM cine.trabajadores ORDER BY id LIMIT 1) w WHERE c.publicado AND (dia+c.id)%4=0;

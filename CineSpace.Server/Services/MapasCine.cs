@@ -54,7 +54,7 @@ public static class MapasCine
     {
         Numero = x.Numero, Token = x.Token, Solicitud = x.Solicitud, CodigoRetiro = x.Codigo, NombreRetiro = x.NombreRetiro,
         EmailUsuario = x.Usuario?.Email ?? "", FechaCreacion = ReglasCine.Local(x.CreadoUtc), FechaRetiro = x.RetiradoUtc.HasValue ? ReglasCine.Local(x.RetiradoUtc.Value) : null,
-        EntregadoPor = x.EntregadoPor is null ? "" : $"{x.EntregadoPor.Nombre} {x.EntregadoPor.Apellido}", MedioPago = x.MetodoPago,
+        EntregadoPor = x.EntregadoPor is null ? "" : $"{x.EntregadoPor.Nombre} {x.EntregadoPor.Apellido}", MedioPago = x.MetodoPago, FechaPago = ReglasCine.Local(x.PagadoUtc),
         Estado = Enum.Parse<EstadoPedidoConfiteria>(x.Estado), Lineas = x.Lineas.Select(l => new LineaVentaConfiteria(l.Nombre, l.Categoria, l.Cantidad, l.PrecioUnitario)).ToList()
     };
 }

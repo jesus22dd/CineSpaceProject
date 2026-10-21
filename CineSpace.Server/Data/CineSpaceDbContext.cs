@@ -105,8 +105,11 @@ public sealed class CineSpaceDbContext(DbContextOptions<CineSpaceDbContext> opti
         builder.Entity<PedidoRegistro>().ToTable("pedidos");
         builder.Entity<PedidoRegistro>().HasIndex(x => x.Numero).IsUnique();
         builder.Entity<PedidoRegistro>().HasIndex(x => x.Token).IsUnique();
+        builder.Entity<PedidoRegistro>().HasIndex(x => x.Codigo).IsUnique();
         builder.Entity<PedidoRegistro>().HasIndex(x => x.Solicitud).IsUnique();
         builder.Entity<PedidoRegistro>().HasIndex(x => new { x.Estado, x.CreadoUtc });
+        builder.Entity<PedidoRegistro>().HasIndex(x => new { x.UsuarioId, x.CreadoUtc, x.Id }).HasDatabaseName("pedidos_usuario_fecha").IsDescending(false, true, false).HasFilter("usuario_id IS NOT NULL");
+        builder.Entity<PedidoRegistro>().HasIndex(x => new { x.PropietarioInvitado, x.CreadoUtc, x.Id }).HasDatabaseName("pedidos_invitado_fecha").IsDescending(false, true, false).HasFilter("usuario_id IS NULL");
         builder.Entity<PedidoRegistro>().HasOne(x => x.Usuario).WithMany().HasForeignKey(x => x.UsuarioId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<PedidoRegistro>().HasOne(x => x.EntregadoPor).WithMany().HasForeignKey(x => x.EntregadoPorId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<PedidoLineaRegistro>().ToTable("pedido_lineas");

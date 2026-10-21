@@ -16,31 +16,7 @@
         </section>
         <section class="checkout-section payment-section" aria-labelledby="payment-title">
             <div class="payment-heading"><h4 id="payment-title">Método de pago</h4><p><span>Total a pagar</span><strong>@Total.ToString("N2") <small>Bs</small></strong></p></div>
-            <fieldset class="payment-methods"><legend class="visually-hidden">Selecciona el método de pago</legend>
-                <label class="payment-choice @(MetodoPago == "Tarjeta" ? "is-selected" : "")" for="tarjeta"><input type="radio" name="metodoPago" id="tarjeta" value="Tarjeta" checked="@(MetodoPago == "Tarjeta")" @onchange="HandleMetodoPagoChanged" disabled="@Procesando" /><i class="far fa-credit-card" aria-hidden="true"></i><span>Tarjeta de débito</span></label>
-                <label class="payment-choice @(MetodoPago == "QR" ? "is-selected" : "")" for="qr"><input type="radio" name="metodoPago" id="qr" value="QR" checked="@(MetodoPago == "QR")" @onchange="HandleMetodoPagoChanged" disabled="@Procesando" /><i class="fas fa-qrcode" aria-hidden="true"></i><span>Pago QR</span></label>
-                @if (PermiteEfectivo) { <label class="payment-choice @(MetodoPago == "Efectivo" ? "is-selected" : "")" for="efectivo"><input type="radio" name="metodoPago" id="efectivo" value="Efectivo" checked="@(MetodoPago == "Efectivo")" @onchange="HandleMetodoPagoChanged" disabled="@Procesando" /><i class="fas fa-money-bill-wave" aria-hidden="true"></i><span>Efectivo</span></label> }
-            </fieldset>
-            @if (MetodoPago == "Tarjeta")
-            {
-                <div class="payment-simulation-note" id="debit-test-note"><button type="button" class="payment-test-fill" @onclick="CompletarDatosPrueba" disabled="@Procesando">Usar datos de prueba<i class="fas fa-arrow-down" aria-hidden="true"></i></button></div>
-                <div class="checkout-fields debit-fields" aria-describedby="debit-test-note">
-                    <div class="field-full"><label for="debit-holder">Titular de la tarjeta</label><input id="debit-holder" class="form-control" autocomplete="off" required maxlength="100" @bind="titular" /></div>
-                    <div class="field-full"><label for="debit-number">Número de tarjeta</label><input id="debit-number" class="form-control" autocomplete="off" inputmode="numeric" placeholder="4242 4242 4242 4242" required maxlength="23" @bind="numero" /></div>
-                    <div><label for="debit-expiry">Vencimiento</label><input id="debit-expiry" class="form-control" autocomplete="off" inputmode="numeric" placeholder="MM/AA" required maxlength="5" @bind="vencimiento" /></div>
-                    <div><label for="debit-cvv">CVV</label><input id="debit-cvv" type="password" class="form-control" autocomplete="off" inputmode="numeric" placeholder="123" required maxlength="3" @bind="cvv" /></div>
-                </div>
-            }
-            else if (MetodoPago == "QR")
-            {
-                <div class="payment-qr"><span class="payment-qr-frame"><img src="images/payment-qr.png" alt="Código QR para realizar el pago" width="220" height="220" /></span><strong>Paga con QR</strong><p>Escanea el QR y confirma el pago para continuar.</p></div>
-                <label class="payment-qr-confirm" for="qr-payment-confirmed"><input id="qr-payment-confirmed" type="checkbox" required @bind="qrConfirmado" disabled="@Procesando" />He realizado el pago</label>
-            }
-            else if (MetodoPago == "Efectivo" && PermiteEfectivo)
-            {
-                <div class="payment-simulation-note"><strong>Cobro en caja</strong><p>Registra el importe recibido antes de finalizar la compra del cliente.</p></div>
-            }
-            @if (!string.IsNullOrEmpty(errorPago)) { <p class="alert alert-danger payment-error" role="alert">@errorPago</p> }
+            <PaymentMethodFields MetodoPago="@MetodoPago" OnMetodoPagoChanged="OnMetodoPagoChanged" PermiteEfectivo="PermiteEfectivo" Procesando="Procesando" Total="Total" @ref="camposPago" />
         </section>
       </div>
       <div class="booking-actions"><button type="button" class="btn btn-secondary" @onclick="Volver" disabled="@Procesando">Atrás</button><button type="submit" class="btn btn-primary" disabled="@Procesando">@(Procesando ? "Procesando…" : "Finalizar compra")<i class="fas fa-arrow-right" aria-hidden="true"></i></button></div>
@@ -64,16 +40,7 @@
     public string MetodoPago { get; set; } = "Tarjeta";
     [Parameter] public bool PermiteEfectivo { get; set; }
     [Parameter] public decimal Total { get; set; }
-    private string titular = "", numero = "", vencimiento = "", cvv = "", errorPago = "", metodoAnterior = "";
-    private bool qrConfirmado;
-    protected override void OnParametersSet()
-    {
-        if (metodoAnterior == MetodoPago) return;
-        metodoAnterior = MetodoPago;
-        LimpiarPago();
-    }
-    private void LimpiarPago() { titular = numero = vencimiento = cvv = errorPago = ""; qrConfirmado = false; }
-    private void CompletarDatosPrueba() { titular = "CLIENTE DE PRUEBA"; numero = "4242 4242 4242 4242"; vencimiento = DateTime.Today.AddYears(1).ToString("MM/yy"); cvv = "123"; errorPago = ""; }
+    private PaymentMethodFields? camposPago;
 
     [Parameter]
     public EventCallback<string> OnNombreChanged { get; set; }
@@ -121,27 +88,15 @@
         await OnTelefonoChanged.InvokeAsync(telefono);
     }
 
-    private async Task HandleMetodoPagoChanged(ChangeEventArgs e)
-    {
-        var metodo = e.Value?.ToString() ?? "Tarjeta";
-        if (!PagosReserva.MetodoPermitido(metodo, PermiteEfectivo)) return;
-        await OnMetodoPagoChanged.InvokeAsync(metodo);
-    }
-
     private async Task Continuar()
     {
-        if (Procesando) return;
-        errorPago = !PagosReserva.MetodoPermitido(MetodoPago, PermiteEfectivo) ? "Selecciona un método de pago disponible para tu cuenta."
-            : MetodoPago == "Tarjeta" ? PagosReserva.ValidarDebito(titular, numero, vencimiento, cvv, DateTime.Today)
-            : MetodoPago == "QR" && !qrConfirmado ? "Confirma el pago QR antes de continuar." : "";
-        if (errorPago.Length > 0) return;
-        // Los datos ficticios de tarjeta permanecen en este componente y no se guardan en la venta.
+        if(Procesando || camposPago?.PrepararPago() is null)return;
         await OnContinuar.InvokeAsync();
     }
 
     private async Task Volver()
     {
-        LimpiarPago();
+        camposPago?.LimpiarPago();
         await OnVolver.InvokeAsync();
     }
 }

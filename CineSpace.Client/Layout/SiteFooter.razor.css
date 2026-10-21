@@ -4,7 +4,7 @@
 .footer-intro { min-width: 0; }
 .footer-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--cinema-paper); font: 600 26px 'Outfit', sans-serif; text-decoration: none; letter-spacing: -.03em; }
 .footer-brand > span > span { color: var(--cinema-gold); }
-.footer-brand svg { width: 28px; height: 28px; fill: none; stroke: var(--cinema-gold); stroke-width: 1.5; }
+.footer-brand img { width:28px; height:28px; border-radius:5px; object-fit:contain; flex-shrink:0; }
 .footer-brand:hover { color: var(--cinema-paper); }
 .footer-intro p { max-width: 36ch; color: var(--cinema-gold-soft); font-size: 13px; line-height: 1.6; margin: 10px 0 16px; }
 .footer-socials { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }

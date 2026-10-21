@@ -292,7 +292,7 @@ button.is-requesting:has(.button-spinner)::after { display:none; }
 .boot-shell .site-header { min-height:80px; padding:14px clamp(20px,4vw,64px); display:flex; align-items:center; justify-content:space-between; gap:24px; background:var(--cinema-shell); color:var(--cinema-paper); }
 .boot-shell .brand { display:flex; align-items:center; gap:10px; color:var(--cinema-paper); font:600 25px Outfit,sans-serif; text-decoration:none; white-space:nowrap; }
 .boot-shell .brand-space { color:var(--cinema-gold); }
-.boot-shell svg { width:28px; height:28px; fill:none; stroke:var(--cinema-gold); stroke-width:1.5; }
+.boot-shell .brand-logo { width:28px; height:28px; border-radius:5px; object-fit:contain; flex-shrink:0; }
 .boot-shell nav { display:flex; gap:28px; }
 .boot-shell nav a { color:var(--cinema-paper); font-size:14px; text-decoration:none; }
 @media(max-width:600px) { .boot-shell .site-header { flex-wrap:wrap; gap:16px; } .boot-shell nav { width:100%; justify-content:space-between; gap:16px; } }
