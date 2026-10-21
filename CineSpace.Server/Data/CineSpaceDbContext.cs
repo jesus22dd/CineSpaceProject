@@ -116,6 +116,8 @@ public sealed class CineSpaceDbContext(DbContextOptions<CineSpaceDbContext> opti
         builder.Entity<BannerRegistro>().HasOne(x => x.Pelicula).WithMany().HasForeignKey(x => x.PeliculaId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<EstrenoRegistro>().ToTable("estrenos");
         builder.Entity<EstrenoRegistro>().HasIndex(x => new { x.Titulo, x.Fecha }).IsUnique();
+        builder.Entity<EstrenoRegistro>().HasIndex(x => x.PeliculaId).IsUnique();
+        builder.Entity<EstrenoRegistro>().HasOne(x => x.Pelicula).WithMany().HasForeignKey(x => x.PeliculaId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<AjusteRegistro>().ToTable("ajustes").HasKey(x => x.Clave);
         // El prototipo usa 0 para 2D y Estandar; no representa una clave sin asignar.
         builder.Entity<ExperienciaRegistro>().Property(x => x.Id).HasSentinel(-1);

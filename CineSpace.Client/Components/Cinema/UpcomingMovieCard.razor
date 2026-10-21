@@ -15,7 +15,7 @@
             </div>
             <div class="upcoming-detail-synopsis"><h3>Sinopsis</h3><p>@(string.IsNullOrWhiteSpace(Estreno.Sinopsis) ? "La sinopsis de este estreno aún no está disponible." : Estreno.Sinopsis)</p></div>
         </ChildContent>
-        <Footer><button type="button" class="btn btn-primary" @onclick="CerrarDesdeBoton">Cerrar</button></Footer>
+        <Footer>@if(Estreno.EnPreventa && Estreno.PeliculaId.HasValue && Estreno.FuncionesDisponibles > 0){<a class="btn btn-primary" href="@($"/cine?pelicula={Estreno.PeliculaId}")">Reservar preventa</a>}<button type="button" class="btn btn-secondary" @onclick="CerrarDesdeBoton">Cerrar</button></Footer>
     </AppDialog>
 }
 
@@ -26,7 +26,7 @@
     private AppDialog? dialogo;
     private MovieCard? tarjeta;
     private bool restaurarFoco;
-    protected override void OnParametersSet() => pelicula = new Pelicula { Id = Estreno.Id, Titulo = Estreno.Titulo, Genero = Estreno.Genero, ImagenUrl = Estreno.ImagenUrl, HorariosDisponibles = new() };
+    protected override void OnParametersSet() => pelicula = new Pelicula { Id = Estreno.PeliculaId ?? Estreno.Id, Titulo = Estreno.Titulo, Genero = Estreno.Genero, ImagenUrl = Estreno.ImagenUrl, EnPreventa = Estreno.EnPreventa, HorariosDisponibles = new() };
     private void MostrarInformacion(Pelicula _) => mostrarInformacion = true;
     private void CerrarInformacion() { mostrarInformacion = false; restaurarFoco = true; }
     private Task CerrarDesdeBoton() => dialogo?.CerrarDialogo() ?? Task.CompletedTask;

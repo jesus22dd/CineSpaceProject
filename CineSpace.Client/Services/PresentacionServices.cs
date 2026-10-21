@@ -33,6 +33,6 @@ public sealed class EstrenosService(ApiCine api)
     public IReadOnlyList<ProximoEstreno> Publicados => datos.Where(x => x.Publicado).ToList();
     public async Task InicializarAsync() { await ConsultarAsync(new() { Tamano = 12, Orden = "antiguas" }); }
     public async Task<Pagina<ProximoEstreno>> ConsultarAsync(ConsultaPagina f) { var p = await api.Get<Pagina<ProximoEstreno>>("api/presentacion/estrenos?" + ApiCine.Consulta(f)); datos = p.Items; return p; }
-    public async Task GuardarAsync(ProximoEstreno dto) { if (datos.Any(x => x.Id == dto.Id)) await api.Put<ProximoEstreno>("api/presentacion/estrenos/" + dto.Id, dto); else await api.Post<ProximoEstreno>("api/presentacion/estrenos", dto); Changed?.Invoke(); }
+    public async Task GuardarAsync(ProximoEstreno dto, bool nuevo) { if (!nuevo) await api.Put<ProximoEstreno>("api/presentacion/estrenos/" + dto.Id, dto); else await api.Post<ProximoEstreno>("api/presentacion/estrenos", dto); Changed?.Invoke(); }
     public async Task EliminarAsync(int id) { await api.Delete("api/presentacion/estrenos/" + id); Changed?.Invoke(); }
 }

@@ -210,6 +210,8 @@ public sealed class BannerRegistro
 public sealed class EstrenoRegistro
 {
     public int Id { get; set; }
+    public int? PeliculaId { get; set; }
+    public PeliculaRegistro? Pelicula { get; set; }
     public string Titulo { get; set; } = "";
     public string Imagen { get; set; } = "";
     public string Genero { get; set; } = "";

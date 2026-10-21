@@ -24,7 +24,9 @@ public sealed class VentasService(CineSpaceDbContext db, IRepositorioCine reposi
         var solicitud = ReglasCine.Texto(dto.Solicitud, 64, "la solicitud");
         if (!Guid.TryParse(dto.FuncionId, out var funcionId)) throw new ArgumentException("Selecciona una funcion valida.");
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var sala = await db.Funciones.Where(x => x.Id == funcionId).Select(x => (int?)x.SalaId).SingleOrDefaultAsync(ct) ?? throw new ArgumentException("La funcion ya no existe.");
+        var destino = await db.Funciones.Where(x => x.Id == funcionId).Select(x => new { x.SalaId, x.PeliculaId }).SingleOrDefaultAsync(ct) ?? throw new ArgumentException("La funcion ya no existe.");
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(-600, {destino.PeliculaId})", ct);
+        var sala = destino.SalaId;
         await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock({sala})", ct);
         var anterior = await db.Ventas.AsNoTracking().SingleOrDefaultAsync(x => x.Solicitud == solicitud && x.UsuarioId == userId, ct);
         if (anterior is not null)
@@ -36,6 +38,10 @@ public sealed class VentasService(CineSpaceDbContext db, IRepositorioCine reposi
             .Include(x => x.Sala).ThenInclude(x => x.Diseno).Include(x => x.Sala).ThenInclude(x => x.TipoSala).Include(x => x.Experiencia)
             .SingleOrDefaultAsync(x => x.Id == funcionId, ct) ?? throw new ArgumentException("La funcion ya no existe.");
         if (funcion.InicioUtc <= DateTime.UtcNow || !funcion.Pelicula.Publicada || !funcion.Sala.Activa) throw new OperacionCineException("La funcion ya cerro. Elige otro horario.");
+        if (funcion.Pelicula.Estreno is { } estreno &&
+            (DateOnly.FromDateTime(ReglasCine.Local(funcion.InicioUtc)) < estreno ||
+             estreno > DateOnly.FromDateTime(ReglasCine.Ahora) && !funcion.Pelicula.Preventa))
+            throw new OperacionCineException("La preventa está cerrada. Consulta los próximos estrenos para conocer su disponibilidad.");
         var cantidad = dto.CantidadTickets;
         var plano = ReglasCine.Leer<PlanoSala>(funcion.Sala.Diseno.PlanoJson);
         ReglasCine.Butacas(dto.Asientos, plano, cantidad);

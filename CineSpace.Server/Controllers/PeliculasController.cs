@@ -14,7 +14,7 @@ public sealed class PeliculasController(IPeliculaCatalogoService peliculas, ITmd
     [HttpGet("opciones"), Authorize(Roles = "Administrador,Trabajador")]
     public Task<List<Pelicula>> Opciones([FromQuery] string buscar = "", CancellationToken ct = default) => db.Peliculas.AsNoTracking()
         .Where(x => buscar == "" || EF.Functions.ILike(x.Titulo, "%" + buscar + "%")).OrderBy(x => x.Titulo).Take(200)
-        .Select(x => new Pelicula { Id = x.Id, TmdbId = x.TmdbId, Titulo = x.Titulo, DuracionMinutos = x.Duracion, ImagenUrl = x.Poster, ImagenPanoramicaUrl = x.Fondo, FechaAgregadaUtc = x.CreadoUtc }).ToListAsync(ct);
+        .Select(x => new Pelicula { Id = x.Id, TmdbId = x.TmdbId, Titulo = x.Titulo, DuracionMinutos = x.Duracion, ImagenUrl = x.Poster, ImagenPanoramicaUrl = x.Fondo, FechaAgregadaUtc = x.CreadoUtc, FechaEstreno = x.Estreno.HasValue ? x.Estreno.Value.ToDateTime(TimeOnly.MinValue) : null, EnPreventa = x.Preventa }).ToListAsync(ct);
     [HttpGet, AllowAnonymous]
     public Task<Pagina<Pelicula>> Listar([FromQuery] ConsultaPagina consulta, CancellationToken ct)
     {

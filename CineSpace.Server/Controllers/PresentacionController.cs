@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 namespace CineSpace.Server.Controllers;
 
 [ApiController, Route("api/presentacion")]
-public sealed class PresentacionController(CineSpaceDbContext db, IRepositorioCine repo, IImagenStorageService imagenes) : ControllerBase
+public sealed class PresentacionController(CineSpaceDbContext db, IRepositorioCine repo, IImagenStorageService imagenes, IEstrenosService estrenos) : ControllerBase
 {
     [HttpGet("banners"), AllowAnonymous]
     public async Task<EstadoBanners> Banners(CancellationToken ct)
@@ -75,35 +75,12 @@ public sealed class PresentacionController(CineSpaceDbContext db, IRepositorioCi
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
     }
     [HttpGet("estrenos"), AllowAnonymous]
-    public async Task<Pagina<ProximoEstreno>> Estrenos([FromQuery] ConsultaPagina f, CancellationToken ct)
-    {
-        var q = db.Estrenos.AsNoTracking().AsQueryable();
-        if (!User.IsInRole("Administrador")) q = q.Where(x => x.Publicado && x.Fecha >= DateOnly.FromDateTime(ReglasCine.Ahora));
-        if (!string.IsNullOrWhiteSpace(f.Buscar)) q = q.Where(x => EF.Functions.ILike(x.Titulo, "%" + f.Buscar.Trim() + "%"));
-        if (f.Genero.HasValue) q=q.Where(x=>db.Generos.Any(g=>g.Id==f.Genero && g.Nombre==x.Genero));
-        if (f.Experiencia.HasValue || !string.IsNullOrWhiteSpace(f.Idioma)) q=q.Where(x=>false);
-        var ordenada = f.Orden switch
-        {
-            "nombre" => q.OrderBy(x => x.Titulo).ThenBy(x => x.Id),
-            "antiguas" => q.OrderBy(x => x.Fecha).ThenBy(x => x.Id),
-            _ => q.OrderByDescending(x => x.Fecha).ThenBy(x => x.Id)
-        };
-        var p = await repo.PaginarAsync(ordenada, f, ct);
-        return new(p.Items.Select(MapasCine.Estreno).ToList(), p.Total, p.Numero, p.Tamano);
-    }
+    public Task<Pagina<ProximoEstreno>> Estrenos([FromQuery] ConsultaPagina f, CancellationToken ct)
+        => estrenos.ListarAsync(f, User.IsInRole("Administrador"), ct);
     [HttpPost("estrenos"), Authorize(Roles = "Administrador")]
-    public Task<ProximoEstreno> CrearEstreno(ProximoEstreno dto, CancellationToken ct) => GuardarEstreno(null, dto, ct);
+    public Task<ProximoEstreno> CrearEstreno(ProximoEstreno dto, CancellationToken ct) => estrenos.GuardarAsync(null, dto, ct);
     [HttpPut("estrenos/{id:int}"), Authorize(Roles = "Administrador")]
-    public Task<ProximoEstreno> EditarEstreno(int id, ProximoEstreno dto, CancellationToken ct) => GuardarEstreno(id, dto, ct);
-    private async Task<ProximoEstreno> GuardarEstreno(int? id, ProximoEstreno dto, CancellationToken ct)
-    {
-        await using var archivos = new CargaImagenes(imagenes);
-        var imagen = await archivos.RecibirAsync(dto.ImagenUrl, "estrenos", false, ct);
-        var entity = id.HasValue ? await db.Estrenos.FindAsync([id.Value], ct) ?? throw new KeyNotFoundException() : new EstrenoRegistro();
-        entity.Titulo = ReglasCine.Texto(dto.Titulo, 250, "el titulo"); entity.Imagen = imagen; entity.Genero = ReglasCine.Texto(dto.Genero, 100, "el genero");
-        entity.Fecha = dto.FechaEstreno; entity.Sinopsis = ReglasCine.Texto(dto.Sinopsis, 10000, "la sinopsis", false); entity.Publicado = dto.Publicado;
-        if (!id.HasValue) db.Estrenos.Add(entity); await db.SaveChangesAsync(ct); archivos.Confirmar(); return MapasCine.Estreno(entity);
-    }
+    public Task<ProximoEstreno> EditarEstreno(int id, ProximoEstreno dto, CancellationToken ct) => estrenos.GuardarAsync(id, dto, ct);
     [HttpDelete("estrenos/{id:int}"), Authorize(Roles = "Administrador")]
-    public async Task EliminarEstreno(int id, CancellationToken ct) { var entity = await db.Estrenos.FindAsync([id], ct) ?? throw new KeyNotFoundException(); db.Estrenos.Remove(entity); await db.SaveChangesAsync(ct); }
+    public Task EliminarEstreno(int id, CancellationToken ct) => estrenos.EliminarAsync(id, ct);
 }

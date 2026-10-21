@@ -11,7 +11,7 @@ public static class MapasCine
         TrailerUrl = x.TrailerUrl, FocoPosterVertical = x.FocoPoster, FocoPanoramicaVertical = x.FocoFondo, ImagenManual = x.TmdbId is null,
         DuracionMinutos = x.Duracion, LimpiezaMinutos = x.Limpieza, FechaEstreno = x.Estreno?.ToDateTime(TimeOnly.MinValue),
         DistribuidoraId = x.DistribuidoraId, FechaAgregadaUtc = x.CreadoUtc, IdiomasDisponibles = ReglasCine.Leer<List<string>>(x.IdiomasJson),
-        EnPreventa = x.Preventa, Genero = x.Generos.Select(g => g.Genero.Nombre).FirstOrDefault() ?? "",
+        EnPreventa = x.Preventa && x.Estreno > DateOnly.FromDateTime(ReglasCine.Ahora), Genero = x.Generos.Select(g => g.Genero.Nombre).FirstOrDefault() ?? "",
         Generos = x.Generos.Select(g => g.Genero.Nombre).OrderBy(g => g).ToList(), HorariosDisponibles = []
     };
     public static SalaCine Sala(SalaRegistro x) => new()
@@ -38,7 +38,8 @@ public static class MapasCine
     { Id = x.Id, Nombre = x.Nombre, Contacto = x.Contacto, Email = x.Email, Telefono = x.Telefono };
     public static BannerInicio Banner(BannerRegistro x) => new()
     { Id = x.Id, PeliculaId = x.PeliculaId, Imagen = x.Imagen, Etiqueta = (EtiquetaBanner)x.Etiqueta, FocoVertical = x.Foco, Activo = x.Activo };
-    public static ProximoEstreno Estreno(EstrenoRegistro x) => new(x.Id, x.Titulo, x.Imagen, x.Genero, x.Fecha, x.Sinopsis, x.Publicado);
+    public static ProximoEstreno Estreno(EstrenoRegistro x) => new(x.Id, x.Titulo, x.Imagen, x.Genero, x.Fecha, x.Sinopsis, x.Publicado,
+        x.PeliculaId, x.Publicado && x.Pelicula?.Preventa == true && x.Fecha > DateOnly.FromDateTime(ReglasCine.Ahora));
     public static VentaTicket Venta(VentaRegistro x)
     {
         var venta = ReglasCine.Leer<VentaTicket>(x.SnapshotJson);

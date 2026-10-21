@@ -44,6 +44,8 @@ Configurar las variables de la tabla siguiente. Obtener/copiar la URL asignada `
 
 Los nombres usan DOBLE guion bajo. Los valores privados se guardan solo en Environment del servicio; no en Git, Dockerfile, Build Args ni Netlify. No añadir comillas alrededor del valor. `Supabase__AnonKey` no se utiliza; `Supabase__ProjectRef` es información del proyecto, no una autorización. No se requiere un token personal de Supabase para ejecutar la app.
 
+Al editar directamente el campo Value de `ConnectionStrings__CineSpace`, debe empezar por `Host=` y terminar en el último parámetro, sin comillas dobles exteriores. Las comillas de un JSON o de un archivo `.env` delimitan el texto; no forman parte del valor que recibe Npgsql. Si se pegan literalmente en el panel, el parser falla antes de conectar (por ejemplo, índice 182), y también falla Google porque sus claves de sesión se guardan en PostgreSQL.
+
 La conexión ya configurada usa Session Pooler, puerto 5432, `SSL Mode=Require`, `Timeout=15` y `Command Timeout=30`. Copiarla conserva su contraseña sin errores con caracteres especiales. En Render el tamaño del pool puede limitarse con `Maximum Pool Size=10` dentro de la cadena si necesitas ajustar conexiones. El despliegue NO ejecuta migraciones ni DROP: `update_DB.bat` sigue siendo una operación manual del propietario.
 
 ## 2. Netlify

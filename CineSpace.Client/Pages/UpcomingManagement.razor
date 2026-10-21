@@ -7,6 +7,7 @@
 @inject EstrenosService Estrenos
 @inject CatalogosService Catalogos
 @inject UsuarioService Usuarios
+@inject PeliculaService Peliculas
 
 <PageTitle>Próximos estrenos - CineSpace</PageTitle>
 @if (!Usuarios.EsAdministrador())
@@ -15,7 +16,7 @@
 }
 else
 {
-    <div class="management-heading"><div><h1>Próximos estrenos</h1><p>Elige las películas y las fechas que anunciarás en la página principal.</p></div><button type="button" class="btn btn-primary" @onclick="() => buscando = true"><i class="fas fa-plus" aria-hidden="true"></i>Añadir próximo estreno</button></div>
+    <div class="management-heading"><div><h1>Próximos estrenos</h1><p>Anuncia películas y abre la preventa cuando sus salas y horarios estén preparados.</p></div><div class="management-actions"><button type="button" class="btn btn-secondary" @onclick="NuevoDelCatalogo">Elegir del catálogo</button><button type="button" class="btn btn-primary" @onclick="() => buscando = true"><i class="fas fa-plus" aria-hidden="true"></i>Buscar en TMDB</button></div></div>
     @if (!string.IsNullOrEmpty(aviso)) { <div class="alert alert-success" role="status">@aviso</div> }
     @if (!string.IsNullOrEmpty(error) || Estrenos.ErrorCarga != null) { <div class="alert alert-danger" role="alert">@(Estrenos.ErrorCarga ?? error)</div> }
     @if (buscando)
@@ -24,18 +25,15 @@ else
     }
     else if (editando != null)
     {
-        <form class="upcoming-editor" @onsubmit="Guardar" @onsubmit:preventDefault>
-            <div class="upcoming-editor-fields"><h2>@(nuevo ? "Anunciar película" : "Editar próximo estreno")</h2><p class="upcoming-edit-title">@editando.Titulo</p><div class="upcoming-editor-row"><div><label for="upcoming-date" class="form-label">Fecha de estreno</label><input id="upcoming-date" type="date" class="form-control" @bind="fecha" required /></div><div><label for="upcoming-genre" class="form-label">Género</label><select id="upcoming-genre" class="form-select" @bind="genero">@foreach (var g in Catalogos.Generos.OrderBy(g => g.Nombre)) { <option value="@g.Nombre">@g.Nombre</option> }</select></div></div><label class="upcoming-publish"><input type="checkbox" @bind="publicado" />Mostrar en próximos estrenos</label><p class="upcoming-help">Se publicará hasta la fecha anunciada. Para vender entradas, crea su función en Gestionar cartelera y elige Preventa.</p><div class="upcoming-editor-actions"><button type="button" class="btn btn-secondary" @onclick="Cancelar">Cancelar</button><button type="submit" class="btn btn-primary" disabled="@(ocupado || Estrenos.ErrorCarga != null)">Guardar estreno</button></div></div>
-            <img class="upcoming-editor-poster" src="https://image.tmdb.org/t/p/w342/@editando.ImagenUrl.TrimStart('/')" alt="Póster de @editando.Titulo" />
-        </form>
+        <UpcomingEditor @key="editando.Id" Valor="editando" Opciones="peliculas" Nuevo="nuevo" Ocupado="ocupado" OnGuardar="Guardar" OnCancelar="Cancelar" />
     }
     else
     {
-        <div class="catalogue-toolbar"><form class="catalogue-search" role="search" @onsubmit="Buscar" @onsubmit:preventDefault><label for="upcoming-search" class="visually-hidden">Buscar próximo estreno</label><input id="upcoming-search" type="search" class="form-control" placeholder="Buscar película…" @bind="busqueda" @bind:event="oninput" /><button type="submit" class="btn btn-primary" aria-label="Buscar próximos estrenos"><i class="fas fa-search" aria-hidden="true"></i></button></form><div class="catalogue-secondary-filters"><CompactOrder Id="upcoming-order" Valor="@orden" ValorChanged="CambiarOrden" Opciones="Ordenes" /><ClearFiltersButton Activo="@(!string.IsNullOrWhiteSpace(filtro))" OnClear="Limpiar" /></div></div>
+        <div class="catalogue-toolbar"><form class="catalogue-search" role="search" @onsubmit="Buscar" @onsubmit:preventDefault><label for="upcoming-search" class="visually-hidden">Buscar próximo estreno</label><input id="upcoming-search" type="search" class="form-control" placeholder="Buscar película…" @bind="busqueda" @bind:event="oninput" /><button type="submit" class="btn btn-primary" aria-label="Buscar próximos estrenos"><i class="fas fa-search" aria-hidden="true"></i></button></form><div class="catalogue-secondary-filters"><select class="form-select" aria-label="Filtrar estado de estreno" value="@estado" @onchange="CambiarEstado"><option value="">Todos los estados</option><option value="anunciado">A estrenar</option><option value="preventa">Preventa disponible</option><option value="borrador">Borradores</option></select><CompactOrder Id="upcoming-order" Valor="@orden" ValorChanged="CambiarOrden" Opciones="Ordenes" /><ClearFiltersButton Activo="@(!string.IsNullOrWhiteSpace(filtro) || estado.Length > 0)" OnClear="Limpiar" /></div></div>
         <div class="managed-table-scroll"><table class="managed-movie-table upcoming-table"><thead><tr><th scope="col">Película</th><th scope="col">Género</th><th scope="col">Fecha de estreno</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead><tbody>
             @foreach (var p in Filtrados)
             {
-                <tr @key="p.Id"><td><div class="managed-table-film"><img src="https://image.tmdb.org/t/p/w92/@p.ImagenUrl.TrimStart('/')" alt="" loading="lazy" /><strong>@p.Titulo</strong></div></td><td>@Catalogos.ResolverGenero(p.Genero)</td><td>@p.FechaEstreno.ToString("dd MMM yyyy", CultureInfo.GetCultureInfo("es-ES"))</td><td><span class="upcoming-state-label">@(p.FechaEstreno < DateOnly.FromDateTime(DateTime.Today) ? "Fecha finalizada" : p.Publicado ? "Publicado" : "Borrador")</span></td><td><div class="upcoming-row-actions"><button type="button" class="btn btn-secondary" aria-label="Editar @p.Titulo" @onclick="() => Editar(p)"><i class="fas fa-pen" aria-hidden="true"></i>Editar</button><button type="button" class="btn btn-secondary" aria-label="Eliminar @p.Titulo" @onclick="() => eliminar = p"><i class="fas fa-trash" aria-hidden="true"></i></button></div></td></tr>
+                <tr @key="p.Id"><td><div class="managed-table-film"><img src="@PeliculaService.UrlImagen(p.ImagenUrl,"w92")" alt="Póster de @p.Titulo" loading="lazy" onerror="this.onerror=null;this.src='/images/poster-placeholder.svg';" /><strong>@p.Titulo</strong></div></td><td>@Catalogos.ResolverGenero(p.Genero)</td><td>@p.FechaEstreno.ToString("dd MMM yyyy", CultureInfo.GetCultureInfo("es-ES"))</td><td><span class="upcoming-state-label @(p.EnPreventa ? "is-presale" : "")">@(p.FechaEstreno < DateOnly.FromDateTime(DateTime.Today) ? "En cartelera" : !p.Publicado ? "Borrador" : p.EnPreventa ? "Preventa disponible" : "A estrenar")</span>@if(p.PeliculaId.HasValue){<small class="upcoming-function-count">@p.FuncionesDisponibles funciones</small>}</td><td><div class="upcoming-row-actions"><button type="button" class="btn btn-secondary" aria-label="Editar @p.Titulo" @onclick="() => Editar(p)"><i class="fas fa-pen" aria-hidden="true"></i>Editar</button>@if(p.PeliculaId.HasValue){<a class="btn btn-secondary" aria-label="Programar funciones de @p.Titulo" href="@($"/admin/funciones?pelicula={p.PeliculaId}&estreno={p.FechaEstreno:yyyy-MM-dd}")"><i class="fas fa-calendar-days" aria-hidden="true"></i></a>}<button type="button" class="btn btn-secondary" aria-label="Eliminar @p.Titulo" @onclick="() => eliminar = p"><i class="fas fa-trash" aria-hidden="true"></i></button></div></td></tr>
             }
             @if (Filtrados.Count == 0) { <tr><td colspan="5" class="upcoming-empty">@(string.IsNullOrWhiteSpace(filtro) ? "Todavía no hay anuncios. Añade una película para presentarla en próximos estrenos." : "No hay estrenos que coincidan con la búsqueda.")</td></tr> }
         </tbody></table></div>
@@ -44,44 +42,45 @@ else
 }
 @if (eliminar != null)
 {
-    <AppDialog Title="Eliminar próximo estreno" OnClose="() => eliminar = null"><ChildContent><p>¿Quieres quitar el anuncio de <strong>@eliminar.Titulo</strong>?</p></ChildContent><Footer><button type="button" class="btn btn-secondary" @onclick="() => eliminar = null">Cancelar</button><button type="button" class="btn btn-primary" disabled="@ocupado" @onclick="Eliminar">Eliminar anuncio</button></Footer></AppDialog>
+    <AppDialog Title="Eliminar próximo estreno" OnClose="() => eliminar = null"><ChildContent><p>¿Quieres quitar el anuncio de <strong>@eliminar.Titulo</strong>?</p><p>Si tiene una preventa abierta, se cerrará. Las entradas ya compradas se conservarán.</p></ChildContent><Footer><button type="button" class="btn btn-secondary" @onclick="() => eliminar = null">Cancelar</button><button type="button" class="btn btn-primary" disabled="@ocupado" @onclick="Eliminar">Eliminar anuncio</button></Footer></AppDialog>
 }
 @code {
-    protected override async Task OnInitializedAsync() { if (Usuarios.EsAdministrador()) await Cargar(); }
+    protected override async Task OnInitializedAsync() { if (Usuarios.EsAdministrador()) { try { peliculas = await Peliculas.OpcionesAsync(); await Cargar(); } catch(Exception ex) { error = ex.Message; } } }
     private async Task Paginar(int valor) { pagina = valor; await Cargar(); }
-    private async Task Cargar() { var p = await Estrenos.ConsultarAsync(new() { Pagina = pagina, Tamano = 10, Buscar = filtro, Orden = orden == "Más lejanos" ? "recientes" : orden == "Nombre de película" ? "nombre" : "antiguas" }); Filtrados = p.Items; totalItems = p.Total; pagina = p.Numero; }
+    private async Task Cargar() { var p = await Estrenos.ConsultarAsync(new() { Pagina = pagina, Tamano = 10, Buscar = filtro, Estado = estado, Orden = orden == "Más lejanos" ? "recientes" : orden == "Nombre de película" ? "nombre" : "antiguas" }); Filtrados = p.Items; totalItems = p.Total; pagina = p.Numero; }
 
-    private bool buscando, nuevo, publicado = true, ocupado;
+    private bool buscando, nuevo, ocupado;
     private ProximoEstreno? editando, eliminar;
-    private DateTime fecha = DateTime.Today.AddDays(7);
-    private string genero = "Drama", busqueda = "", filtro = "", orden = "Más próximos", error = "", aviso = "";
+    private string busqueda = "", filtro = "", estado = "", orden = "Más próximos", error = "", aviso = "";
+    private List<Pelicula> peliculas = [];
     private static readonly string[] Ordenes = { "Más próximos", "Más lejanos", "Nombre de película" };
     private int pagina = 1;
     private List<ProximoEstreno> Filtrados = [];
     private int totalItems;
     private async Task Reiniciar() { pagina = 1; await Cargar(); }
     private async Task Buscar() { filtro = busqueda.Trim(); await Reiniciar(); }
-    private async Task Limpiar() { busqueda = filtro = ""; await Reiniciar(); }
+    private async Task Limpiar() { busqueda = filtro = estado = ""; await Reiniciar(); }
+    private async Task CambiarEstado(ChangeEventArgs e) { estado = e.Value?.ToString() ?? ""; await Reiniciar(); }
     private async Task CambiarOrden(string valor) { orden = valor; await Reiniciar(); }
     private void Seleccionar(TMDBMovie movie)
     {
-        var existente = Estrenos.Todos.FirstOrDefault(p => p.Id == movie.id);
+        var vinculada = peliculas.FirstOrDefault(p => p.TmdbId == movie.id);
+        var existente = Estrenos.Todos.FirstOrDefault(p => vinculada != null && p.PeliculaId == vinculada.Id);
         if (existente != null) { Editar(existente); buscando = false; return; }
         if (string.IsNullOrWhiteSpace(movie.poster_path)) { error = "Esta película no tiene póster disponible. Elige otra película."; return; }
-        editando = new(movie.id, movie.title ?? "", movie.poster_path, PeliculaService.GeneroEstreno(movie.genre_ids?.FirstOrDefault() ?? 0), DateOnly.FromDateTime(DateTime.Today.AddDays(7)), movie.overview ?? "");
-        nuevo = true; CargarFormulario(); buscando = false;
-        if (DateTime.TryParseExact(movie.release_date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var lanzamiento) && lanzamiento >= DateTime.Today) fecha = lanzamiento;
+        var lanzamiento = DateTime.TryParseExact(movie.release_date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dia) && dia >= DateTime.Today ? dia : DateTime.Today.AddDays(7);
+        editando = new(0, movie.title ?? "", vinculada?.ImagenUrl ?? movie.poster_path, PeliculaService.GeneroEstreno(movie.genre_ids?.FirstOrDefault() ?? 0), DateOnly.FromDateTime(lanzamiento), movie.overview ?? "", PeliculaId: vinculada?.Id);
+        nuevo = true; error = aviso = ""; buscando = false;
     }
-    private void Editar(ProximoEstreno estreno) { editando = estreno; nuevo = false; CargarFormulario(); }
-    private void CargarFormulario() { fecha = editando!.FechaEstreno.ToDateTime(TimeOnly.MinValue); genero = Catalogos.ResolverGenero(editando.Genero); publicado = editando.Publicado; error = aviso = ""; }
+    private void Editar(ProximoEstreno estreno) { editando = estreno; nuevo = false; error = aviso = ""; }
+    private void NuevoDelCatalogo() { editando = new(0,"","","Drama",DateOnly.FromDateTime(DateTime.Today.AddDays(7))); nuevo = true; buscando = false; error = aviso = ""; }
     private void Cancelar() { editando = null; error = ""; }
-    private async Task Guardar()
+    private async Task Guardar(ProximoEstreno solicitud)
     {
         if (editando == null || ocupado) return;
-        if (publicado && fecha.Date < DateTime.Today) { error = "Elige hoy o una fecha futura para publicar este estreno."; return; }
         ocupado = true; error = "";
-        try { await Estrenos.GuardarAsync(editando with { FechaEstreno = DateOnly.FromDateTime(fecha), Genero = genero, Publicado = publicado }); editando = null; aviso = "Próximo estreno guardado."; await Reiniciar(); }
-        catch (ArgumentException ex) { error = ex.Message; } catch { error = "No pudimos guardar el estreno. Inténtalo de nuevo."; } finally { ocupado = false; }
+        try { await Estrenos.GuardarAsync(solicitud, nuevo); editando = null; aviso = solicitud.EnPreventa ? "Preventa abierta. Las funciones ya pueden reservarse." : "Estreno guardado. La preventa está cerrada."; await Reiniciar(); }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException) { error = ex.Message; } catch { error = "No pudimos guardar el estreno. Inténtalo de nuevo."; } finally { ocupado = false; }
     }
     private async Task Eliminar() { if (eliminar == null || ocupado) return; ocupado = true; try { await Estrenos.EliminarAsync(eliminar.Id); eliminar = null; aviso = "Anuncio eliminado."; await Reiniciar(); } catch { error = "No pudimos eliminar el anuncio. Inténtalo de nuevo."; } finally { ocupado = false; } }
 }

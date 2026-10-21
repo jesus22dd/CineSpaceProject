@@ -21,12 +21,13 @@
                     <div class="col-lg-6 mb-3"><SearchSelect @key="claveFormulario" Id="screening-movie" Etiqueta="Película" Placeholder="Selecciona una película" Valor="@actual.PeliculaId.ToString()" Opciones="OpcionesPeliculas" ValorChanged="CambiarPelicula" /></div>
                     <div class="col-sm-6 mb-3"><label for="screening-experience" class="form-label">Experiencia</label><select id="screening-experience" class="form-select" value="@actual.ExperienciaId" @onchange="CambiarExperiencia">@foreach(var e in Salas.Experiencias) { <option value="@e.Id">@e.Nombre</option> }</select></div>
                     <div class="col-lg-6 mb-3"><SearchSelect @key="claveSala" Id="screening-room" Etiqueta="Sala" Placeholder="Selecciona una sala" Valor="@actual.NumeroSala.ToString()" Opciones="OpcionesSalas" ValorChanged="CambiarSala" /></div>
-                    <div class="col-sm-6 mb-3"><label for="screening-publication" class="form-label">Publicación</label><select id="screening-publication" class="form-select" @bind="Publicacion"><option value="cartelera">En cartelera</option><option value="preventa">Preventa</option></select></div>
+                    <div class="col-sm-6 mb-3"><label class="form-label">Venta de entradas</label><p class="form-control-plaintext">@EstadoVenta</p><small class="text-muted">La preventa se abre o se cierra en Próximos estrenos.</small></div>
                 </div>
                 @if(actual.NumeroSala>0) { var sala=Salas.ObtenerSala(actual.NumeroSala);<p class="function-price">Precio por entrada: <strong>@sala.PrecioFinal.ToString("N2") Bs</strong>@if(sala.Oferta){<span> · @sala.Descuento% de descuento</span>}</p> }
                 <ScreeningDateRange @bind-Desde="actual.Desde" @bind-Hasta="actual.Hasta" />
                 <MovieScheduleEditor @key="claveHorario" Valor="actual.Horario" OnCambio="p=>actual.Horario=p" />
                 <p class="text-muted">Cada horario seleccionado crea una función por día dentro del rango de fechas.</p>
+                @if (Usuarios.EsAdministrador()) { <p><a href="/admin/proximos-estrenos">Volver a próximos estrenos para administrar la preventa</a></p> }
                 <div class="movie-form-actions"><button type="button" class="btn btn-secondary" disabled="@ocupado" @onclick="()=>actual=null">Cancelar</button><button type="submit" class="btn btn-primary" disabled="@(ocupado||actual.NumeroSala==0||actual.PeliculaId==0||actual.Horario.Horarios.Count==0||actual.Hasta<actual.Desde||(actual.Hasta-actual.Desde).TotalDays>365)">@(ocupado ? "Guardando…" : "Guardar funciones")</button></div>
             </form>
         </div></section>
@@ -76,6 +77,7 @@ else { <p class="alert alert-danger">Esta sección requiere una sesión de admin
     private async Task Paginar(int valor) { pagina = valor; await CargarPagina(); }
 
     [SupplyParameterFromQuery(Name="pelicula")] public int? PeliculaId {get;set;}
+    [SupplyParameterFromQuery(Name="estreno")] public DateTime? FechaEstreno {get;set;}
     private bool Permitido=>Usuarios.EsAdministrador()||Trabajadores.EstaAutenticado();
     private List<Pelicula> peliculas=new();
     private ProgramacionSala? actual,eliminar;
@@ -83,7 +85,7 @@ else { <p class="alert alert-danger">Esta sección requiere una sesión de admin
     private int? consultaAplicada;
     private bool error,editando,ocupado;
     private string mensaje="",busqueda="",busquedaAplicada="",orden="Más recientes",vista="Tabla";
-    private string Publicacion {get=>actual?.Horario.EnPreventa==true?"preventa":"cartelera";set {if(actual!=null)actual.Horario.EnPreventa=value=="preventa";}}
+    private string EstadoVenta => peliculas.FirstOrDefault(x=>x.Id==actual?.PeliculaId) is { } p ? p.FechaEstreno?.Date > DateTime.Today ? p.EnPreventa ? "Preventa disponible" : "A estrenar · preventa cerrada" : "En cartelera" : "Selecciona una película";
     private bool HayFiltros=>busquedaAplicada.Length>0;
     private List<ProgramacionSala> Filtradas = [];
     private int totalItems;
@@ -92,9 +94,9 @@ else { <p class="alert alert-danger">Esta sección requiere una sesión de admin
     private int TotalPaginas=>Math.Max(1,(int)Math.Ceiling(totalItems/10d));
     private int CantidadFunciones(string id)=>Filtradas.FirstOrDefault(p=>p.Id==id)?.CantidadFunciones ?? 0;
     protected override async Task OnParametersSetAsync() { if(!Permitido)return;try { peliculas=await Peliculas.OpcionesAsync();await Funciones.InicializarAsync();if(consultaAplicada!=PeliculaId){consultaAplicada=PeliculaId;busqueda=busquedaAplicada=peliculas.FirstOrDefault(p=>p.Id==PeliculaId)?.Titulo??"";pagina=1;}await CargarPagina();} catch(Exception ex){mensaje=ex.Message;error=true;} }
-    private void Nueva() { editando=false;actual=new(){PeliculaId=PeliculaId??0,ExperienciaId=Salas.Experiencias.FirstOrDefault()?.Id??-1};if(actual.PeliculaId>0)actual.Horario.DuracionMinutos=peliculas.First(p=>p.Id==actual.PeliculaId).DuracionMinutos;claveHorario++;claveSala++;claveFormulario++;mensaje=""; }
+    private void Nueva() { editando=false;actual=new(){PeliculaId=PeliculaId??0,ExperienciaId=Salas.Experiencias.FirstOrDefault()?.Id??-1};if(peliculas.FirstOrDefault(p=>p.Id==actual.PeliculaId) is {} p){actual.Horario.DuracionMinutos=p.DuracionMinutos;var desde=FechaEstreno?.Date??p.FechaEstreno?.Date??DateTime.Today;actual.Desde=desde<DateTime.Today?DateTime.Today:desde;actual.Hasta=actual.Desde.AddDays(2);}claveHorario++;claveSala++;claveFormulario++;mensaje=""; }
     private void Editar(ProgramacionSala p) { actual=p.Copiar();editando=true;claveHorario++;claveSala++;claveFormulario++;mensaje=""; }
-    private void CambiarPelicula(string valor) { if(actual==null||!int.TryParse(valor,out var id)||actual.PeliculaId==id)return;actual.PeliculaId=id;var peli=peliculas.FirstOrDefault(p=>p.Id==id);if(peli!=null)actual.Horario.DuracionMinutos=peli.DuracionMinutos;actual.Horario.Horarios.Clear();claveHorario++; }
+    private void CambiarPelicula(string valor) { if(actual==null||!int.TryParse(valor,out var id)||actual.PeliculaId==id)return;actual.PeliculaId=id;var peli=peliculas.FirstOrDefault(p=>p.Id==id);if(peli!=null){actual.Horario.DuracionMinutos=peli.DuracionMinutos;if(peli.FechaEstreno?.Date>DateTime.Today){actual.Desde=peli.FechaEstreno.Value.Date;actual.Hasta=actual.Desde.AddDays(2);}}actual.Horario.Horarios.Clear();claveHorario++; }
     private void CambiarSala(string valor) { if(actual!=null&&int.TryParse(valor,out var numero)&&(numero==0||Salas.ExperienciaDisponibleEnSala(numero,actual.ExperienciaId)))actual.NumeroSala=numero; }
     private void CambiarExperiencia(ChangeEventArgs e) { if(actual==null)return;actual.ExperienciaId=int.Parse(e.Value?.ToString()??"-1");if(!Salas.ExperienciaDisponibleEnSala(actual.NumeroSala,actual.ExperienciaId))actual.NumeroSala=0;claveSala++; }
     private async Task Buscar() { busquedaAplicada=busqueda.Trim();pagina=1; await CargarPagina();}

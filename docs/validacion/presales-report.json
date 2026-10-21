@@ -1,0 +1,217 @@
+{
+  "date": "2026-10-21T05:25:11.765Z",
+  "checks": 52,
+  "passed": 52,
+  "results": [
+    {
+      "name": "Siete preventas públicas",
+      "passed": true
+    },
+    {
+      "name": "Ocho anuncios y siete preventas vinculadas",
+      "passed": true
+    },
+    {
+      "name": "Funciones desde el estreno 1297467",
+      "passed": true
+    },
+    {
+      "name": "Funciones desde el estreno 1170608",
+      "passed": true
+    },
+    {
+      "name": "Funciones desde el estreno 1400940",
+      "passed": true
+    },
+    {
+      "name": "Funciones desde el estreno 1381071",
+      "passed": true
+    },
+    {
+      "name": "Funciones desde el estreno 1294189",
+      "passed": true
+    },
+    {
+      "name": "Funciones desde el estreno 1255833",
+      "passed": true
+    },
+    {
+      "name": "Funciones desde el estreno 1003596",
+      "passed": true
+    },
+    {
+      "name": "Login administrador",
+      "passed": true
+    },
+    {
+      "name": "Sesión segura local conservada",
+      "passed": true
+    },
+    {
+      "name": "Resumen de funciones en anuncio",
+      "passed": true
+    },
+    {
+      "name": "Paginación de estrenos en backend",
+      "passed": true
+    },
+    {
+      "name": "Filtro preventas",
+      "passed": true
+    },
+    {
+      "name": "Filtro a estrenar",
+      "passed": true
+    },
+    {
+      "name": "Cerrar preventa bloquea funciones",
+      "passed": true
+    },
+    {
+      "name": "Cerrar preventa retira del carrusel",
+      "passed": true
+    },
+    {
+      "name": "Backend rechaza compra de preventa cerrada",
+      "passed": true
+    },
+    {
+      "name": "Reabrir preventa restaura carrusel",
+      "passed": true
+    },
+    {
+      "name": "Evita anuncios duplicados por película",
+      "passed": true
+    },
+    {
+      "name": "No abre preventa sin ficha",
+      "passed": true
+    },
+    {
+      "name": "Impide programar antes del estreno",
+      "passed": true
+    },
+    {
+      "name": "Compra anticipada completa con QR",
+      "passed": true
+    },
+    {
+      "name": "Compra idempotente",
+      "passed": true
+    },
+    {
+      "name": "Evita doble venta de butaca",
+      "passed": true
+    },
+    {
+      "name": "Butacas reservadas en función futura",
+      "passed": true
+    },
+    {
+      "name": "Cliente no administra preventas",
+      "passed": true
+    },
+    {
+      "name": "Protege fecha con entradas vendidas",
+      "passed": true
+    },
+    {
+      "name": "Filtro de borradores",
+      "passed": true
+    },
+    {
+      "name": "Borradores fuera de A estrenar",
+      "passed": true
+    },
+    {
+      "name": "No abre preventa sin funciones",
+      "passed": true
+    },
+    {
+      "name": "Funciones futuras preparadas sin abrir venta",
+      "passed": true
+    },
+    {
+      "name": "Nueva preventa creada por el administrador",
+      "passed": true
+    },
+    {
+      "name": "El carrusel admite más de siete preventas",
+      "passed": true
+    },
+    {
+      "name": "Eliminar anuncio cierra su preventa",
+      "passed": true
+    },
+    {
+      "name": "Pósteres administrativos cargan",
+      "passed": true
+    },
+    {
+      "name": "No concatena URLs del bucket con TMDB",
+      "passed": true
+    },
+    {
+      "name": "Editor muestra estado de preventa",
+      "passed": true
+    },
+    {
+      "name": "Póster del editor carga",
+      "passed": true
+    },
+    {
+      "name": "Cerrar preventa desde formulario",
+      "passed": true
+    },
+    {
+      "name": "Reabrir preventa desde formulario",
+      "passed": true
+    },
+    {
+      "name": "Editor móvil sin desbordamiento",
+      "passed": true
+    },
+    {
+      "name": "Póster visible en editor móvil",
+      "passed": true
+    },
+    {
+      "name": "Vista previa de póster nuevo",
+      "passed": true
+    },
+    {
+      "name": "Tabla móvil contenida en scroll",
+      "passed": true
+    },
+    {
+      "name": "Carrusel público tiene siete tarjetas",
+      "passed": true
+    },
+    {
+      "name": "Reserva visual inicia en primer día de estreno",
+      "passed": true
+    },
+    {
+      "name": "Reserva visual termina con boleto QR",
+      "passed": true
+    },
+    {
+      "name": "Sin excepciones de renderizado",
+      "passed": true,
+      "details": []
+    },
+    {
+      "name": "Funciones sin solapamientos",
+      "passed": true
+    },
+    {
+      "name": "Funciones nunca anteriores al estreno",
+      "passed": true
+    },
+    {
+      "name": "Sin reseñas de películas futuras",
+      "passed": true
+    }
+  ],
+  "database": "PostgreSQL aislado de pruebas; Supabase de producción no modificado."
+}

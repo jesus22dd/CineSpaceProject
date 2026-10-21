@@ -3,7 +3,7 @@ using Npgsql;
 
 namespace CineSpace.Server.Services;
 
-public sealed class PreparacionBaseDatos(IConfiguration configuration, ILogger<PreparacionBaseDatos> logger)
+public sealed class PreparacionBaseDatos(IConfiguration configuration, ILogger<PreparacionBaseDatos> logger, IHostEnvironment entorno)
 {
     public async Task<EstadoBaseDatos> ComprobarAsync(CancellationToken ct)
     {
@@ -15,12 +15,21 @@ public sealed class PreparacionBaseDatos(IConfiguration configuration, ILogger<P
             await conexion.OpenAsync(ct);
             return await ComprobarEsquemaAsync(conexion, ct);
         }
-        catch (Exception ex) when (ex is NpgsqlException or TimeoutException or ArgumentException)
+        catch (ArgumentException)
+        {
+            logger.LogWarning("La conexión PostgreSQL tiene un formato inválido.");
+            return new(false, false, $"El formato de la conexión PostgreSQL no es válido. Revisa {UbicacionConexion}: pega la cadena completa en una línea, sin comillas al principio ni al final.");
+        }
+        catch (Exception ex) when (ex is NpgsqlException or TimeoutException)
         {
             logger.LogWarning("No se pudo comprobar PostgreSQL ({Tipo}).", ex.GetType().Name);
-            return new(false, false, "No pudimos conectar con PostgreSQL. Revisa la conexión en appsettings.Development.json del servidor.");
+            return new(false, false, $"No pudimos conectar con PostgreSQL. Revisa {UbicacionConexion}.");
         }
     }
+
+    private string UbicacionConexion => entorno.IsDevelopment()
+        ? "ConnectionStrings:CineSpace en appsettings.Development.json del servidor"
+        : "ConnectionStrings__CineSpace en las variables de entorno del servidor";
 
     public static async Task<EstadoBaseDatos> ComprobarEsquemaAsync(NpgsqlConnection conexion, CancellationToken ct)
     {

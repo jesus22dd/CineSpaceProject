@@ -36,10 +36,14 @@ public sealed class FuncionesService(CineSpaceDbContext db, IRepositorioCine rep
             WITH dias AS (
               SELECT DISTINCT (f.inicio_utc AT TIME ZONE 'America/La_Paz')::date AS dia
               FROM cine.funciones f JOIN cine.peliculas p ON p.id=f.pelicula_id JOIN cine.salas s ON s.id=f.sala_id
-              WHERE f.pelicula_id={pelicula} AND f.inicio_utc > CURRENT_TIMESTAMP AND p.publicada AND s.activa ORDER BY dia LIMIT 3
+              WHERE f.pelicula_id={pelicula} AND f.inicio_utc > CURRENT_TIMESTAMP AND p.publicada AND s.activa
+                AND (p.estreno IS NULL OR (f.inicio_utc AT TIME ZONE 'America/La_Paz')::date >= p.estreno)
+                AND (p.estreno IS NULL OR p.estreno <= (CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date OR p.preventa)
+              ORDER BY dia LIMIT 3
             )
             SELECT f.id AS "Id",f.programacion_id AS "ProgramacionId",f.pelicula_id AS "PeliculaId",f.sala_id AS "SalaId",f.experiencia_id AS "ExperienciaId",
-              f.inicio_utc AS "InicioUtc",f.duracion AS "Duracion",f.limpieza AS "Limpieza",f.preventa AS "Preventa",
+              f.inicio_utc AS "InicioUtc",f.duracion AS "Duracion",f.limpieza AS "Limpieza",
+              COALESCE(p.preventa AND p.estreno > (CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date, false) AS "Preventa",
               jsonb_array_length(d.plano_json->'asientos') AS "Capacidad",
               (SELECT count(*)::int FROM cine.butacas_vendidas b WHERE b.funcion_id=f.id) AS "Ocupadas"
             FROM cine.funciones f JOIN cine.salas s ON s.id=f.sala_id JOIN cine.disenos d ON d.id=s.diseno_id JOIN cine.peliculas p ON p.id=f.pelicula_id
@@ -61,6 +65,11 @@ public sealed class FuncionesService(CineSpaceDbContext db, IRepositorioCine rep
         if (!await db.Salas.AnyAsync(x => x.Id == dto.NumeroSala && x.Activa && x.Experiencias.Any(e => e.ExperienciaId == dto.ExperienciaId), ct))
             throw new ArgumentException("La sala no ofrece esta experiencia.");
         await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(-600, {dto.PeliculaId})", ct);
+        await db.Entry(movie).ReloadAsync(ct);
+        if (movie.Estreno.HasValue && desde < movie.Estreno.Value)
+            throw new ArgumentException("Las funciones deben empezar en la fecha de estreno o después. No se pueden vender entradas anteriores al estreno.");
+        dto.Horario.EnPreventa = movie.Preventa && movie.Estreno > DateOnly.FromDateTime(ReglasCine.Ahora);
         // La misma cerradura se usa al vender y al cambiar la programacion.
         var salaAnterior = !nueva && Guid.TryParse(dto.Id,out var programacionId) ? await db.Programaciones.Where(x => x.Id == programacionId).Select(x => (int?)x.SalaId).SingleOrDefaultAsync(ct) : null;
         foreach (var salaId in new[] { dto.NumeroSala, salaAnterior ?? dto.NumeroSala }.Distinct().OrderBy(x => x))

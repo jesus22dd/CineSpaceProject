@@ -1,0 +1,18 @@
+.upcoming-editor { display:grid; grid-template-columns:minmax(0,1fr) 180px; gap:32px; padding:28px; border:1px solid var(--cinema-border); border-radius:12px; background:var(--cinema-surface); }
+h2 { font-size:24px; margin:0 0 12px; }
+.upcoming-edit-title { margin-bottom:20px; font-weight:600; color:var(--cinema-heading); }
+.upcoming-editor-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+.upcoming-link-note { display:flex; align-items:center; gap:8px; color:var(--cinema-muted); }
+.upcoming-status-label { margin-top:20px; }
+.upcoming-sale-summary { margin-top:12px; padding:16px; border:1px solid var(--cinema-border); border-radius:8px; }
+.upcoming-sale-summary p { margin:6px 0 12px; font-size:13px; line-height:1.6; color:var(--cinema-muted); }
+.upcoming-sale-summary p:last-child { margin-bottom:0; }
+.upcoming-sale-summary a,.upcoming-artwork label { display:inline-flex; gap:8px; align-items:center; min-height:44px; }
+.upcoming-artwork label:has(+input:focus-visible) { outline:2px solid var(--cinema-accent); outline-offset:3px; }
+.upcoming-publish { display:flex; align-items:center; gap:10px; min-height:44px; margin-top:16px; }
+.upcoming-publish input { width:18px; height:18px; accent-color:var(--cinema-accent); }
+.upcoming-help { margin:10px 0 20px; max-width:65ch; color:var(--cinema-muted); font-size:13px; line-height:1.6; }
+.upcoming-artwork { min-width:0; }
+.upcoming-editor-poster { display:block; width:100%; aspect-ratio:2/3; object-fit:cover; border-radius:8px; margin-bottom:12px; }
+.upcoming-editor-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
+@media(max-width:650px) { .upcoming-editor { grid-template-columns:minmax(0,1fr); padding:20px; gap:20px; } .upcoming-editor-row { grid-template-columns:minmax(0,1fr); } .upcoming-artwork { grid-row:1; display:grid; grid-template-columns:92px minmax(0,1fr); gap:8px 16px; align-items:center; } .upcoming-editor-poster { grid-row:span 2; margin:0; } .upcoming-artwork .upcoming-help { margin:0; } .upcoming-artwork label { justify-self:start; } }

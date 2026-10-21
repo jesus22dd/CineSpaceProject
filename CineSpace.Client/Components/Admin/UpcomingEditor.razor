@@ -1,0 +1,112 @@
+@using CineSpace.Shared.Models
+@using CineSpace.Client.Components.Shared
+@using Microsoft.AspNetCore.Components.Forms
+@inject PeliculaService Peliculas
+@inject CatalogosService Catalogos
+
+<form class="upcoming-editor" @onsubmit="Guardar" @onsubmit:preventDefault>
+    <div class="upcoming-editor-fields">
+        <h2>@(Nuevo ? "Anunciar película" : "Editar próximo estreno")</h2>
+        <p class="upcoming-edit-title">@(string.IsNullOrWhiteSpace(modelo.Titulo) ? "Elige una película del catálogo" : modelo.Titulo)</p>
+        @if (Valor.PeliculaId.HasValue && !Nuevo)
+        {
+            <p class="upcoming-link-note"><i class="fas fa-link" aria-hidden="true"></i>Vinculado a la ficha de @modelo.Titulo</p>
+        }
+        else
+        {
+            <label for="upcoming-film" class="form-label">Película del catálogo</label>
+            <select id="upcoming-film" class="form-select" value="@(modelo.PeliculaId?.ToString() ?? "")" @onchange="Vincular" disabled="@(Ocupado || cargando)">
+                <option value="">Solo anuncio, sin venta de entradas</option>
+                @foreach (var pelicula in Opciones.OrderBy(x => x.Titulo)) { <option value="@pelicula.Id">@pelicula.Titulo</option> }
+            </select>
+            <p class="upcoming-help">El vínculo permite programar salas, horarios y butacas. Para anunciar una película nueva, añádela primero en Gestionar cartelera o búscala en TMDB.</p>
+        }
+        <div class="upcoming-editor-row">
+            <div><label for="upcoming-date" class="form-label">Fecha de estreno</label><input id="upcoming-date" type="date" class="form-control" @bind="fecha" required /></div>
+            <div><label for="upcoming-genre" class="form-label">Género</label><select id="upcoming-genre" class="form-select" @bind="genero">@foreach (var g in Catalogos.Generos.OrderBy(g => g.Nombre)) { <option value="@g.Nombre">@g.Nombre</option> }</select></div>
+        </div>
+        <label for="upcoming-status" class="form-label upcoming-status-label">Venta de entradas</label>
+        <select id="upcoming-status" class="form-select" @bind="estado" disabled="@(Ocupado || cargando)">
+            <option value="anunciado">A estrenar · preventa cerrada</option>
+            <option value="preventa" disabled="@(!modelo.PeliculaId.HasValue || modelo.FuncionesDisponibles == 0)">Preventa disponible</option>
+        </select>
+        <div class="upcoming-sale-summary" role="status">
+            @if (modelo.PeliculaId.HasValue)
+            {
+                <strong>@modelo.FuncionesDisponibles @(modelo.FuncionesDisponibles == 1 ? "función programada" : "funciones programadas")</strong>
+                <p>@(estado == "preventa" ? "El cliente podrá comprar por anticipado y elegir sala, horario y butacas." : "Las funciones pueden prepararse ahora. La venta comenzará cuando actives Preventa disponible.")</p>
+                @if (!Nuevo) { <a class="btn btn-secondary" href="@($"/admin/funciones?pelicula={modelo.PeliculaId}&estreno={fecha:yyyy-MM-dd}")"><i class="fas fa-calendar-days" aria-hidden="true"></i>Programar funciones de estreno</a> }
+                else { <p>Guarda el anuncio para programar sus funciones y abrir después la preventa.</p> }
+            }
+            else { <p>Vincula una película del catálogo para habilitar la venta anticipada.</p> }
+        </div>
+        <label class="upcoming-publish"><input type="checkbox" checked="@publicado" @onchange="Publicar" />Mostrar en próximos estrenos</label>
+        <p class="upcoming-help">Al llegar la fecha de estreno, la película pasa a cartelera automáticamente. Cerrar la preventa conserva las entradas ya compradas.</p>
+        @if (error.Length > 0) { <p class="alert alert-danger" role="alert">@error</p> }
+        <div class="upcoming-editor-actions"><button type="button" class="btn btn-secondary" disabled="@Ocupado" @onclick="OnCancelar">Cancelar</button><button type="submit" class="btn btn-primary" disabled="@(Ocupado || cargando || modelo.Titulo.Length == 0)">@(Ocupado ? "Guardando…" : "Guardar estreno")</button></div>
+    </div>
+    <aside class="upcoming-artwork">
+        <img class="upcoming-editor-poster" src="@PeliculaService.UrlImagen(modelo.ImagenUrl, "w342")" alt="Póster de @modelo.Titulo" onerror="this.onerror=null;this.src='/images/poster-placeholder.svg';" />
+        <label for="upcoming-poster" class="btn btn-secondary"><i class="fas fa-image" aria-hidden="true"></i>Cambiar póster</label>
+        <InputFile id="upcoming-poster" class="visually-hidden" accept="image/jpeg,image/png,image/webp" OnChange="CambiarImagen" disabled="@Ocupado" />
+        <p class="upcoming-help">JPG, PNG o WebP · hasta 10 MB. Se guardará como WebP.</p>
+    </aside>
+</form>
+
+@code {
+    [Parameter, EditorRequired] public ProximoEstreno Valor { get; set; } = null!;
+    [Parameter] public IReadOnlyList<Pelicula> Opciones { get; set; } = [];
+    [Parameter] public bool Nuevo { get; set; }
+    [Parameter] public bool Ocupado { get; set; }
+    [Parameter] public EventCallback<ProximoEstreno> OnGuardar { get; set; }
+    [Parameter] public EventCallback OnCancelar { get; set; }
+    private ProximoEstreno modelo = new(0, "", "", "Drama", default);
+    private ProximoEstreno? origen;
+    private DateTime fecha;
+    private string genero = "Drama", estado = "anunciado", error = "";
+    private bool publicado, cargando;
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(origen, Valor)) return;
+        origen = Valor; modelo = Valor; fecha = Valor.FechaEstreno.ToDateTime(TimeOnly.MinValue);
+        genero = Catalogos.ResolverGenero(Valor.Genero); publicado = Valor.Publicado; estado = Valor.EnPreventa ? "preventa" : "anunciado";
+    }
+    private void Publicar(ChangeEventArgs e) { publicado = e.Value is true; if (!publicado) estado = "anunciado"; }
+    private async Task Vincular(ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var id)) { modelo = modelo with { PeliculaId = null, FuncionesDisponibles = 0 }; estado = "anunciado"; return; }
+        cargando = true; error = "";
+        try
+        {
+            var pelicula = await Peliculas.ObtenerAsync(id);
+            var anuncios = await Peliculas.ConsultarEstrenosAsync(new() { Pelicula = id, Tamano = 1 });
+            if (anuncios.Items.Any(x => x.Id != Valor.Id)) { error = "Esta película ya tiene un anuncio. Edita el anuncio existente."; return; }
+            modelo = modelo with { PeliculaId = id, Titulo = pelicula.Titulo, ImagenUrl = pelicula.ImagenUrl, Sinopsis = pelicula.Sinopsis, FuncionesDisponibles = 0 };
+            genero = Catalogos.ResolverGenero(pelicula.Genero);
+            if (pelicula.FechaEstreno?.Date >= DateTime.Today) fecha = pelicula.FechaEstreno.Value.Date;
+            estado = "anunciado";
+        }
+        catch (Exception ex) { error = ex.Message; }
+        finally { cargando = false; }
+    }
+    private async Task CambiarImagen(InputFileChangeEventArgs e)
+    {
+        error = "";
+        try
+        {
+            var archivo = e.File;
+            if (archivo.ContentType is not ("image/jpeg" or "image/png" or "image/webp")) throw new ArgumentException("Elige una imagen JPG, PNG o WebP.");
+            using var buffer = new MemoryStream(); await archivo.OpenReadStream(10 * 1024 * 1024).CopyToAsync(buffer);
+            modelo = modelo with { ImagenUrl = $"data:{archivo.ContentType};base64,{Convert.ToBase64String(buffer.ToArray())}" };
+        }
+        catch { error = "No pudimos abrir la imagen. Elige JPG, PNG o WebP de hasta 10 MB."; }
+    }
+    private async Task Guardar()
+    {
+        if (Ocupado || cargando) return;
+        error = "";
+        if (publicado && fecha.Date < DateTime.Today) { error = "Elige hoy o una fecha futura para publicar el estreno."; return; }
+        if (estado == "preventa" && (!publicado || fecha.Date <= DateTime.Today)) { error = "Publica el anuncio y selecciona una fecha futura para abrir la preventa."; return; }
+        await OnGuardar.InvokeAsync(modelo with { FechaEstreno = DateOnly.FromDateTime(fecha), Genero = genero, Publicado = publicado, EnPreventa = estado == "preventa" });
+    }
+}

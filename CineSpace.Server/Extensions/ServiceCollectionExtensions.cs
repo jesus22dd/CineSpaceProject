@@ -88,6 +88,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAnaliticaService, AnaliticaService>();
         services.AddScoped<IExportacionResenasService, ExportacionResenasService>();
         services.AddScoped<IPeliculaCatalogoService, PeliculaCatalogoService>();
+        services.AddScoped<IEstrenosService, EstrenosService>();
         services.AddHttpClient<ICorreoCuentaService, CorreoCuentaService>().RedactLoggedHeaders(new[] { "api-key" });
         services.AddHttpClient<ITmdbService, TmdbService>().RemoveAllLoggers();
         services.AddHttpClient<IImagenStorageService, ImagenStorageService>().RemoveAllLoggers()

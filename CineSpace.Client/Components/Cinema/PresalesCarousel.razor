@@ -1,20 +1,30 @@
 @namespace CineSpace.Client.Components.Cinema
 @using CineSpace.Shared.Models
 @inject PeliculaService Catalogo
+@implements IDisposable
 
-<MovieStripCarousel Id="presales-title" Titulo="Preventas disponibles" Clase="presales-section" Total="preventas.Count" Nota="Reserva tu próxima función">
+<MovieStripCarousel Id="presales-title" Titulo="Preventas disponibles" Clase="presales-section" Total="preventas.Count" Cargando="cargando" Nota="Reserva tu próxima función">
     <Tarjetas>
         @foreach (var pelicula in preventas)
         {
             <MovieCard @key="pelicula.Id" Pelicula="pelicula" SoloReserva="true" Clase="upcoming-card" OnReservar="OnReservar" />
         }
     </Tarjetas>
-    <Estado><div class="alert alert-info" role="status">Aún no hay preventas disponibles. Consulta los próximos estrenos para descubrir lo que viene.</div></Estado>
+    <Estado>@if(error){<div class="alert alert-danger" role="alert"><p>No pudimos cargar las preventas.</p><button type="button" class="btn btn-secondary" @onclick="Cargar">Reintentar</button></div>}else if(cargando){<p role="status">Cargando preventas…</p>}else{<div class="alert alert-info" role="status">Aún no hay preventas disponibles. Consulta los próximos estrenos para descubrir lo que viene.</div>}</Estado>
 </MovieStripCarousel>
 
 @code {
     [Parameter] public List<Pelicula> Peliculas { get; set; } = new();
     [Parameter] public EventCallback<Pelicula> OnReservar { get; set; }
     private List<Pelicula> preventas = new();
-    protected override async Task OnInitializedAsync() => preventas = (await Catalogo.ConsultarAsync(new() { Estado = "preventa", Tamano = 8 })).Items;
+    private bool cargando = true, error, disposed;
+    protected override Task OnInitializedAsync() => Cargar();
+    private async Task Cargar()
+    {
+        cargando = true; error = false;
+        try { var p = await Catalogo.ConsultarAsync(new() { Estado = "preventa", Tamano = 8, Orden = "estreno" }); if(!disposed)preventas = p.Items; }
+        catch { if(!disposed)error = true; }
+        finally { if(!disposed)cargando = false; }
+    }
+    public void Dispose() => disposed = true;
 }
