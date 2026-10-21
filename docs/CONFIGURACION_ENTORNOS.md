@@ -48,7 +48,7 @@ En Compose, .env.example documenta los nombres equivalentes del archivo .env pri
 
 ## Frontend y backend
 
-Client deja Api:BaseUrl vacío y utiliza rutas relativas. Se puede servir desde Render o publicar como PWA en Netlify usando `netlify.toml` y `scripts/build-netlify.sh`. En Netlify, `RENDER_API_ORIGIN` genera las reglas de proxy de `/api`, `/signin-google` y `/healthz` durante la compilación. `Frontend__Url` es el dominio de Netlify y `Backend__PublicUrl` el de Render.
+Client deja Api:BaseUrl vacío y utiliza rutas relativas. En producción se publica como PWA en Netlify usando `netlify.toml` y `scripts/build-netlify.sh`; Render publica únicamente la API. En Netlify, `RENDER_API_ORIGIN` genera las reglas de proxy de `/api`, `/signin-google` y `/healthz` durante la compilación. `Frontend__Url` es el dominio de Netlify y `Backend__PublicUrl` el de Render. Solo el entorno local Debug sirve ambos desde el servidor.
 
 Las cookies HttpOnly/Secure y el retorno OAuth usan el origen canónico de `Frontend__Url`. El navegador conserva el dominio del frontend durante todo el flujo. Las variables privadas del servidor nunca se incorporan al cliente WebAssembly. Los pasos completos y la tabla para los paneles están en [DESPLIEGUE](DESPLIEGUE.md).
 

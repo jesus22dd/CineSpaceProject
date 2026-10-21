@@ -28,5 +28,6 @@ supabase/
 .local/
 docs/
 scripts/
+CineSpace.Client/
 netlify.toml
 **/.vscode

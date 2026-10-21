@@ -46,7 +46,7 @@ Después de cambiar el seed, el propietario debe ejecutar `update_DB.bat` para v
 
 Las credenciales están en `CineSpace.Server/appsettings.Development.json`, excluido de Git, Docker y publicación. El JSON global y los ejemplos conservan la estructura con campos privados vacíos. Los archivos de Client son públicos y nunca reciben claves privadas.
 
-`Dockerfile`, `compose.yaml` y `render.yaml` publican Client y Server; `netlify.toml` permite alojar el frontend PWA en Netlify con proxy de API y Google hacia Render. El contexto Docker es esta carpeta `CineSpaceFS`. Los pasos, variables exactas y callbacks están en [DESPLIEGUE](docs/DESPLIEGUE.md); la configuración privada se describe en [CONFIGURACION_ENTORNOS](docs/CONFIGURACION_ENTORNOS.md).
+`Dockerfile`, `compose.yaml` y `render.yaml` publican únicamente el backend en Render; `netlify.toml` aloja el frontend PWA en Netlify con proxy de API y Google hacia Render. Debug conserva el servidor con frontend integrado para iniciar localmente con un clic. El contexto Docker es esta carpeta `CineSpaceFS`. Los pasos, variables exactas y callbacks están en [DESPLIEGUE](docs/DESPLIEGUE.md); la configuración privada se describe en [CONFIGURACION_ENTORNOS](docs/CONFIGURACION_ENTORNOS.md).
 
 Consulta [cobertura funcional](docs/IMPLEMENTACION.md), [pruebas y límites verificados](docs/VALIDACION.md), [conexiones y BAT](docs/CONEXIONES.md) y [estado de los servicios externos](docs/ESTADO_CONFIGURACION.md).
 

@@ -78,16 +78,19 @@ if (app.Environment.IsDevelopment()) { app.UseWebAssemblyDebugging(); app.UseSwa
 else app.UseHsts();
 // Render termina TLS; localmente la redirección está activa solo en el perfil HTTPS.
 if (!behindProxy && !string.IsNullOrWhiteSpace(builder.Configuration["HTTPS_PORT"])) app.UseHttpsRedirection();
-app.UseBlazorFrameworkFiles();
-app.UseStaticFiles(new StaticFileOptions
+if (app.Environment.IsDevelopment())
 {
-    OnPrepareResponse = context =>
+    app.UseBlazorFrameworkFiles();
+    app.UseStaticFiles(new StaticFileOptions
     {
-        var path = context.Context.Request.Path.Value;
-        if (path is "/service-worker.js" or "/service-worker-assets.js" or "/index.html" or "/manifest.webmanifest" or "/appsettings.json")
-            context.Context.Response.Headers.CacheControl = "no-cache";
-    }
-});
+        OnPrepareResponse = context =>
+        {
+            var path = context.Context.Request.Path.Value;
+            if (path is "/service-worker.js" or "/service-worker-assets.js" or "/index.html" or "/manifest.webmanifest" or "/appsettings.json")
+                context.Context.Response.Headers.CacheControl = "no-cache";
+        }
+    });
+}
 app.UseRouting();
 app.UseCors("Frontend");
 app.UseAuthentication();
@@ -96,7 +99,25 @@ app.UseRateLimiter();
 app.MapHealthChecks("/healthz");
 app.MapControllers();
 app.Map("/api/{**path}", () => Results.Problem(statusCode: 404, title: "Endpoint no encontrado."));
-// El contenedor incluye el frontend publicado; /api nunca debe devolver index.html.
-app.MapFallbackToFile("index.html");
+if (app.Environment.IsDevelopment()) app.MapFallbackToFile("index.html");
+else
+{
+    // Retira la PWA del antiguo despliegue conjunto en Render. La PWA de Netlify
+    // pertenece a otro origen y no se modifica al limpiar este registro.
+    app.MapGet("/service-worker.js", (HttpContext context) =>
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        return Results.Text("""
+            self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
+            self.addEventListener('activate', event => event.waitUntil((async () => {
+                const keys = await caches.keys();
+                await Promise.all(keys.filter(key => key.startsWith('cinespace-shell-')).map(key => caches.delete(key)));
+                await self.clients.claim();
+                await self.registration.unregister();
+            })()));
+            """, "text/javascript");
+    });
+    app.MapFallback(() => Results.Problem(statusCode: 404, title: "Ruta no encontrada."));
+}
 app.Run();
 public partial class Program { }

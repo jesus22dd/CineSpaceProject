@@ -1,11 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup><TargetFramework>net8.0</TargetFramework><UserSecretsId>cinespace-server-local-2026</UserSecretsId></PropertyGroup>
+  <PropertyGroup>
+    <!-- Debug conserva el inicio local con un clic; Release publica solo la API. -->
+    <IncludeCineSpaceClient Condition="'$(IncludeCineSpaceClient)' == '' and '$(Configuration)' == 'Debug'">true</IncludeCineSpaceClient>
+    <IncludeCineSpaceClient Condition="'$(IncludeCineSpaceClient)' == ''">false</IncludeCineSpaceClient>
+  </PropertyGroup>
   <ItemGroup>
     <Content Update="appsettings.Local.json" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
     <Content Update="appsettings.Development.json" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
     <Content Update="appsettings.Development.example.json" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
     <ProjectReference Include="../CineSpace.Shared/CineSpace.Shared.csproj" />
-    <ProjectReference Include="../CineSpace.Client/CineSpace.Client.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../CineSpace.Client/CineSpace.Client.csproj" ReferenceOutputAssembly="false" Condition="'$(IncludeCineSpaceClient)' == 'true'" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="8.0.32" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="8.0.32" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.32" />

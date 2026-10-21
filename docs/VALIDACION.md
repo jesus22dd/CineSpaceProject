@@ -48,3 +48,9 @@ Publicación Release de Server y Client, ejecución del script de Netlify y 59 c
 En Edge real: worker activado, 158 recursos de interfaz en caché, navegación del shell sin conexión, API excluida del modo offline, recarga y vista móvil de 390 px sin desbordamiento. Las capturas están en `validacion/pwa-desktop.png` y `validacion/pwa-mobile.png`. Los programas temporales de pruebas fueron retirados y el servidor temporal se detuvo.
 
 Docker no está instalado en este equipo: no se ejecutó una construcción local del contenedor. El workflow de GitHub construye la imagen y publica el cliente con configuración ficticia de CI. Netlify/Render públicos y consentimiento Google interactivo se validarán cuando existan sus URLs reales. Pasos y variables en [DESPLIEGUE](DESPLIEGUE.md).
+
+## Separación de producción: Render solo backend (21/10/2026)
+
+Esta revisión sustituye el alojamiento conjunto de producción descrito arriba: Release y Docker excluyen Client; Debug conserva el arranque local integrado. En Production no se sirven archivos estáticos del frontend ni el fallback SPA. La compilación de Netlify sigue publicando Client por separado.
+
+28 comprobaciones correctas en `validacion/backend-only-report.json`: publicación sin frontend ni credenciales, rutas de interfaz con 404 JSON, API y Supabase disponibles, autorización, CORS, callback Google `https://cinespacebo.netlify.app/signin-google` y retirada del antiguo worker de Render sin afectar otros cachés. El frontend se volvió a publicar usando `https://cinespaceproject.onrender.com` como destino del proxy. La propiedad Debug mantiene la referencia a Client. El programa temporal de validación y su servidor se retiraron; no se ejecutó ninguna reconstrucción de base.

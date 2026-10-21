@@ -1,6 +1,6 @@
 # Producción: Netlify + Render
 
-El repositorio debe contener `Dockerfile`, `netlify.toml` y `CineSpace.sln` en su raíz (el contenido de CineSpaceFS). Netlify publica Client; Render ejecuta Server en Docker y también incluye el cliente como alternativa. Supabase conserva PostgreSQL, imágenes WebP y las claves persistentes de Identity.
+El repositorio debe contener `Dockerfile`, `netlify.toml` y `CineSpace.sln` en su raíz (el contenido de CineSpaceFS). Netlify publica Client; Render ejecuta únicamente Server en Docker. Supabase conserva PostgreSQL, imágenes WebP y las claves persistentes de Identity. El frontend integrado está disponible solo en desarrollo local (Debug).
 
 El navegador usa siempre el dominio de Netlify. Netlify envía `/api`, `/api/*`, `/signin-google` y `/healthz` a Render mediante reglas generadas al compilar. El cliente mantiene `Api:BaseUrl` vacío. No necesita claves de Supabase, Google, Brevo o TMDB.
 
@@ -100,9 +100,9 @@ El service worker de producción guarda el shell, WebAssembly, estilos, fuentes 
 
 Las comprobaciones públicas finales de Netlify/Render y el consentimiento interactivo de Google requieren los enlaces reales. La compilación local no sustituye esas comprobaciones.
 
-## Alternativa: todo en Render
+## Separación de frontend y backend
 
-El mismo Docker sirve el frontend. Usar la URL de Render tanto en `Frontend__Url` como en `Backend__PublicUrl`, y registrar `https://TU-SERVICIO.onrender.com/signin-google` en Google. No se necesita Netlify ni `RENDER_API_ORIGIN` en ese caso.
+La imagen Docker no compila ni contiene Client. En Production no hay archivos estáticos de Blazor ni fallback SPA: `/`, `/login` y `/_framework/*` responden 404. Los endpoints `/api/*`, `/healthz` y `/signin-google` siguen disponibles. Un worker de retirada en `/service-worker.js` elimina la caché y el registro de la PWA del despliegue antiguo en Render, sin afectar la instalación de Netlify. En local se mantiene el inicio con un clic mediante Debug.
 
 ## Fuentes
 
