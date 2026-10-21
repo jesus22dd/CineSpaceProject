@@ -133,6 +133,8 @@ public sealed class ButacaVendidaRegistro
 }
 public sealed class ResenaRegistro
 {
+    public Guid FuncionId { get; set; }
+    public FuncionRegistro Funcion { get; set; } = null!;
     public bool Destacada { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public int PeliculaId { get; set; }

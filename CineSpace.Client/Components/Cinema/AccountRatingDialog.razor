@@ -1,0 +1,33 @@
+@using CineSpace.Client.Components.Shared
+@using CineSpace.Shared.Models
+@inject UsuarioService Usuarios
+
+<AppDialog Title="@($"Calificar: {Venta.Pelicula}")" OnClose="OnCerrar">
+    <ChildContent>
+        @if(error is not null){<p class="alert alert-danger" role="alert">@error</p>}
+        <div class="rating-dialog-stars" role="group" aria-label="Selecciona tu calificación">
+            @for(int i=1;i<=5;i++){var estrella=i;<button type="button" class="rating-dialog-star @(estrella<=puntuacion ? "is-selected" : "")" aria-label="@($"{estrella} {(estrella==1 ? "estrella" : "estrellas")}")" aria-pressed="@(estrella==puntuacion ? "true" : "false")" disabled="@guardando" @onclick="() => puntuacion=estrella"><i class="@(estrella<=puntuacion ? "fas" : "far") fa-star" aria-hidden="true"></i></button>}
+        </div>
+        <label for="rating-comment-input">Tu opinión (opcional)</label>
+        <textarea id="rating-comment-input" class="form-control rating-dialog-comment" maxlength="4000" rows="4" disabled="@guardando" @bind="comentario"></textarea>
+    </ChildContent>
+    <Footer><button type="button" class="btn btn-secondary" disabled="@guardando" @onclick="() => OnCerrar.InvokeAsync()">Cancelar</button><button type="button" class="btn btn-primary" disabled="@(guardando||puntuacion==0)" @onclick="Guardar">@(guardando ? "Guardando…" : "Guardar calificación")</button></Footer>
+</AppDialog>
+
+@code {
+    [Parameter,EditorRequired]public VentaTicket Venta { get; set; }=new();
+    [Parameter]public EventCallback OnCerrar { get; set; }
+    [Parameter]public EventCallback OnGuardada { get; set; }
+    private int puntuacion;
+    private string comentario="";
+    private string? error;
+    private bool guardando;
+    private async Task Guardar()
+    {
+        if(guardando||puntuacion is <1 or >5)return;
+        guardando=true;error=null;
+        try{await Usuarios.GuardarCalificacionAsync(new(){FuncionId=Venta.FuncionId??"",PeliculaId=Venta.PeliculaId,Calificacion=puntuacion,Comentario=comentario});await OnGuardada.InvokeAsync();}
+        catch(InvalidOperationException ex){error=ex.Message;}
+        finally{guardando=false;}
+    }
+}

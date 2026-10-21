@@ -4,6 +4,10 @@ namespace CineSpace.Shared.Models
 {
     public class CalificacionPelicula
     {
+        public string Id { get; set; } = string.Empty;
+        public string FuncionId { get; set; } = string.Empty;
+        public string ImagenPanoramicaUrl { get; set; } = string.Empty;
+        public DateTime? FechaFuncion { get; set; }
         public int PeliculaId { get; set; }
         public string NombrePelicula { get; set; } = string.Empty;
         public string EmailUsuario { get; set; } = string.Empty;

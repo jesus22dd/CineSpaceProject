@@ -97,7 +97,8 @@ public sealed class CineSpaceDbContext(DbContextOptions<CineSpaceDbContext> opti
         builder.Entity<ButacaVendidaRegistro>().HasOne(x => x.Venta).WithMany(x => x.Butacas).HasForeignKey(x => x.VentaId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<ButacaVendidaRegistro>().HasOne(x => x.Funcion).WithMany().HasForeignKey(x => x.FuncionId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<ResenaRegistro>().ToTable("resenas");
-        builder.Entity<ResenaRegistro>().HasIndex(x => new { x.UsuarioId, x.PeliculaId }).IsUnique();
+        builder.Entity<ResenaRegistro>().HasIndex(x => new { x.UsuarioId, x.FuncionId }).IsUnique();
+        builder.Entity<ResenaRegistro>().HasOne(x => x.Funcion).WithMany().HasForeignKey(x => x.FuncionId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<ResenaRegistro>().HasOne(x => x.Usuario).WithMany().HasForeignKey(x => x.UsuarioId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<ResenaRegistro>().HasOne(x => x.Pelicula).WithMany().HasForeignKey(x => x.PeliculaId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<ComboRegistro>().HasOne(x => x.Categoria).WithMany().HasForeignKey(x => x.CategoriaId).OnDelete(DeleteBehavior.Restrict);

@@ -78,21 +78,23 @@ public sealed class VentasService(CineSpaceDbContext db, IRepositorioCine reposi
         if (f.Genero.HasValue) q = q.Where(x => x.Funcion.Pelicula.Generos.Any(g => g.GeneroId == f.Genero));
         if (f.Desde.HasValue) { var fecha = ReglasCine.Utc(f.Desde.Value.ToDateTime(TimeOnly.MinValue)); q = q.Where(x => x.FechaUtc >= fecha); }
         if (f.Hasta.HasValue) { var fecha = ReglasCine.Utc(f.Hasta.Value.AddDays(1).ToDateTime(TimeOnly.MinValue)); q = q.Where(x => x.FechaUtc < fecha); }
-        var page = await repositorio.PaginarAsync(f.Orden == "antiguas" ? q.OrderBy(x => x.FechaUtc).ThenBy(x => x.Id) : q.OrderByDescending(x => x.FechaUtc).ThenBy(x => x.Id), f, ct);
-        var result = page.Items.Select(MapasCine.Venta).ToList();
-        if (!todas && result.Count > 0)
+        var orden = f.Orden == "antiguas" ? q.OrderBy(x => x.FechaUtc).ThenBy(x => x.Id) : q.OrderByDescending(x => x.FechaUtc).ThenBy(x => x.Id);
+        var page = await repositorio.PaginarAsync(orden.Select(x => new { Registro = x, Fin = x.Funcion.InicioUtc.AddMinutes(x.Funcion.Duracion),
+            Fondo = x.Funcion.Pelicula.Fondo, Calificada = db.Resenas.Any(r => r.FuncionId == x.FuncionId && r.UsuarioId == x.UsuarioId) }), f, ct);
+        var ahora = DateTime.UtcNow;
+        var result = page.Items.Select(x =>
         {
-            var id = Guid.Parse(principal.FindFirstValue(ClaimTypes.NameIdentifier)!); var peliculas = result.Select(x => x.PeliculaId).Distinct().ToArray();
-            var calificadas = await db.Resenas.Where(x => x.UsuarioId == id && peliculas.Contains(x.PeliculaId)).Select(x => x.PeliculaId).ToListAsync(ct);
-            foreach (var venta in result) venta.FueCalificada = calificadas.Contains(venta.PeliculaId);
-        }
+            var venta = MapasCine.Venta(x.Registro); venta.FinFuncion = ReglasCine.Local(x.Fin); venta.ImagenPanoramicaUrl = x.Fondo;
+            venta.FueCalificada = x.Fin <= ahora && x.Calificada; venta.PuedeCalificar = !todas && x.Fin <= ahora && !x.Calificada;
+            return venta;
+        }).ToList();
         return new(result, page.Total, page.Numero, page.Tamano);
     }
 
     public async Task<VentaTicket> VerificarAsync(string codigo, bool registrar, CancellationToken ct)
     {
         codigo = ReglasCine.Texto(codigo, 50, "el codigo").ToUpperInvariant();
-        var venta = await db.Ventas.SingleOrDefaultAsync(x => x.Codigo == codigo, ct) ?? throw new ArgumentException("No encontramos este boleto.");
+        var venta = await db.Ventas.Include(x => x.Funcion).ThenInclude(x => x.Pelicula).SingleOrDefaultAsync(x => x.Codigo == codigo, ct) ?? throw new ArgumentException("No encontramos este boleto.");
         if (registrar)
         {
             var verificadaUtc = DateTime.UtcNow;

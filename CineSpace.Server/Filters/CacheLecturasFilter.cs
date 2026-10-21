@@ -29,7 +29,7 @@ public sealed class CacheLecturas : IDisposable
         "/api/catalogos/referencias" => 120,
         "/api/analitica" or "/api/analitica/resumen" or "/api/analitica/ventas" or "/api/analitica/ocupacion" or "/api/resenas/estadisticas" => 30,
         "/api/peliculas" or "/api/peliculas/opciones" or "/api/presentacion/banners" or "/api/presentacion/estrenos" => 30,
-        "/api/personal/usuarios" or "/api/personal/trabajadores" or "/api/resenas" or "/api/resenas/mias" or "/api/ventas" or "/api/ventas/mias" or "/api/pedidos" or "/api/pedidos/mios" or "/api/funciones" => 30,
+        "/api/personal/usuarios" or "/api/personal/trabajadores" or "/api/resenas" or "/api/resenas/mias" or "/api/ventas" or "/api/pedidos" or "/api/pedidos/mios" or "/api/funciones" => 30,
         _ when path.StartsWith("/api/catalogos/", StringComparison.Ordinal) && !path.Contains("carrito", StringComparison.Ordinal) => 60,
         _ => 0
     };

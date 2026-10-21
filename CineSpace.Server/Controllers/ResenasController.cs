@@ -39,8 +39,8 @@ public sealed class ResenasController(CineSpaceDbContext db, IRepositorioCine re
             "Calificacion" => asc ? q.OrderBy(x => x.Puntuacion).ThenBy(x => x.Id) : q.OrderByDescending(x => x.Puntuacion).ThenBy(x => x.Id),
             _ => asc ? q.OrderBy(x => x.FechaUtc).ThenBy(x => x.Id) : q.OrderByDescending(x => x.FechaUtc).ThenBy(x => x.Id)
         };
-        var p = await repositorio.PaginarAsync(orden.Select(x => new CalificacionPelicula { Destacada = x.Destacada, PeliculaId = x.PeliculaId, NombrePelicula = x.Pelicula.Titulo, EmailUsuario = x.Usuario.Email!, Calificacion = x.Puntuacion, Comentario = x.Comentario, FechaCalificacion = x.FechaUtc }), f, ct);
-        foreach (var r in p.Items) r.FechaCalificacion = ReglasCine.Local(r.FechaCalificacion);
+        var p = await repositorio.PaginarAsync(orden.Select(x => new CalificacionPelicula { Id = x.Id.ToString("N"), FuncionId = x.FuncionId.ToString("N"), ImagenPanoramicaUrl = x.Pelicula.Fondo, FechaFuncion = x.Funcion.InicioUtc, Destacada = x.Destacada, PeliculaId = x.PeliculaId, NombrePelicula = x.Pelicula.Titulo, EmailUsuario = x.Usuario.Email!, Calificacion = x.Puntuacion, Comentario = x.Comentario, FechaCalificacion = x.FechaUtc }), f, ct);
+        foreach (var r in p.Items) { r.FechaCalificacion = ReglasCine.Local(r.FechaCalificacion); if(r.FechaFuncion.HasValue)r.FechaFuncion = ReglasCine.Local(r.FechaFuncion.Value); }
         return p;
     }
     [HttpGet("estadisticas"), Authorize(Roles = "Administrador")]
@@ -50,25 +50,46 @@ public sealed class ResenasController(CineSpaceDbContext db, IRepositorioCine re
         var distribucion = await db.Resenas.GroupBy(x => x.Puntuacion).OrderBy(g => g.Key).Select(g => new RecuentoCatalogo(g.Key, g.Count())).ToListAsync(ct);
         return new(resumen?.Total ?? 0, resumen?.Peliculas ?? 0, resumen?.Usuarios ?? 0, resumen?.Promedio ?? 0, distribucion);
     }
-    [HttpDelete("{pelicula:int}"), Authorize(Roles = "Administrador")]
-    public async Task Eliminar(int pelicula, [FromQuery] string email, CancellationToken ct)
+    [HttpDelete("{id:guid}"), Authorize(Roles = "Administrador")]
+    public async Task Eliminar(Guid id, CancellationToken ct)
     {
-        if (await db.Resenas.Where(x => x.PeliculaId == pelicula && x.Usuario.NormalizedEmail == email.ToUpper()).ExecuteDeleteAsync(ct) == 0) throw new KeyNotFoundException();
+        if (await db.Resenas.Where(x => x.Id == id).ExecuteDeleteAsync(ct) == 0) throw new KeyNotFoundException();
     }
-    [HttpPut("{pelicula:int}/destacada"), Authorize(Roles = "Administrador")]
-    public async Task Destacar(int pelicula, [FromQuery] string email, CambiarEstado dto, CancellationToken ct)
+    [HttpPut("{id:guid}/destacada"), Authorize(Roles = "Administrador")]
+    public async Task Destacar(Guid id, CambiarEstado dto, CancellationToken ct)
     {
-        if (await db.Resenas.Where(x => x.PeliculaId == pelicula && x.Usuario.NormalizedEmail == email.ToUpper()).ExecuteUpdateAsync(x => x.SetProperty(r => r.Destacada, dto.Activo), ct) == 0) throw new KeyNotFoundException();
+        if (await db.Resenas.Where(x => x.Id == id).ExecuteUpdateAsync(x => x.SetProperty(r => r.Destacada, dto.Activo), ct) == 0) throw new KeyNotFoundException();
     }
     [HttpPost] public async Task<CalificacionPelicula> Guardar(CalificacionPelicula solicitud, CancellationToken ct)
     {
         if (!solicitud.EsCalificacionValida) throw new ArgumentException("La calificacion debe estar entre 1 y 5 estrellas.");
         var comentario = ReglasCine.Texto(solicitud.Comentario, 4000, "el comentario", false);
-        if (!await db.Ventas.AnyAsync(x => x.UsuarioId == Usuario && x.Funcion.PeliculaId == solicitud.PeliculaId && x.Funcion.InicioUtc < DateTime.UtcNow, ct)) throw new OperacionCineException("Puedes calificar despues de asistir a una funcion que hayas comprado.");
-        var registro = await db.Resenas.SingleOrDefaultAsync(x => x.UsuarioId == Usuario && x.PeliculaId == solicitud.PeliculaId, ct);
-        if (registro is null) { registro = new() { UsuarioId = Usuario, PeliculaId = solicitud.PeliculaId }; db.Resenas.Add(registro); }
+        if (!Guid.TryParse(solicitud.FuncionId, out var funcionId)) throw new ArgumentException("Selecciona una función de tu historial.");
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({Usuario.ToString() + ":" + funcionId}, 0))", ct);
+        var funcion = await db.Funciones.Where(f => f.Id == funcionId && db.Ventas.Any(v => v.FuncionId == f.Id && v.UsuarioId == Usuario))
+            .Select(f => new { f.PeliculaId, Fin = f.InicioUtc.AddMinutes(f.Duracion), f.Pelicula.Titulo, f.Pelicula.Fondo, f.InicioUtc }).SingleOrDefaultAsync(ct);
+        if (funcion is null || funcion.PeliculaId != solicitud.PeliculaId) throw new OperacionCineException("Solo puedes calificar una función que hayas comprado.");
+        if (funcion.Fin > DateTime.UtcNow) throw new OperacionCineException("Podrás calificar cuando termine la función.");
+        var registro = await db.Resenas.SingleOrDefaultAsync(x => x.UsuarioId == Usuario && x.FuncionId == funcionId, ct);
+        if (registro is not null) throw new OperacionCineException("Ya calificaste esta función.");
+        registro = new() { UsuarioId = Usuario, PeliculaId = funcion.PeliculaId, FuncionId = funcionId }; db.Resenas.Add(registro);
         registro.Puntuacion = solicitud.Calificacion; registro.Comentario = comentario; registro.FechaUtc = DateTime.UtcNow;
-        await db.SaveChangesAsync(ct);
+        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        solicitud.Id = registro.Id.ToString("N"); solicitud.NombrePelicula = funcion.Titulo; solicitud.ImagenPanoramicaUrl = funcion.Fondo; solicitud.FechaFuncion = ReglasCine.Local(funcion.InicioUtc);
         solicitud.EmailUsuario = User.Identity!.Name!; solicitud.FechaCalificacion = ReglasCine.Local(registro.FechaUtc); return solicitud;
+    }
+
+    [HttpGet("pendientes")]
+    public async Task<Pagina<CalificacionPendiente>> Pendientes([FromQuery] ConsultaPagina filtro, CancellationToken ct)
+    {
+        filtro.Tamano = 6;
+        var query = db.Funciones.AsNoTracking().Where(f => f.InicioUtc.AddMinutes(f.Duracion) <= DateTime.UtcNow &&
+            db.Ventas.Any(v => v.FuncionId == f.Id && v.UsuarioId == Usuario) &&
+            !db.Resenas.Any(r => r.FuncionId == f.Id && r.UsuarioId == Usuario));
+        var pagina = await repositorio.PaginarAsync(query.OrderByDescending(f => f.InicioUtc).ThenBy(f => f.Id).Select(f => new CalificacionPendiente
+        { FuncionId = f.Id.ToString("N"), PeliculaId = f.PeliculaId, NombrePelicula = f.Pelicula.Titulo, ImagenPanoramicaUrl = f.Pelicula.Fondo, FechaFuncion = f.InicioUtc, Sala = f.Sala.Nombre }), filtro, ct);
+        foreach(var pendiente in pagina.Items)pendiente.FechaFuncion = ReglasCine.Local(pendiente.FechaFuncion);
+        return pagina;
     }
 }

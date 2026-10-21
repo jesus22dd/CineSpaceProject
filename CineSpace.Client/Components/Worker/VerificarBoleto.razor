@@ -24,6 +24,7 @@
         @if (ventaEncontrada is { } venta)
         {
             <section class="ticket-verified" aria-labelledby="ticket-verified-title" aria-live="polite">
+                @if(!string.IsNullOrWhiteSpace(venta.ImagenPanoramicaUrl)){<img class="ticket-verified-backdrop" src="@PeliculaService.UrlImagen(venta.ImagenPanoramicaUrl,"w780")" alt="" decoding="async" onerror="this.hidden=true;" />}
                 <header><div><p class="ticket-verified-status"><i class="fas fa-check-circle" aria-hidden="true"></i>@(venta.FechaVerificacion.HasValue ? "Ingreso registrado" : "Boleto válido")</p><h2 id="ticket-verified-title">@venta.Pelicula</h2></div><strong class="ticket-code">@venta.CodigoValidacion</strong></header>
                 <dl class="ticket-verified-details">
                     <div><dt>Fecha de función</dt><dd>@(venta.FechaFuncion?.ToString("dd/MM/yyyy") ?? "Sin fecha registrada")</dd></div>

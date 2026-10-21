@@ -1,16 +1,16 @@
-.account-rating { min-width: 0; height: 264px; padding: 20px 24px; display: grid; grid-template-rows: 68px 20px minmax(0, 1fr) 44px; gap: 8px; border-radius: 12px; background: var(--cinema-surface); color: var(--cinema-ink); }
-.account-rating-heading { min-width: 0; }
-.account-rating h2 { margin: 0 0 6px; color: var(--cinema-heading); font-size: 21px; line-height: 24px; height: 48px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
-.account-rating time { display: block; color: var(--cinema-muted); font-size: 12px; line-height: 14px; font-variant-numeric: tabular-nums; }
-.account-rating-score { display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 600; color: var(--cinema-heading); }
-.account-rating-stars { display: inline-flex; gap: 4px; color: var(--cinema-link); }
-.account-rating-comment { align-self: start; margin: 0; font-size: 14px; line-height: 22px; white-space: pre-line; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.account-rating-footer { display: flex; align-items: end; }
-.account-rating-expand { display: none; align-items: center; gap: 8px; min-height: 44px; padding: 8px 0; border: 0; background: transparent; color: var(--cinema-link); font: inherit; font-size: 13px; font-weight: 600; }
-.account-rating[data-overflow="true"] .account-rating-expand { display: inline-flex; }
-.account-rating-expand:hover { text-decoration: underline; }
-.account-rating-expand:focus-visible { outline: 2px solid var(--cinema-link); outline-offset: 4px; border-radius: 2px; }
-.account-rating.is-expanded { height: auto; min-height: 264px; grid-template-rows: auto 20px auto 44px; }
-.account-rating.is-expanded:not(.is-measuring) h2 { display: block; height: auto; min-height: 48px; overflow: visible; }
-.account-rating.is-expanded:not(.is-measuring) .account-rating-comment { display: block; overflow: visible; }
-@media (max-width: 480px) { .account-rating { padding-inline: 20px; } }
+.account-rating { position:relative; isolation:isolate; min-width:0; overflow:hidden; padding:18px 20px; display:flex; flex-direction:column; align-items:start; gap:10px; border:1px solid var(--cinema-line); border-radius:8px; background:var(--cinema-surface); color:var(--cinema-ink); }
+.account-rating-backdrop { position:absolute; inset:0; z-index:-1; width:100%; height:100%; object-fit:cover; opacity:.14; pointer-events:none; }
+.account-rating-heading { width:100%; min-width:0; }
+.account-rating h2 { margin:0 0 5px; color:var(--cinema-heading); font-size:19px; line-height:24px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
+.account-rating time { display:block; color:var(--cinema-muted); font-size:12px; line-height:18px; font-variant-numeric:tabular-nums; }
+.account-rating-score { display:flex; align-items:center; gap:10px; font-size:12px; font-weight:600; color:var(--cinema-heading); }
+.account-rating-stars { display:inline-flex; gap:4px; color:var(--cinema-link); }
+.account-rating-comment { margin:0; font-size:14px; line-height:21px; white-space:pre-line; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.account-rating-expand { display:none; align-items:center; gap:8px; min-height:44px; padding:8px 0; margin-bottom:-6px; border:0; background:transparent; color:var(--cinema-link); font-family:inherit; font-size:13px; font-weight:600; line-height:1.4; }
+.account-rating[data-overflow="true"] .account-rating-expand { display:inline-flex; }
+.account-rating-expand:hover { text-decoration:underline; }
+.account-rating-expand:focus-visible { outline:2px solid var(--cinema-link); outline-offset:2px; border-radius:2px; }
+.account-rating.is-expanded:not(.is-measuring) h2, .account-rating.is-expanded:not(.is-measuring) .account-rating-comment { display:block; overflow:visible; }
+.account-rating-pending-label { display:inline-flex; align-items:center; gap:6px; margin:2px 0 8px; padding:4px 8px; border:1px solid #d0d1d8; border-radius:4px; background:#fff; color:#3e3340; font-size:11px; font-weight:700; }
+.account-rating-action { min-height:44px; margin-top:2px; }
+@media(max-width:480px) { .account-rating { padding:16px; }.account-rating h2 { font-size:18px; } }

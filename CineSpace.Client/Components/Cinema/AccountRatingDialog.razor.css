@@ -1,0 +1,5 @@
+.rating-dialog-stars { display:flex; justify-content:center; gap:6px; margin:4px 0 20px; }
+.rating-dialog-star { width:44px; height:44px; border:0; border-radius:4px; background:transparent; color:var(--cinema-muted); font-size:26px; }
+.rating-dialog-star.is-selected { color:var(--cinema-link); }
+.rating-dialog-star:hover { background:var(--cinema-gold-surface); }
+.rating-dialog-comment { margin-top:8px; min-height:100px; resize:vertical; }

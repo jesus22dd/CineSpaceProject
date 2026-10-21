@@ -301,6 +301,7 @@ CREATE TABLE cine.peliculas_generos (
 
 CREATE TABLE cine.resenas (
     id uuid NOT NULL,
+    funcion_id uuid NOT NULL,
     destacada boolean NOT NULL,
     pelicula_id integer NOT NULL,
     usuario_id uuid NOT NULL,
@@ -372,6 +373,8 @@ CREATE TABLE cine.funciones (
     CONSTRAINT "FK_funciones_salas_sala_id" FOREIGN KEY (sala_id) REFERENCES cine.salas (id) ON DELETE RESTRICT
 );
 
+
+ALTER TABLE cine.resenas ADD CONSTRAINT "FK_resenas_funciones_funcion_id" FOREIGN KEY(funcion_id) REFERENCES cine.funciones(id) ON DELETE RESTRICT;
 
 CREATE TABLE cine.ventas (
     id uuid NOT NULL,
@@ -498,7 +501,8 @@ CREATE INDEX "IX_programaciones_sala_id_experiencia_id" ON cine.programaciones (
 CREATE INDEX "IX_resenas_pelicula_id" ON cine.resenas (pelicula_id);
 
 
-CREATE UNIQUE INDEX "IX_resenas_usuario_id_pelicula_id" ON cine.resenas (usuario_id, pelicula_id);
+CREATE UNIQUE INDEX "IX_resenas_usuario_id_funcion_id" ON cine.resenas (usuario_id, funcion_id);
+CREATE INDEX "IX_resenas_funcion_id" ON cine.resenas(funcion_id);
 
 
 CREATE UNIQUE INDEX "RoleNameIndex" ON cine.roles (normalized_name);
@@ -2246,7 +2250,10 @@ INSERT INTO cine.butacas_vendidas (funcion_id, asiento, venta_id) VALUES
 (md5('seed-funcion:981d4cd3-da70-5877-aa7d-e361db0e0fac:-16:18:00')::uuid, 'C5', '67255dcb-b600-595c-9a30-d7a29f442cfe'),
 (md5('seed-funcion:981d4cd3-da70-5877-aa7d-e361db0e0fac:-16:18:00')::uuid, 'C6', '67255dcb-b600-595c-9a30-d7a29f442cfe');
 
-INSERT INTO cine.resenas (id, pelicula_id, usuario_id, destacada, puntuacion, comentario, fecha_utc) VALUES
+-- Cada reseña corresponde a una función terminada comprada por su autor.
+WITH borradores AS (
+ SELECT r.*,row_number() OVER(PARTITION BY pelicula_id ORDER BY fecha_utc DESC,id) AS posicion
+ FROM (VALUES
 ('6f276df0-4897-5202-8c45-d8824fd2aaa8', 986056, 'aa9f3573-9b46-5622-a528-391ee942d06d', FALSE, 1, 'Muy buena película, cómoda sala y atención amable. El sonido envolvente y la calidad de imagen hicieron que disfrutáramos mucho de la película. El personal nos ayudó a encontrar los asientos y nos explicó los horarios disponibles para nuestra próxima visita. El sonido envolvente y la calidad de imagen hicieron que disfrutáramos mucho de la película. El personal nos ayudó a encontrar los asientos y nos explicó los horarios disponibles para nuestra próxima visita. El sonido envolvente y la calidad de imagen hicieron que disfrutáramos mucho de la película. El personal nos ayudó a encontrar los asientos y nos explicó los horarios disponibles para nuestra próxima visita.', pg_catalog.timezone('America/La_Paz', CAST(pg_catalog.timezone('America/La_Paz', CURRENT_TIMESTAMP) AS date) + -1 + CAST('23:00' AS time))),
 ('10a7f396-8e12-5d9a-a303-67b350558cfd', 1234821, 'aa9f3573-9b46-5622-a528-391ee942d06d', FALSE, 2, 'Una experiencia correcta. Preferiría más variedad de horarios.', pg_catalog.timezone('America/La_Paz', CAST(pg_catalog.timezone('America/La_Paz', CURRENT_TIMESTAMP) AS date) + -1 + CAST('23:00' AS time))),
 ('4586e666-664f-5187-919e-501609afc841', 822119, 'aa9f3573-9b46-5622-a528-391ee942d06d', FALSE, 3, 'La sala estaba limpia y la función comenzó a tiempo.', pg_catalog.timezone('America/La_Paz', CAST(pg_catalog.timezone('America/La_Paz', CURRENT_TIMESTAMP) AS date) + -1 + CAST('23:00' AS time))),
@@ -2317,7 +2324,17 @@ INSERT INTO cine.resenas (id, pelicula_id, usuario_id, destacada, puntuacion, co
 ('15e32412-d9bc-5e0b-a635-92172a1ceb6a', 1241436, 'dd77a631-dd03-5df9-907d-6fb5621e1875', FALSE, 3, 'Me gustó la proyección y el sonido. Volvería a elegir esta experiencia.', pg_catalog.timezone('America/La_Paz', CAST(pg_catalog.timezone('America/La_Paz', CURRENT_TIMESTAMP) AS date) + -5 + CAST('23:00' AS time))),
 ('a434c3eb-c6b6-58d8-84f4-2f292f6a3d66', 1100988, 'dd77a631-dd03-5df9-907d-6fb5621e1875', TRUE, 5, 'Una experiencia correcta. Preferiría más variedad de horarios.', pg_catalog.timezone('America/La_Paz', CAST(pg_catalog.timezone('America/La_Paz', CURRENT_TIMESTAMP) AS date) + -5 + CAST('23:00' AS time))),
 ('3188e0c5-e98f-5b22-872e-289f25b1c162', 1078605, 'dd77a631-dd03-5df9-907d-6fb5621e1875', FALSE, 1, 'La sala estaba limpia y la función comenzó a tiempo.', pg_catalog.timezone('America/La_Paz', CAST(pg_catalog.timezone('America/La_Paz', CURRENT_TIMESTAMP) AS date) + -5 + CAST('23:00' AS time))),
-('3ffe2709-0a46-58fb-b9f7-6c8586b64a75', 299534, 'dd77a631-dd03-5df9-907d-6fb5621e1875', FALSE, 3, 'Muy buena película, cómoda sala y atención amable.', pg_catalog.timezone('America/La_Paz', CAST(pg_catalog.timezone('America/La_Paz', CURRENT_TIMESTAMP) AS date) + -5 + CAST('23:00' AS time)));
+('3ffe2709-0a46-58fb-b9f7-6c8586b64a75', 299534, 'dd77a631-dd03-5df9-907d-6fb5621e1875', FALSE, 3, 'Muy buena película, cómoda sala y atención amable.', pg_catalog.timezone('America/La_Paz', CAST(pg_catalog.timezone('America/La_Paz', CURRENT_TIMESTAMP) AS date) + -5 + CAST('23:00' AS time)))
+ ) r(id,pelicula_id,usuario_id,destacada,puntuacion,comentario,fecha_utc)
+), asistencias AS (
+ SELECT a.*,row_number() OVER(PARTITION BY pelicula_id ORDER BY fin DESC,usuario_id,funcion_id) AS posicion
+ FROM (SELECT DISTINCT v.usuario_id,f.id AS funcion_id,f.pelicula_id,f.inicio_utc+make_interval(mins=>f.duracion) AS fin
+       FROM cine.ventas v JOIN cine.funciones f ON f.id=v.funcion_id
+       WHERE f.inicio_utc+make_interval(mins=>f.duracion)<=CURRENT_TIMESTAMP) a
+)
+INSERT INTO cine.resenas(id,pelicula_id,usuario_id,destacada,puntuacion,comentario,fecha_utc,funcion_id)
+ SELECT r.id::uuid,r.pelicula_id,a.usuario_id,r.destacada,r.puntuacion,r.comentario,greatest(r.fecha_utc,a.fin),a.funcion_id
+ FROM borradores r JOIN asistencias a ON a.pelicula_id=r.pelicula_id AND a.posicion=r.posicion;
 
 INSERT INTO cine.pedidos (id, numero, token, solicitud, codigo, usuario_id, propietario_invitado, nombre_retiro, estado, metodo_pago, total, creado_utc, retirado_utc, entregado_por_id) VALUES
 ('d9acd038-89d5-55c2-b77c-4a44b36c3ff3', 'P-DEMO-00001', '713cdebcbc81576092eca30a6b4a12070000000000000000', '05bdcbbf-4746-5327-a79d-98a3b1b1a1e5', 'PED000000001', 'aa9f3573-9b46-5622-a528-391ee942d06d', '', 'Usuario', 'Pendiente', '', 83, CURRENT_TIMESTAMP - interval '0 days' - interval '2 hours', NULL, NULL),
@@ -2525,6 +2542,36 @@ CROSS JOIN (SELECT usuario_id FROM cine.trabajadores ORDER BY id LIMIT 1) w WHER
 INSERT INTO cine.pedido_lineas(id,pedido_id,combo_id,nombre,categoria,cantidad,precio_unitario)
 SELECT 55+row_number() OVER(ORDER BY p.id,c.id),p.id,c.id,c.nombre,cat.nombre,1+(split_part(p.solicitud,':',2)::int+c.id)%3,c.precio
 FROM cine.pedidos p JOIN cine.combos c ON c.id=split_part(p.solicitud,':',3)::int JOIN cine.categorias cat ON cat.id=c.categoria_id WHERE p.solicitud LIKE 'seed-pedido:%';
+
+-- Cliente de demostración: exactamente dos funciones terminadas por calificar.
+-- Las compras futuras o en curso nunca generan reseñas ni aparecen como calificadas.
+WITH pendientes AS (SELECT id FROM (
+ SELECT DISTINCT ON(f.pelicula_id) f.id,f.inicio_utc+make_interval(mins=>f.duracion) AS fin
+ FROM cine.funciones f WHERE f.inicio_utc+make_interval(mins=>f.duracion)<=CURRENT_TIMESTAMP
+ AND EXISTS(SELECT 1 FROM cine.ventas v WHERE v.funcion_id=f.id AND v.usuario_id=(SELECT id FROM cine.usuarios WHERE email='cliente@cliente.com'))
+ ORDER BY f.pelicula_id,fin DESC,f.id
+) ultimas ORDER BY fin DESC,id LIMIT 2), historial AS (
+ SELECT f.*,row_number() OVER(ORDER BY f.inicio_utc DESC,f.id) AS posicion
+ FROM cine.funciones f WHERE f.inicio_utc+make_interval(mins=>f.duracion)<=CURRENT_TIMESTAMP
+ AND EXISTS(SELECT 1 FROM cine.ventas v WHERE v.funcion_id=f.id AND v.usuario_id=(SELECT id FROM cine.usuarios WHERE email='cliente@cliente.com'))
+ AND f.id NOT IN(SELECT id FROM pendientes)
+)
+INSERT INTO cine.resenas(id,funcion_id,pelicula_id,usuario_id,destacada,puntuacion,comentario,fecha_utc)
+ SELECT md5('resena-cliente:'||f.id)::uuid,f.id,f.pelicula_id,u.id,false,2+(f.posicion%4)::int,
+ (ARRAY['La historia y el sonido hicieron que disfrutara mucho la función.',
+ 'Una buena experiencia para compartir en el cine. Me gustaron especialmente las actuaciones y el ritmo de la película.',
+ 'La fotografía tiene escenas que se disfrutan mucho más en pantalla grande. La historia se toma su tiempo para presentar a los personajes y luego consigue mantener el interés hasta el final. También me gustó el trabajo de sonido: acompaña los momentos más tranquilos sin distraer y da fuerza a las escenas de acción. Salí con ganas de conversar sobre el desenlace y algunos detalles que seguramente descubriría en una segunda visita.',
+ 'Disfruté la película y la comodidad de la sala.'])[1+(f.posicion%4)::int],
+ least(CURRENT_TIMESTAMP,f.inicio_utc+make_interval(mins=>f.duracion)+interval '5 minutes')
+ FROM historial f CROSS JOIN(SELECT id FROM cine.usuarios WHERE email='cliente@cliente.com') u
+ WHERE NOT EXISTS(SELECT 1 FROM cine.resenas r WHERE r.usuario_id=u.id AND r.funcion_id=f.id);
+WITH pendientes AS (SELECT id FROM (
+ SELECT DISTINCT ON(f.pelicula_id) f.id,f.inicio_utc+make_interval(mins=>f.duracion) AS fin
+ FROM cine.funciones f WHERE f.inicio_utc+make_interval(mins=>f.duracion)<=CURRENT_TIMESTAMP
+ AND EXISTS(SELECT 1 FROM cine.ventas v WHERE v.funcion_id=f.id AND v.usuario_id=(SELECT id FROM cine.usuarios WHERE email='cliente@cliente.com'))
+ ORDER BY f.pelicula_id,fin DESC,f.id
+) ultimas ORDER BY fin DESC,id LIMIT 2)
+DELETE FROM cine.resenas r WHERE r.usuario_id=(SELECT id FROM cine.usuarios WHERE email='cliente@cliente.com') AND r.funcion_id IN(SELECT id FROM pendientes);
 
 -- Reajustar secuencias despues de los IDs explicitos del seed.
 DO $$ DECLARE tabla text; secuencia text; siguiente bigint; BEGIN

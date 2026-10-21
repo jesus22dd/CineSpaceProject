@@ -50,10 +50,12 @@
 .purchase-actions .btn::after { content: ""; position: absolute; inset: -6px 0; }
 .purchase-rated { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--cinema-success); }
 .ratings-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; }
+.ratings-section-heading { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+.ratings-section-heading h2, .ratings-history-title { margin:0; font-size:20px; color:var(--cinema-heading); }
+.ratings-section-heading span, .ratings-history-title small { font-size:12px; font-weight:400; color:var(--cinema-muted); }
+.pending-ratings { margin-bottom:28px; }
+.purchase-rating-wait { display:block; max-width:25ch; font-size:11px; line-height:1.5; color:var(--cinema-muted); }
 .ratings-section .purchase-toolbar p { white-space: nowrap; }
-.rating-star { width: 44px; height: 44px; border: 0; background: transparent; color: var(--cinema-muted); font-size: 24px; }
-.rating-star.is-selected { color: var(--cinema-link); }
-.rating-star:hover { background: var(--cinema-gold-surface); border-radius: 6px; }
 @container (max-width: 760px) {
     .purchase-table-wrapper { overflow: visible; }
     .purchase-table, .purchase-table tbody { display: block; }

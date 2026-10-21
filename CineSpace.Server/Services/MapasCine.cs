@@ -43,6 +43,8 @@ public static class MapasCine
     public static VentaTicket Venta(VentaRegistro x)
     {
         var venta = ReglasCine.Leer<VentaTicket>(x.SnapshotJson);
+        venta.FueCalificada = false; venta.PuedeCalificar = false;
+        if (x.Funcion is not null) { venta.FinFuncion = ReglasCine.Local(x.Funcion.InicioUtc.AddMinutes(x.Funcion.Duracion)); venta.ImagenPanoramicaUrl = x.Funcion.Pelicula?.Fondo ?? ""; }
         venta.NumeroFactura = x.NumeroFactura; venta.CodigoValidacion = x.Codigo; venta.FuncionId = x.FuncionId.ToString("N");
         venta.FechaVenta = ReglasCine.Local(x.FechaUtc); venta.MetodoPago = x.MetodoPago;
         venta.FechaVerificacion = x.VerificadaUtc.HasValue ? ReglasCine.Local(x.VerificadaUtc.Value) : null;

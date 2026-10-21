@@ -33,6 +33,7 @@
                 <a href="/perfil/calificaciones" aria-current="@(Seccion == "calificaciones" ? "page" : null)">Mis calificaciones</a>
             }
         </nav>
+        @if(errorDatos is not null){<p class="alert alert-danger" role="alert">@errorDatos</p>}
         @if (Seccion == "cuenta")
         {
             <section class="personal-information" aria-labelledby="personal-title">
@@ -107,7 +108,7 @@
                                         <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => MostrarQR(compra)" aria-label="Ver QR de @compra.Pelicula, factura @compra.NumeroFactura">
                                             <i class="fa fa-qrcode" aria-hidden="true"></i> Ver QR
                                         </button>
-                                        @if (usuarioActual != null && !compra.FueCalificada)
+                                        @if (usuarioActual != null && compra.PuedeCalificar)
                                         {
                                             <button type="button" class="btn btn-sm btn-outline-warning" @onclick="() => CalificarPelicula(compra)" aria-label="Calificar @compra.Pelicula, factura @compra.NumeroFactura">
                                                 <i class="fa fa-star" aria-hidden="true"></i> Calificar
@@ -116,7 +117,7 @@
                                         else if (compra.FueCalificada)
                                         {
                                             <span class="purchase-rated"><i class="fas fa-check" aria-hidden="true"></i>Calificada</span>
-                                        }
+                                        }else if(usuarioActual!=null){<span class="purchase-rating-wait">Disponible para calificar al terminar la función.</span>}
                                     </td>
                                 </tr>
                             }
@@ -156,63 +157,26 @@
             </div>
         }
 
-        <!-- Modal para calificar película -->
-        @if (mostrarModalCalificacion && ventaSeleccionada != null)
-        {
-            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Calificar: @ventaSeleccionada.Pelicula</h5>
-                            <button type="button" class="btn-close" @onclick="CerrarModalCalificacion"></button>
-                        </div>
-                        <div class="modal-body text-center">
-                            <div class="mb-3">
-                                @for (int i = 1; i <= 5; i++)
-                                {
-                                    int estrella = i;
-                                    <button type="button" class="rating-star @(estrella <= calificacionActual ? "is-selected" : "")" aria-label="@estrella @(estrella == 1 ? "estrella" : "estrellas")" aria-pressed="@(estrella == calificacionActual ? "true" : "false")" @onclick="() => SeleccionarCalificacion(estrella)"><i class="@(estrella <= calificacionActual ? "fas" : "far") fa-star" aria-hidden="true"></i></button>
-                                }
-                            </div>
-                            <textarea class="form-control mb-3" placeholder="Comentario (opcional)"
-                                      @bind="comentarioCalificacion"></textarea>
-                        </div>
-                        <div class="modal-footer">
-                            <button class="btn btn-primary" @onclick="GuardarCalificacion"
-                                    disabled="@(calificacionActual == 0)">
-                                Guardar Calificación
-                            </button>
-                            <button class="btn btn-secondary" @onclick="CerrarModalCalificacion">Cancelar</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        }
 
         }
         @if (Seccion == "calificaciones")
         {
-        <section class="ratings-section" aria-label="Mis calificaciones">
-            @if (calificaciones.Count == 0)
-            {
-                <div class="purchases-empty"><i class="far fa-star" aria-hidden="true"></i><h2>Aún no tienes calificaciones.</h2><p>Comparte tu opinión sobre las películas de tu historial de compras.</p><a class="btn btn-primary" href="/perfil/compras">Ver mis compras</a></div>
-            }
-            else
-            {
-                <div class="purchase-toolbar">
-                    <p>@totalCalificaciones @(calificaciones.Count == 1 ? "calificación" : "calificaciones")</p>
-                    <AdminSelect Id="rating-order" Etiqueta="Orden de calificaciones" Valor="@ordenCalificaciones" Opciones="OrdenesCompras" OcultarEtiqueta="true" ValorChanged="OrdenarCalificaciones" />
-                </div>
-                <div class="ratings-list">
-                    @foreach (var calificacion in CalificacionesPagina)
-                    {
-                        <AccountRatingCard @key="calificacion" Calificacion="calificacion" />
-                    }
-                </div>
-                <Pagination CurrentPage="paginaCalificaciones" TotalPages="TotalPaginasCalificaciones" TotalItems="totalCalificaciones" PageSize="CalificacionesPorPagina" ShowPageSizeSelector="false" Label="Páginas de mis calificaciones" OnPageChanged="CambiarPaginaCalificaciones" />
-            }
-        </section>
+            <section class="ratings-section" aria-label="Mis calificaciones">
+                @if(cargandoDatos){<p role="status">Cargando tus calificaciones…</p>}
+                @if(totalPendientes>0){
+                    <div class="ratings-section-heading"><h2>Por calificar</h2><span>@totalPendientes @(totalPendientes==1 ? "función pendiente" : "funciones pendientes")</span></div>
+                    <div class="ratings-list pending-ratings">@foreach(var pendiente in pendientes){<AccountRatingCard @key="pendiente.FuncionId" Pendiente="pendiente" OnCalificar="CalificarPendiente" />}</div>
+                    @if(totalPendientes>6){<Pagination CurrentPage="paginaPendientes" TotalPages="@Math.Max(1,(int)Math.Ceiling(totalPendientes/6d))" TotalItems="totalPendientes" PageSize="6" ShowPageSizeSelector="false" Label="Páginas por calificar" OnPageChanged="CambiarPaginaPendientes" />}
+                }
+                @if(calificaciones.Count>0){
+                    <div class="purchase-toolbar"><h2 class="ratings-history-title">Tus calificaciones <small>(@totalCalificaciones)</small></h2><AdminSelect Id="rating-order" Etiqueta="Orden de calificaciones" Valor="@ordenCalificaciones" Opciones="OrdenesCompras" OcultarEtiqueta="true" ValorChanged="OrdenarCalificaciones" /></div>
+                    <div class="ratings-list">@foreach(var calificacion in CalificacionesPagina){<AccountRatingCard @key="calificacion.Id" Calificacion="calificacion" />}</div>
+                    <Pagination CurrentPage="paginaCalificaciones" TotalPages="TotalPaginasCalificaciones" TotalItems="totalCalificaciones" PageSize="CalificacionesPorPagina" ShowPageSizeSelector="false" Label="Páginas de mis calificaciones" OnPageChanged="CambiarPaginaCalificaciones" />
+                }else if(totalPendientes==0&&!cargandoDatos){<div class="purchases-empty"><i class="far fa-star" aria-hidden="true"></i><h2>Aún no tienes calificaciones.</h2><p>Cuando termine una función que hayas comprado, podrás calificarla aquí.</p><a class="btn btn-primary" href="/perfil/compras">Ver mis compras</a></div>}
+            </section>
         }
+        @if(mostrarModalCalificacion&&ventaSeleccionada is not null){<AccountRatingDialog Venta="ventaSeleccionada" OnCerrar="CerrarModalCalificacion" OnGuardada="CalificacionGuardada" />}
+
     }
 </div>
 
@@ -223,7 +187,7 @@
     [Parameter] public string? Apartado { get; set; }
     private string Seccion => Apartado switch { "seguridad" => "seguridad", "compras" => "compras", "calificaciones" => "calificaciones", _ => "cuenta" };
     private string Titulo => Seccion switch { "seguridad" => "Seguridad", "compras" => "Historial de compras", "calificaciones" => "Mis calificaciones", _ => "Mi cuenta" };
-    private string Descripcion => Seccion switch { "seguridad" => "Administra el acceso a tu cuenta.", "compras" => "Tus entradas, listas para tu próxima función.", "calificaciones" => "Las películas que calificaste y lo que te dejaron.", _ => "Tus datos y tus entradas, en un solo lugar." };
+    private string Descripcion => Seccion switch { "seguridad" => "Administra el acceso a tu cuenta.", "compras" => "Tus entradas, listas para tu próxima función.", "calificaciones" => "Las películas que viste, tus opiniones y las funciones por calificar.", _ => "Tus datos y tus entradas, en un solo lugar." };
     private string CorreoCuenta => usuarioActual?.Email ?? trabajadorActual?.Email ?? "";
     private string NombreCompleto => System.Globalization.CultureInfo.GetCultureInfo("es").TextInfo.ToTitleCase(($"{usuarioActual?.Nombre ?? trabajadorActual?.Nombre} {usuarioActual?.Apellido ?? trabajadorActual?.Apellido}").ToLowerInvariant());
     private string RolCuenta => usuarioActual?.Rol == RolUsuario.Administrador ? "Administración" : trabajadorActual?.CargoTrabajador.ToString() ?? "Cuenta de cliente";
@@ -239,6 +203,11 @@
     }
     private List<VentaTicket> historialCompras = new();
     private List<CalificacionPelicula> calificaciones = new();
+    private List<CalificacionPendiente> pendientes = [];
+    private int totalPendientes, paginaPendientes=1, versionDatos;
+    private bool cargandoDatos;
+    private string? errorDatos;
+    private async Task CambiarPaginaPendientes(int pagina){paginaPendientes=pagina;await CargarDatosUsuario();}
     private const int ComprasPorPagina = 6;
     private int totalCompras, totalCalificaciones;
     private int paginaActual = 1;
@@ -262,12 +231,11 @@
 
     // Modal Calificación
     private bool mostrarModalCalificacion = false;
-    private int calificacionActual = 0;
-    private string comentarioCalificacion = string.Empty;
+
 
     protected override void OnInitialized() => AuthDialog.Changed += ActualizarAcceso;
     private void ActualizarAcceso() => _ = InvokeAsync(async () => { await CargarAcceso(); StateHasChanged(); });
-    public void Dispose() => AuthDialog.Changed -= ActualizarAcceso;
+    public void Dispose() { versionDatos++; AuthDialog.Changed -= ActualizarAcceso; }
     private async Task CargarAcceso()
     {
         usuarioActual = UsuarioService.ObtenerUsuarioActual();
@@ -279,17 +247,25 @@
         passwordActual = passwordNuevo = passwordConfirmacion = mensajeSeguridad = "";
         paginaActual = 1;
         ordenCompras = "recientes";
-        paginaCalificaciones = 1;
+        paginaPendientes = paginaCalificaciones = 1;
         ordenCalificaciones = "recientes";
         await CargarAcceso();
     }
     private async Task CargarDatosUsuario()
     {
-        if (string.IsNullOrEmpty(CorreoCuenta)) return;
-        try {
-            if (Seccion == "compras") { var p = await TicketSalesService.ConsultarAsync(new() { Pagina = paginaActual, Tamano = 6, Orden = ordenCompras }); historialCompras = p.Items; totalCompras = p.Total; paginaActual = p.Numero; }
-            if (Seccion == "calificaciones") { var p = await UsuarioService.ConsultarResenasAsync(new() { Pagina = paginaCalificaciones, Tamano = 6, Orden = ordenCalificaciones }); calificaciones = p.Items; totalCalificaciones = p.Total; paginaCalificaciones = p.Numero; }
-        } catch (Exception ex) { mensajeSeguridad = ex.Message; errorSeguridad = true; }
+        if(string.IsNullOrEmpty(CorreoCuenta))return;
+        var version=++versionDatos;cargandoDatos=true;errorDatos=null;
+        try{
+            if(Seccion=="compras"){var p=await TicketSalesService.ConsultarAsync(new(){Pagina=paginaActual,Tamano=6,Orden=ordenCompras});if(version!=versionDatos)return;historialCompras=p.Items;totalCompras=p.Total;paginaActual=p.Numero;}
+            if(Seccion=="calificaciones"){
+                var historial=UsuarioService.ConsultarResenasAsync(new(){Pagina=paginaCalificaciones,Tamano=6,Orden=ordenCalificaciones});
+                var porCalificar=UsuarioService.ConsultarPendientesAsync(paginaPendientes);
+                await Task.WhenAll(historial,porCalificar);if(version!=versionDatos)return;
+                var p=await historial;calificaciones=p.Items;totalCalificaciones=p.Total;paginaCalificaciones=p.Numero;
+                var pendientesPagina=await porCalificar;pendientes=pendientesPagina.Items;totalPendientes=pendientesPagina.Total;paginaPendientes=pendientesPagina.Numero;
+            }
+        }catch(InvalidOperationException ex){if(version==versionDatos)errorDatos=ex.Message;}
+        finally{if(version==versionDatos)cargandoDatos=false;}
     }
 
     private void IrAHome()
@@ -324,42 +300,10 @@
 
     private void CalificarPelicula(VentaTicket venta)
     {
-        ventaSeleccionada = venta;
-        calificacionActual = 0;
-        comentarioCalificacion = string.Empty;
-        mostrarModalCalificacion = true;
+        if(!venta.PuedeCalificar)return;
+        ventaSeleccionada=venta;mostrarModalCalificacion=true;
     }
-
-    private void CerrarModalCalificacion()
-    {
-        mostrarModalCalificacion = false;
-        ventaSeleccionada = null;
-        calificacionActual = 0;
-        comentarioCalificacion = string.Empty;
-    }
-
-    private void SeleccionarCalificacion(int calificacion)
-    {
-        calificacionActual = calificacion;
-    }
-
-    private async Task GuardarCalificacion()
-    {
-        if (usuarioActual == null || ventaSeleccionada == null || calificacionActual == 0) return;
-
-        var calificacion = new CalificacionPelicula
-            {
-                PeliculaId = ventaSeleccionada.PeliculaId,
-                NombrePelicula = ventaSeleccionada.Pelicula,
-                EmailUsuario = usuarioActual.Email,
-                Calificacion = calificacionActual,
-                Comentario = comentarioCalificacion
-            };
-
-        try { await UsuarioService.GuardarCalificacionAsync(calificacion); await CargarDatosUsuario(); }
-        catch (Exception ex) { mensajeSeguridad = ex.Message; errorSeguridad = true; return; }
-
-        // Cerrar modal
-        CerrarModalCalificacion();
-    }
+    private void CalificarPendiente(CalificacionPendiente pendiente) => CalificarPelicula(new(){FuncionId=pendiente.FuncionId,PeliculaId=pendiente.PeliculaId,Pelicula=pendiente.NombrePelicula,PuedeCalificar=true});
+    private void CerrarModalCalificacion(){mostrarModalCalificacion=false;ventaSeleccionada=null;}
+    private async Task CalificacionGuardada(){CerrarModalCalificacion();await CargarDatosUsuario();}
 }

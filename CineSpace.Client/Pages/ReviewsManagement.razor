@@ -137,8 +137,8 @@ else
         consulta.Desde = f.FechaInicio.HasValue ? DateOnly.FromDateTime(f.FechaInicio.Value) : null;
         consulta.Hasta = f.FechaFin.HasValue ? DateOnly.FromDateTime(f.FechaFin.Value) : null; await Cargar();
     }
-    private async Task EliminarCalificacion(CalificacionPelicula c) { try { await UsuarioService.EliminarCalificacion(c.EmailUsuario,c.PeliculaId); statusMessage = "Reseña eliminada."; isError = false; await Cargar(); } catch(Exception ex) { statusMessage = ex.Message; isError = true; } }
-    private async Task DestacarCalificacion(CalificacionPelicula c) { try { await Api.Put<object>($"api/resenas/{c.PeliculaId}/destacada?email="+Uri.EscapeDataString(c.EmailUsuario),new CambiarEstado(c.Destacada)); await Cargar(); } catch(Exception ex) { statusMessage = ex.Message; isError = true; } }
+    private async Task EliminarCalificacion(CalificacionPelicula c) { try { await UsuarioService.EliminarCalificacion(c.Id); statusMessage = "Reseña eliminada."; isError = false; await Cargar(); } catch(Exception ex) { statusMessage = ex.Message; isError = true; } }
+    private async Task DestacarCalificacion(CalificacionPelicula c) { try { await Api.Put<object>($"api/resenas/{c.Id}/destacada",new CambiarEstado(c.Destacada)); await Cargar(); } catch(Exception ex) { statusMessage = ex.Message; isError = true; } }
     private async Task ExportarReseñas() { try { var bytes = await Http.GetByteArrayAsync("api/resenas/exportar"); await JS.InvokeVoidAsync("downloadFileFromBase64",Convert.ToBase64String(bytes),"Reseñas_CineSpace.xlsx"); } catch(Exception ex) { statusMessage = ex.Message; isError = true; } }
     private void VolverADashboard() => NavigationManager.NavigateTo("/Dashboard");
     public sealed class FiltroCalificacion {

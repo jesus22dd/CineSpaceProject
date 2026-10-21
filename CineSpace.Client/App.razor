@@ -29,7 +29,7 @@ else
         try { await Task.WhenAll(Api.InicializarAsync(), Pedidos.InicializarAsync()); }
         catch {
             try { var estado = await Api.Get<CineSpace.Shared.Contracts.EstadoBaseDatos>("api/sistema/preparacion"); error = estado.Preparada ? "No pudimos cargar el catálogo. Vuelve a intentar." : estado.Mensaje; }
-            catch { error = "El servidor no está disponible. Abre iniciar_CineSpace.bat o ejecuta CineSpace.Server con el perfil https en Visual Studio."; }
+            catch { error = "El servidor no está disponible. Inténtalo de nuevo en unos momentos."; }
         }
         finally { cargando = false; }
     }

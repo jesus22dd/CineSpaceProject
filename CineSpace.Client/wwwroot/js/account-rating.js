@@ -16,6 +16,8 @@ export function observeRating(element) {
         measure();
     });
     if (element?.isConnected) { observer.observe(element); measure(); }
+    const content = new MutationObserver(measure);
+    if(element)content.observe(element,{childList:true,characterData:true,subtree:true});
     document.fonts.ready.then(measure);
-    return { dispose() { disposed = true; observer.disconnect(); } };
+    return { dispose() { disposed = true; observer.disconnect(); content.disconnect(); } };
 }

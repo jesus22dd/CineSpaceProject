@@ -41,5 +41,6 @@ public sealed class UsuarioService(ApiCine api)
     public async Task<Pagina<CalificacionPelicula>> ConsultarResenasAsync(ConsultaPagina f, bool todas = false) => resenas = await api.Get<Pagina<CalificacionPelicula>>("api/resenas" + (todas ? "?" : "/mias?") + ApiCine.Consulta(f));
     public List<CalificacionPelicula> ObtenerTodasLasCalificaciones() => resenas.Items;
     public Task GuardarCalificacionAsync(CalificacionPelicula dato) => api.Post<CalificacionPelicula>("api/resenas", dato);
-    public async Task<bool> EliminarCalificacion(string email, int pelicula) { await api.Delete("api/resenas/" + pelicula + "?email=" + Uri.EscapeDataString(email)); return true; }
+    public Task<Pagina<CalificacionPendiente>> ConsultarPendientesAsync(int pagina) => api.Get<Pagina<CalificacionPendiente>>("api/resenas/pendientes?pagina=" + pagina);
+    public async Task<bool> EliminarCalificacion(string id) { await api.Delete("api/resenas/" + id); return true; }
 }

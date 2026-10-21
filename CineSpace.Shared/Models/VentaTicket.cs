@@ -39,6 +39,9 @@ namespace CineSpace.Shared.Models
 
         // Campo para saber si el usuario calificó esta película
         public bool FueCalificada { get; set; } = false;
+        public bool PuedeCalificar { get; set; }
+        public DateTime? FinFuncion { get; set; }
+        public string ImagenPanoramicaUrl { get; set; } = string.Empty;
 
         // NUEVO: Código de validación para taquilleros
         public string CodigoValidacion { get; set; } = string.Empty;
