@@ -1,5 +1,24 @@
 # Validación — 20/10/2026
 
+## Tema, carga inicial, navegación y datos — 21/10/2026
+
+Esta revisión se probó en PostgreSQL 18 aislado, ejecutando el SQL único completo dos veces para verificar la reconstrucción. No se ejecutó el BAT ni se modificó Supabase remoto.
+
+- 53 comprobaciones de preventas: apertura/cierre administrativo, filtros y paginación del servidor, programación desde el estreno, prohibición de compras cerradas, compra completa con QR, idempotencia, butacas duplicadas y protección de fechas con ventas.
+- 105 visitas de las pantallas principales a 320, 390, 768, 1024 y 1440 px; otras 30 visitas de cuenta, seguridad, compras, pedidos, recibo y acceso por correo a 320, 390 y 768 px. Sin desbordamiento de página, solapamiento del encabezado, errores de renderizado en consola ni aviso de error de Blazor. Las tablas extensas conservan su desplazamiento interno.
+- Primera visita oscura incluso con sistema claro, persistencia de una elección clara, menú opaco por encima del contenido, bloqueo del desplazamiento del fondo y cierre con Escape.
+- 17 géneros públicos con cantidades calculadas desde todo el catálogo; 16 géneros asociados a películas y un documental anunciado. 26 de las 27 películas tienen varios géneros.
+- Ocupación en las 34 salas: cada una tiene funciones completas, a media capacidad y libres. En la ejecución verificada se generaron 4.722 compras adicionales de 21 clientes, con 18.669 butacas. No hay asientos inexistentes, exceso de capacidad, diferencias entre entradas y butacas ni importes inconsistentes.
+- Publicaciones Release del servidor y del cliente correctas; el script de Netlify incluye los nuevos recursos de arranque.
+
+Las solicitudes principales ahora se inician durante la descarga de WebAssembly y sus respuestas se consumen una sola vez. En la muestra local, la sesión pasó de comenzar a 760 ms a 38 ms, y la primera página de cartelera de 1.279 ms a 39 ms. La pantalla con películas pasó de 1,90 s a 1,43 s. Son mediciones locales con API disponible y caché del servidor caliente; no son tiempos garantizados de producción ni una medición de un Render dormido.
+
+Informes: [pantallas y tema](validacion/mobile-after-report.json), [cuenta y pedidos](validacion/mobile-account-report.json), [comparación inicial](validacion/mobile-before-report.json), [ocupación SQL](validacion/realistic-seed-report.json) y [preventas](validacion/presales-report.json). Se conservaron las capturas y se retiraron los programas de prueba al finalizar.
+
+Si el backend utiliza una instancia gratuita de Render, la plataforma la suspende después de 15 minutos sin tráfico y el siguiente acceso puede tardar aproximadamente un minuto en reactivarla. Adelantar las solicitudes reduce la espera encadenada, pero no elimina esa limitación de infraestructura. Véase [Render: instancias gratuitas](https://render.com/docs/free).
+
+---
+
 Las pruebas de negocio utilizaron PostgreSQL 17.10 temporal, con el mismo SQL y los mismos servicios de la aplicación. No se ejecutó la reconstrucción en Supabase remoto.
 
 | Comprobación | Resultado |

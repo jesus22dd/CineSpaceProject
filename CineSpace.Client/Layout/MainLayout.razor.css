@@ -48,6 +48,8 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .sidebar-heading p { color: #e3cdd0; font-size: 12px; margin: 0; }
 .sidebar :focus-visible, .sidebar ::deep :focus-visible { outline-color: var(--cinema-gold); outline-offset: 2px; }
 .menu-backdrop { display: none; }
+.site-header { z-index: 100; background-color: var(--cinema-shell, #111216); }
+.sidebar { z-index: 95; background-color: var(--cinema-sidebar, #17181e); }
 @media (min-width: 1024px) and (max-width: 1199px) {
     .has-management-nav .public-navigation, .has-management-nav .public-section-links { gap: 16px; }
     .has-management-nav .public-navigation ::deep .account-name, .has-management-nav .public-navigation ::deep .account-chevron { display: none; }
@@ -62,7 +64,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
     .menu-toggle-btn { left: 10px; }
     .sidebar { --sidebar-expanded-width: min(272px, calc(100vw - 48px)); --sidebar-inset: 10px; width: var(--sidebar-expanded-width); clip-path: inset(0 100% 0 0); visibility: hidden; pointer-events: none; transition: clip-path 220ms var(--nav-ease), visibility 0s 220ms; }
     .sidebar.is-open { clip-path: inset(0 0 0 0); visibility: visible; pointer-events: auto; transition: clip-path 300ms var(--nav-ease), visibility 0s; }
-    .menu-backdrop { display: block; position: fixed; inset: var(--cinema-header-height) 0 0; border: 0; background: rgb(38 19 26 / 38%); opacity: 0; visibility: hidden; pointer-events: none; z-index: 30; transition: opacity 120ms, visibility 0s 120ms; }
+    .menu-backdrop { display: block; position: fixed; inset: var(--cinema-header-height) 0 0; border: 0; background: rgb(8 9 12 / 78%); opacity: 0; visibility: hidden; pointer-events: none; z-index: 90; transition: opacity 120ms, visibility 0s 120ms; }
     .menu-backdrop.is-visible { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity 180ms, visibility 0s; }
 }
 @media (max-width: 767px) {

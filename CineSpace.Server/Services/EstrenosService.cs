@@ -23,7 +23,9 @@ public sealed class EstrenosService(CineSpaceDbContext db, IRepositorioCine repo
         if (!administracion) query = query.Where(x => x.Publicado && x.Fecha >= hoy);
         if (!string.IsNullOrWhiteSpace(filtro.Buscar)) query = query.Where(x => EF.Functions.ILike(x.Titulo, "%" + filtro.Buscar.Trim() + "%"));
         if (filtro.Pelicula.HasValue) query = query.Where(x => x.PeliculaId == filtro.Pelicula);
-        if (filtro.Genero.HasValue) query = query.Where(x => db.Generos.Any(g => g.Id == filtro.Genero && g.Nombre == x.Genero));
+        if (filtro.Genero.HasValue) query = query.Where(x => x.Pelicula != null
+            ? x.Pelicula.Generos.Any(g => g.GeneroId == filtro.Genero)
+            : db.Generos.Any(g => g.Id == filtro.Genero && g.Nombre == x.Genero));
         if (filtro.Estado == "preventa") query = query.Where(x => x.Publicado && x.Fecha > hoy && x.Pelicula != null && x.Pelicula.Preventa &&
             db.Funciones.Any(f => f.PeliculaId == x.PeliculaId && f.InicioUtc > DateTime.UtcNow && f.Sala.Activa && DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeBySystemTimeZoneId(f.InicioUtc,"America/La_Paz")) >= x.Fecha));
         if (filtro.Estado == "anunciado") query = query.Where(x => x.Publicado && x.Fecha >= hoy && (x.Pelicula == null || !x.Pelicula.Preventa));

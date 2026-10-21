@@ -38,9 +38,9 @@ Para comprobar la base sin modificarla: `update_DB.bat comprobar`. La ventana de
 | Cliente | cliente@cliente.com | Contraseña/123 |
 | Trabajador | trabajador@trabajador.com | Contraseña/123 |
 
-El único SQL incluye 30 tablas, 47 cuentas con hashes Identity independientes, 25 películas relacionadas con 14 distribuidoras, 34 salas, 5 diseños, 77 reseñas y actividad de cine/confitería durante 30 días. Las funciones, preventas, registros y operaciones se ajustan al día en que se ejecuta el BAT. El Anfiteatro tiene 342 butacas y es la sala más grande; ninguna sala usa Gran Formato. Los tipos y experiencias tienen actividad de prueba para los filtros del dashboard. No hay contraseñas de Google inventadas ni guardadas.
+El único SQL incluye 30 tablas, 47 cuentas con hashes Identity independientes, 27 películas relacionadas con 14 distribuidoras, 34 salas, 5 diseños, 71 reseñas y actividad de cine/confitería durante 30 días. Hay siete preventas con funciones y 26 películas con varios géneros. La exploración pública muestra 17 géneros con contenido. Las próximas funciones incluyen ocupación completa, media y libre en todas las salas, con compras de 21 clientes diferentes. Las fechas se ajustan al día en que se ejecuta el BAT. El Anfiteatro tiene 342 butacas y es la sala más grande; ninguna sala usa Gran Formato. No hay contraseñas de Google inventadas ni guardadas.
 
-Después de cambiar el seed, el propietario debe ejecutar `update_DB.bat` para ver los nuevos datos en Supabase. Las mejoras del código funcionan con la base existente. El arranque nunca reconstruye datos automáticamente.
+Después de cambiar el seed, el propietario debe ejecutar `update_DB.bat` para ver los nuevos datos en Supabase. Si cambia la estructura del SQL, debe aplicarla antes de desplegar el código que la utiliza. El arranque nunca reconstruye datos automáticamente. El flujo de venta anticipada está en [PREVENTAS](docs/PREVENTAS.md).
 
 ## Configuración y despliegue
 
@@ -56,6 +56,8 @@ Consulta [cobertura funcional](docs/IMPLEMENTACION.md), [pruebas y límites veri
 Las consultas de catálogo, administración y analítica tienen caché en el servidor, separada por cuenta y limitada a 32 MiB. Crear, editar o eliminar cambia su versión para invalidar resultados anteriores. El cliente reutiliza lecturas durante 20 segundos, agrupa solicitudes idénticas y limpia su caché después de escribir o cambiar de sesión. Butacas ocupadas, cotizaciones y validaciones de QR se consultan en vivo; el servidor vuelve a validar precios y disponibilidad al finalizar.
 
 La cartelera pública devuelve 8 películas por página desde el backend y muestra el paginado junto a sus resultados. El encabezado se presenta antes de cargar WebAssembly; el generador de PDF se descarga únicamente cuando se necesita. Los botones esperan solicitudes reales. Los tres mensajes del pago conservan la simulación de 1,5 segundos y muestran un indicador giratorio.
+
+La primera visita utiliza modo oscuro; cambiarlo conserva la elección. Las solicitudes de sesión, referencias, banners y primera página comienzan mientras se descarga WebAssembly, y el cliente consume esas respuestas sin duplicarlas. No se guardan catálogos ni sesiones en localStorage. Los géneros y sus cantidades se calculan sobre todo el catálogo público desde el backend. El menú móvil es opaco, bloquea el desplazamiento del fondo y libera la navegación al cerrarse.
 
 La sesión usa una cookie persistente HttpOnly/Secure de 30 días; no mantiene procesos de sesión activos en el servidor ni guarda el token en localStorage. Los registros requieren confirmación de correo. Un correo pendiente no recibe envíos repetidos y puede registrarse nuevamente después de 24 horas. Los enlaces usan `Frontend:Url` del entorno; producción requiere su URL HTTPS pública.
 

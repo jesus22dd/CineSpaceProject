@@ -1,6 +1,5 @@
 (() => {
     const key = 'cinespace-theme';
-    const preference = matchMedia('(prefers-color-scheme: dark)');
     const subscribers = new Map();
     let nextId = 0;
     let explicit;
@@ -12,14 +11,11 @@
         document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#111216' : '#642633');
         subscribers.forEach(reference => reference.invokeMethodAsync('ThemeChanged', isDark()).catch(() => {}));
     }
-    apply(explicit || (preference.matches ? 'dark' : 'light'));
-    preference.addEventListener('change', () => {
-        if (!explicit) apply(preference.matches ? 'dark' : 'light');
-    });
+    apply(explicit || 'dark');
     window.addEventListener('storage', event => {
         if (event.key !== key && event.key !== null) return;
         explicit = event.newValue === 'dark' || event.newValue === 'light' ? event.newValue : null;
-        apply(explicit || (preference.matches ? 'dark' : 'light'));
+        apply(explicit || 'dark');
     });
     window.cineTheme = {
         connect(reference) { const id = ++nextId; subscribers.set(id, reference); return [id, isDark() ? 1 : 0]; },

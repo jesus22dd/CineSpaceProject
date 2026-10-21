@@ -48,6 +48,7 @@ public sealed record SolicitudPedido(string Nombre, string Solicitud, List<Linea
 public sealed record LineaPedidoSolicitud(int ComboId, int Cantidad);
 public sealed record FiltroOpcion(string Id, string Nombre);
 public sealed record RecuentoCatalogo(int Id, int Uso);
+public sealed record GeneroDisponible(int Id, string Nombre, int Cantidad);
 
 public sealed class ReferenciasCatalogo
 {

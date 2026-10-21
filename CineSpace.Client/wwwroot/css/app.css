@@ -76,6 +76,7 @@
     --bs-body-color: var(--cinema-ink);
     --bs-border-color: var(--cinema-line);
 }
+html.navigation-drawer-open, html.navigation-drawer-open body { overflow: hidden; overscroll-behavior: none; }
 :root[data-theme="dark"] {
     --cinema-choice-surface: #222222;
     --cinema-choice-ink: #f3f1ee;

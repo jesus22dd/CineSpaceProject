@@ -23,11 +23,13 @@
     private const string GoogleMapsUrl = "https://www.google.com/maps/search/?api=1&query=Plaza%20Murillo%2C%20La%20Paz%2C%20Bolivia";
     private ElementReference trigger, panel;
     private IJSObjectReference? module;
+    private bool disposed;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
         module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/navigation.js");
+        if (disposed) { await module.DisposeAsync(); return; }
         await module.InvokeVoidAsync("connectAccountMenu", trigger, panel);
     }
 
@@ -38,6 +40,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        disposed = true;
         if (module == null) return;
         try
         {

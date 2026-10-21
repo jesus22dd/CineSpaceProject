@@ -1,0 +1,890 @@
+{
+  "boot": {
+    "theme": "dark",
+    "ready": 1426.8999999999069,
+    "api": [
+      {
+        "path": "/api/auth/sesion",
+        "start": 38,
+        "duration": 3
+      },
+      {
+        "path": "/api/catalogos/referencias",
+        "start": 39,
+        "duration": 4
+      },
+      {
+        "path": "/api/presentacion/banners",
+        "start": 39,
+        "duration": 3
+      },
+      {
+        "path": "/api/peliculas?pagina=1&tamano=8&orden=recientes&campo=Fecha&destacadas=False&minimo=0&maximo=0&estado=cartelera",
+        "start": 39,
+        "duration": 3
+      },
+      {
+        "path": "/api/presentacion/estrenos?pagina=1&tamano=12&orden=antiguas&campo=Fecha&destacadas=False&minimo=0&maximo=0",
+        "start": 1186,
+        "duration": 2
+      },
+      {
+        "path": "/api/peliculas?pagina=1&tamano=8&orden=estreno&campo=Fecha&destacadas=False&minimo=0&maximo=0&estado=preventa",
+        "start": 1189,
+        "duration": 2
+      },
+      {
+        "path": "/api/catalogos/generos/disponibles",
+        "start": 1189,
+        "duration": 1
+      }
+    ]
+  },
+  "themeChecks": [
+    {
+      "name": "Primera visita oscura incluso con sistema claro",
+      "passed": true
+    },
+    {
+      "name": "Preferencia clara persiste al recargar",
+      "passed": true
+    },
+    {
+      "name": "Al menos ocho géneros con películas reales",
+      "passed": true,
+      "genres": [
+        {
+          "id": 1,
+          "nombre": "Acción",
+          "cantidad": 11
+        },
+        {
+          "id": 3,
+          "nombre": "Animación",
+          "cantidad": 1
+        },
+        {
+          "id": 2,
+          "nombre": "Aventura",
+          "cantidad": 10
+        },
+        {
+          "id": 17,
+          "nombre": "Bélico",
+          "cantidad": 1
+        },
+        {
+          "id": 15,
+          "nombre": "Ciencia ficción",
+          "cantidad": 13
+        },
+        {
+          "id": 4,
+          "nombre": "Comedia",
+          "cantidad": 4
+        },
+        {
+          "id": 5,
+          "nombre": "Crimen",
+          "cantidad": 1
+        },
+        {
+          "id": 6,
+          "nombre": "Documental",
+          "cantidad": 1
+        },
+        {
+          "id": 7,
+          "nombre": "Drama",
+          "cantidad": 10
+        },
+        {
+          "id": 8,
+          "nombre": "Familiar",
+          "cantidad": 1
+        },
+        {
+          "id": 9,
+          "nombre": "Fantasía",
+          "cantidad": 1
+        },
+        {
+          "id": 10,
+          "nombre": "Historia",
+          "cantidad": 3
+        },
+        {
+          "id": 13,
+          "nombre": "Misterio",
+          "cantidad": 3
+        },
+        {
+          "id": 12,
+          "nombre": "Música",
+          "cantidad": 1
+        },
+        {
+          "id": 14,
+          "nombre": "Romance",
+          "cantidad": 2
+        },
+        {
+          "id": 16,
+          "nombre": "Suspenso",
+          "cantidad": 8
+        },
+        {
+          "id": 11,
+          "nombre": "Terror",
+          "cantidad": 6
+        }
+      ]
+    },
+    {
+      "name": "Menú sólido, scroll bloqueado y sobre el contenido",
+      "passed": true
+    },
+    {
+      "name": "Escape cierra y libera la navegación",
+      "passed": true
+    }
+  ],
+  "results": [
+    {
+      "route": "/",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/confiteria",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/PanelTrabajador",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/PanelAdministracion",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/distribuidoras",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/funciones",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/generos",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/proximos-estrenos",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/banners",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/VerificarBoleto",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/confiteria",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/categorias-confiteria",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/pedidos-confiteria",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/reviews",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/salas",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/disenos-sala",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/tipos-sala",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/experiencias",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/dashboard",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/ventas",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/perfil",
+      "width": 320,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/confiteria",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/PanelTrabajador",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/PanelAdministracion",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/distribuidoras",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/funciones",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/generos",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/proximos-estrenos",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/banners",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/VerificarBoleto",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/confiteria",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/categorias-confiteria",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/pedidos-confiteria",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/reviews",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/salas",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/disenos-sala",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/tipos-sala",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/experiencias",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/dashboard",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/ventas",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/perfil",
+      "width": 390,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/confiteria",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/PanelTrabajador",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/PanelAdministracion",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/distribuidoras",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/funciones",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/generos",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/proximos-estrenos",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/banners",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/VerificarBoleto",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/confiteria",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/categorias-confiteria",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/pedidos-confiteria",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/reviews",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/salas",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/disenos-sala",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/tipos-sala",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/experiencias",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/dashboard",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/ventas",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/perfil",
+      "width": 768,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/confiteria",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/PanelTrabajador",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/PanelAdministracion",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/distribuidoras",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/funciones",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/generos",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/proximos-estrenos",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/banners",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/VerificarBoleto",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/confiteria",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/categorias-confiteria",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/pedidos-confiteria",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/reviews",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/salas",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/disenos-sala",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/tipos-sala",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/experiencias",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/dashboard",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/ventas",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/perfil",
+      "width": 1024,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/confiteria",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/PanelTrabajador",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/PanelAdministracion",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/distribuidoras",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/funciones",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/generos",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/proximos-estrenos",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/banners",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/VerificarBoleto",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/confiteria",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/categorias-confiteria",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/pedidos-confiteria",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/reviews",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/salas",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/disenos-sala",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/tipos-sala",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/admin/experiencias",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/dashboard",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/ventas",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    },
+    {
+      "route": "/perfil",
+      "width": 1440,
+      "overflow": 0,
+      "headerOverlap": 0,
+      "offenders": []
+    }
+  ],
+  "errors": []
+}

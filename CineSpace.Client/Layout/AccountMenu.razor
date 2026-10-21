@@ -27,6 +27,7 @@
 @code {
     private ElementReference trigger, panel;
     private IJSObjectReference? module;
+    private bool disposed;
     private string Nombre => NombreCompleto.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "Mi cuenta";
     private string NombreCompleto => System.Globalization.CultureInfo.GetCultureInfo("es").TextInfo.ToTitleCase((Usuarios.ObtenerUsuarioActual() is { } u ? $"{u.Nombre} {u.Apellido}" : Trabajadores.ObtenerTrabajadorActual()?.ObtenerNombreCompleto() ?? "Mi cuenta").ToLowerInvariant());
     private string Correo => Usuarios.ObtenerUsuarioActual()?.Email ?? Trabajadores.ObtenerTrabajadorActual()?.Email ?? "";
@@ -35,12 +36,14 @@
     {
         if (!firstRender) return;
         module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/navigation.js");
+        if (disposed) { await module.DisposeAsync(); return; }
         await module.InvokeVoidAsync("connectAccountMenu", trigger, panel);
     }
     private async Task Cerrar() { if (module != null) await module.InvokeVoidAsync("closeAccountMenu", panel); }
     private async Task SolicitarSalida() { await Cerrar(); Logout.Solicitar(); }
     public async ValueTask DisposeAsync()
     {
+        disposed = true;
         if (module == null) return;
         try { await module.InvokeVoidAsync("disconnectAccountMenu", panel); await module.DisposeAsync(); }
         catch (JSDisconnectedException) { }

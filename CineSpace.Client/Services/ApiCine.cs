@@ -3,10 +3,11 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using CineSpace.Shared.Contracts;
 using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.JSInterop;
 
 namespace CineSpace.Client.Services;
 
-public sealed class ApiCine(HttpClient http, ActividadSolicitudes actividad)
+public sealed class ApiCine(HttpClient http, ActividadSolicitudes actividad, IJSRuntime js)
 {
     public SesionCuenta Sesion { get; private set; } = new(null, null);
     public ReferenciasCatalogo Referencias { get; private set; } = new();
@@ -35,6 +36,8 @@ public sealed class ApiCine(HttpClient http, ActividadSolicitudes actividad)
     private async Task<string> LeerJson(string ruta, CancellationToken ct)
     {
         using var pendiente = actividad.Comenzar();
+        var anticipada = await js.InvokeAsync<string?>("cineStartup.take", ct, Url(ruta));
+        if (anticipada is not null) return anticipada;
         using var request = new HttpRequestMessage(HttpMethod.Get,ruta);
         using var response = await RespuestaAsync(request,ct); await Exigir(response);
         return await response.Content.ReadAsStringAsync(ct);
@@ -61,7 +64,7 @@ public sealed class ApiCine(HttpClient http, ActividadSolicitudes actividad)
         using var request = new HttpRequestMessage(metodo, ruta) { Content = content };
         request.Headers.Add("X-CSRF-TOKEN", csrf);
         var response = await RespuestaAsync(request);
-        await Exigir(response); lecturas.Clear(); return response;
+        await Exigir(response); lecturas.Clear(); await js.InvokeVoidAsync("cineStartup.clear"); return response;
     }
     private async Task Exigir(HttpResponseMessage response)
     {

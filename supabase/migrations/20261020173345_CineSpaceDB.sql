@@ -929,33 +929,82 @@ INSERT INTO cine.peliculas (id, tmdb_id, titulo, sinopsis, poster, fondo, traile
 (1297467, 1297467, 'The Exorcist: Martyrs', '', '/images/estrenos/1297467.webp', '/images/estrenos/1297467.webp', '', 50, 35, 120, 20, ((CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date + 28), 2, '["Doblada","Subtitulada"]', TRUE, TRUE, CURRENT_TIMESTAMP - interval '15 days');
 
 INSERT INTO cine.peliculas_generos (pelicula_id, genero_id) VALUES
-(986056, 1),
-(1234821, 1),
-(822119, 1),
-(993710, 4),
-(1426142, 4),
-(696506, 15),
-(661539, 7),
-(1241436, 7),
-(1423191, 11),
-(1100988, 11),
-(1078605, 11),
-(1400837, 11),
-(299534, 1),
-(24428, 1),
-(194662, 4),
-(569094, 3),
-(238, 5),
-(11216, 7),
 (13, 7),
+(13, 14),
+(13, 10),
 (120, 9),
-(1255833, 16),
+(120, 2),
+(120, 1),
+(238, 5),
+(238, 7),
+(11216, 7),
+(11216, 14),
+(24428, 1),
+(24428, 2),
+(24428, 15),
+(194662, 4),
+(194662, 7),
+(299534, 1),
+(299534, 2),
+(299534, 15),
+(569094, 3),
+(569094, 1),
+(569094, 2),
+(569094, 8),
+(569094, 15),
+(661539, 7),
+(661539, 12),
+(661539, 10),
+(696506, 15),
+(696506, 4),
+(696506, 7),
+(822119, 1),
+(822119, 2),
+(822119, 15),
+(986056, 1),
+(986056, 2),
+(986056, 15),
+(993710, 1),
+(993710, 4),
 (1003596, 1),
-(1400940, 11),
-(1294189, 1),
-(1381071, 15),
+(1003596, 2),
+(1003596, 15),
+(1078605, 11),
+(1078605, 13),
+(1078605, 16),
+(1100988, 11),
+(1100988, 15),
+(1100988, 16),
 (1170608, 15),
-(1297467, 11);
+(1170608, 2),
+(1170608, 7),
+(1234821, 1),
+(1234821, 2),
+(1234821, 15),
+(1241436, 7),
+(1241436, 17),
+(1241436, 10),
+(1255833, 16),
+(1255833, 2),
+(1255833, 7),
+(1294189, 1),
+(1294189, 16),
+(1297467, 11),
+(1297467, 13),
+(1297467, 16),
+(1381071, 15),
+(1381071, 1),
+(1381071, 7),
+(1400837, 11),
+(1400837, 13),
+(1400837, 16),
+(1400940, 11),
+(1400940, 16),
+(1400940, 15),
+(1423191, 11),
+(1423191, 15),
+(1423191, 16),
+(1426142, 4);
 
 INSERT INTO cine.combos (id, nombre, descripcion, creado_utc, categoria_id, precio, foto, publicado) VALUES
 (1, 'Combo individual', 'Palomitas medianas y una bebida de 500 ml.', (CURRENT_TIMESTAMP - interval '49 days'), 1, 35, '/images/confiteria/combo-1.webp', TRUE),
@@ -2409,6 +2458,52 @@ CROSS JOIN LATERAL (SELECT usr.* FROM cine.usuarios usr JOIN cine.usuarios_roles
  ORDER BY CASE WHEN usr.email='cliente@cliente.com' THEN 0 ELSE 1 END,usr.id LIMIT 1) u;
 INSERT INTO cine.butacas_vendidas(funcion_id,asiento,venta_id)
  SELECT v.funcion_id,a,v.id FROM cine.ventas v CROSS JOIN LATERAL jsonb_array_elements_text(v.snapshot_json->'asientos') a WHERE v.solicitud LIKE 'seed-%';
+
+-- Ocupación realista de las próximas funciones: llena, media y libre.
+-- Tres primeras fechas de cada película/sala, siempre relativas al BAT.
+-- En cada jornada, dos de cuatro horarios tienen ventas; los demás quedan libres.
+-- Compras de hasta cuatro entradas repartidas entre los clientes de prueba.
+WITH fechas AS (
+ SELECT f.*,s.precio,s.descuento,s.tipo_sala_id,d.plano_json,
+   dense_rank() OVER(PARTITION BY f.sala_id,f.pelicula_id ORDER BY (f.inicio_utc AT TIME ZONE 'America/La_Paz')::date) AS dia,
+   row_number() OVER(PARTITION BY f.sala_id,(f.inicio_utc AT TIME ZONE 'America/La_Paz')::date ORDER BY f.inicio_utc,f.id) AS turno
+ FROM cine.funciones f JOIN cine.salas s ON s.id=f.sala_id JOIN cine.disenos d ON d.id=s.diseno_id
+ WHERE f.inicio_utc > CURRENT_TIMESTAMP
+), clientes AS (
+ SELECT u.*,row_number() OVER(ORDER BY u.id)-1 AS posicion,count(*) OVER() AS cantidad_clientes
+ FROM cine.usuarios u WHERE u.activo AND u.email <> 'cliente@cliente.com'
+ AND EXISTS(SELECT 1 FROM cine.usuarios_roles ur JOIN cine.roles r ON r.id=ur.role_id WHERE ur.user_id=u.id AND r.name='Cliente')
+), asientos AS (
+ SELECT f.*,a.asiento,a.posicion,
+   (a.posicion-1)/4 AS grupo
+ FROM fechas f CROSS JOIN LATERAL (
+   SELECT asiento,row_number() OVER(ORDER BY regexp_replace(asiento,'[0-9]','','g'),substring(asiento from '[0-9]+')::int) AS posicion
+   FROM jsonb_array_elements_text(f.plano_json->'asientos') a(asiento)
+ ) a
+ WHERE f.dia<=3 AND f.turno IN(1,2)
+   AND a.posicion <= CASE WHEN f.turno=1 THEN jsonb_array_length(f.plano_json->'asientos') ELSE jsonb_array_length(f.plano_json->'asientos')/2 END
+   AND NOT EXISTS(SELECT 1 FROM cine.butacas_vendidas b WHERE b.funcion_id=f.id AND b.asiento=a.asiento)
+), compras AS (
+ SELECT id,sala_id,pelicula_id,experiencia_id,tipo_sala_id,inicio_utc,grupo,
+   round(precio*(100-descuento)/100,2) AS precio,
+   jsonb_agg(asiento ORDER BY posicion) AS asientos,count(*)::int AS cantidad
+ FROM asientos GROUP BY id,sala_id,pelicula_id,experiencia_id,tipo_sala_id,inicio_utc,grupo,precio,descuento
+)
+INSERT INTO cine.ventas(id,numero_factura,codigo,usuario_id,operador_id,funcion_id,solicitud,total,cantidad,metodo_pago,fecha_utc,snapshot_json)
+SELECT md5('ocupacion:'||c.id||':'||c.grupo)::uuid,'F-OCUP-'||upper(substr(md5(c.id||':'||c.grupo),1,16)),
+ upper(substr(md5('ingreso:'||c.id||':'||c.grupo),1,12)),u.id,NULL,c.id,'ocupacion:'||c.id||':'||c.grupo,c.precio*c.cantidad,c.cantidad,
+ CASE WHEN c.grupo%2=0 THEN 'Pago QR' ELSE 'Tarjeta de débito' END,CURRENT_TIMESTAMP-make_interval(hours=>1+(c.grupo%36)::int),
+ jsonb_build_object('solicitud','ocupacion:'||c.id||':'||c.grupo,'peliculaId',p.id,'pelicula',p.titulo,'numeroSala',c.sala_id,
+ 'tipoSala',c.tipo_sala_id,'tipoExperiencia',c.experiencia_id,'horario',to_char(c.inicio_utc AT TIME ZONE 'America/La_Paz','HH24:MI'),
+ 'ticketsMayores',c.cantidad,'ticketsMenores',0,'asientos',c.asientos,'cliente',u.nombre||' '||u.apellido,
+ 'documentoCliente',u.ci,'emailUsuario',u.email,'asientosMayoresPorCategoria',jsonb_build_object('0',c.cantidad),
+ 'preciosMayoresPorCategoria',jsonb_build_object('0',c.precio))
+FROM compras c JOIN cine.peliculas p ON p.id=c.pelicula_id
+JOIN clientes u ON u.posicion=(c.sala_id+c.grupo)%u.cantidad_clientes;
+
+INSERT INTO cine.butacas_vendidas(funcion_id,asiento,venta_id)
+ SELECT v.funcion_id,a,v.id FROM cine.ventas v CROSS JOIN LATERAL jsonb_array_elements_text(v.snapshot_json->'asientos') a
+ WHERE v.solicitud LIKE 'ocupacion:%';
 
 -- Los snapshots históricos corresponden a las mismas películas, salas y butacas.
 UPDATE cine.ventas v SET snapshot_json=v.snapshot_json || jsonb_build_object(

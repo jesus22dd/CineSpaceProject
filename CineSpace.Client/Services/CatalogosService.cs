@@ -7,6 +7,7 @@ public sealed class CatalogosService(ApiCine api)
     public string? ErrorCarga { get; private set; }
     public IReadOnlyList<EtiquetaCatalogo> Categorias => api.Referencias.Categorias;
     public IReadOnlyList<EtiquetaCatalogo> Generos => api.Referencias.Generos;
+    public Task<List<GeneroDisponible>> GenerosDisponiblesAsync() => api.Get<List<GeneroDisponible>>("api/catalogos/generos/disponibles");
     public IReadOnlyList<Distribuidora> Distribuidoras => api.Referencias.Distribuidoras;
     public IReadOnlyList<ComboConfiteria> Combos { get; private set; } = [];
     public Func<int, bool>? DistribuidoraEnUso { get; set; }

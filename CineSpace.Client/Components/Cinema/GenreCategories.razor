@@ -20,6 +20,7 @@
             }
         </div>
     </div>
+    @if(error) { <p role="status">No pudimos cargar los géneros. <button type="button" class="genre-view-all" @onclick="Reintentar">Reintentar</button></p> }
     <ul id="genre-categories-track" class="genre-categories-grid" @ref="track">
         @foreach (var categoria in categorias)
         {
@@ -85,17 +86,14 @@
         referencia?.Dispose();
     }
 
-    protected override void OnParametersSet()
+    protected override Task OnInitializedAsync() => CargarGeneros();
+    private async Task CargarGeneros()
     {
-        categorias = Peliculas.SelectMany(p => p.ListaGeneros.Select(nombre => new { p.Id, Nombre = nombre }))
-            .Concat(ProximosEstrenos.Select(p => new { p.Id, Nombre = p.Genero }))
-            .Where(p => !string.IsNullOrWhiteSpace(p.Nombre))
-            .DistinctBy(p => (p.Id, p.Nombre))
-            .GroupBy(p => p.Nombre)
-            .OrderBy(g => g.Key, StringComparer.CurrentCulture)
-            .Select(g => new Categoria(g.Key, g.Count())).ToList();
-        categorias = Catalogos.Generos.Select(g => new Categoria(g.Nombre, categorias.FirstOrDefault(c => c.Nombre == g.Nombre)?.Cantidad ?? 0)).Where(g => g.Cantidad > 0).OrderBy(g => g.Nombre).ToList();
+        try { var datos = await Catalogos.GenerosDisponiblesAsync(); if (!disposed) categorias = datos.Select(g => new Categoria(g.Nombre, g.Cantidad)).ToList(); }
+        catch { if (!disposed) error = true; }
     }
+    private bool error;
+    private async Task Reintentar() { error = false; await CargarGeneros(); }
 
     private static string TextoCantidad(int cantidad) => $"{cantidad} {(cantidad == 1 ? "película" : "películas")}";
     private static string Icono(string genero) => genero switch

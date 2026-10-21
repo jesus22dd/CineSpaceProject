@@ -7,6 +7,7 @@
 
 @code {
     private bool oscuro;
+    private bool disposed;
     private int? connection;
     private DotNetObjectReference<ThemeToggle>? reference;
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -15,12 +16,14 @@
         reference = DotNetObjectReference.Create(this);
         var state = await JS.InvokeAsync<int[]>("cineTheme.connect", reference);
         connection = state[0];
+        if (disposed) { await JS.InvokeVoidAsync("cineTheme.disconnect", connection.Value); return; }
         await ThemeChanged(state[1] == 1);
     }
     private Task CambiarTema() => JS.InvokeVoidAsync("cineTheme.toggle").AsTask();
     [JSInvokable] public Task ThemeChanged(bool isDark) => InvokeAsync(() => { oscuro = isDark; StateHasChanged(); });
     public void Dispose()
     {
+        disposed = true;
         if (connection.HasValue) _ = JS.InvokeVoidAsync("cineTheme.disconnect", connection.Value);
         reference?.Dispose();
     }

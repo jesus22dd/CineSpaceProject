@@ -1,7 +1,7 @@
 {
-  "date": "2026-10-21T05:25:11.765Z",
-  "checks": 52,
-  "passed": 52,
+  "date": "2026-10-21T12:54:18.910Z",
+  "checks": 53,
+  "passed": 53,
   "results": [
     {
       "name": "Siete preventas públicas",
@@ -69,6 +69,10 @@
     },
     {
       "name": "Cerrar preventa retira del carrusel",
+      "passed": true
+    },
+    {
+      "name": "Preventa ofrece horarios libres y ocupados",
       "passed": true
     },
     {

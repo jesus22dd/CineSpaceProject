@@ -1,5 +1,6 @@
 const menus = new WeakMap();
 export function connectAccountMenu(trigger, panel) {
+    if (!trigger?.isConnected || !panel?.isConnected) return;
     const position = () => {
         const rect = trigger.getBoundingClientRect();
         const width = Math.min(parseFloat(getComputedStyle(panel).width) || 288, innerWidth - 24);
@@ -32,7 +33,7 @@ export function connectAccountMenu(trigger, panel) {
     menus.set(panel, {trigger, toggle, resize, menuKey, triggerKey});
 }
 export function closeAccountMenu(panel) {
-    if (panel.matches(':popover-open')) {
+    if (panel?.matches(':popover-open')) {
         panel.hidePopover();
         menus.get(panel)?.trigger.focus({preventScroll: true});
     }
@@ -47,18 +48,22 @@ export function disconnectAccountMenu(panel) {
     window.removeEventListener('resize', state.resize);
     menus.delete(panel);
 }
-let viewportListener;
+let nextViewport = 0;
+const viewportListeners = new Map();
 const viewport = matchMedia('(min-width: 1024px)');
+export function setDrawerOpen(open) { document.documentElement.classList.toggle('navigation-drawer-open', open); }
 export function getNavigationExpanded() { try { return localStorage.getItem('cine-navigation-expanded') !== 'false'; } catch { return true; } }
 export function saveNavigationExpanded(expanded) { try { localStorage.setItem('cine-navigation-expanded', String(expanded)); } catch { } }
 export function resetPageScroll() { window.scrollTo({top: 0, behavior: 'instant'}); }
 
 export function connectViewport(reference) {
-    viewportListener = event => reference.invokeMethodAsync('ViewportChanged', event.matches).catch(() => {});
-    viewport.addEventListener('change', viewportListener);
-    return viewport.matches;
+    const id = ++nextViewport;
+    const listener = event => reference.invokeMethodAsync('ViewportChanged', event.matches).catch(() => {});
+    viewportListeners.set(id, listener);
+    viewport.addEventListener('change', listener);
+    return [id, viewport.matches ? 1 : 0];
 }
-export function disconnectViewport() { if (viewportListener) viewport.removeEventListener('change', viewportListener); }
+export function disconnectViewport(id) { const listener = viewportListeners.get(id); if (listener) viewport.removeEventListener('change', listener); viewportListeners.delete(id); }
 export async function focusNavigation(element, trigger) {
     await new Promise(resolve => requestAnimationFrame(resolve));
     element.querySelector('button, a[href]')?.focus({preventScroll: true});

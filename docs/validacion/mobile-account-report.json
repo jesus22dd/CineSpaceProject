@@ -1,0 +1,186 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "route": "/perfil",
+      "width": 320,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/perfil/seguridad",
+      "width": 320,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/perfil/compras",
+      "width": 320,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/perfil/calificaciones",
+      "width": 320,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/confiteria/pedidos",
+      "width": 320,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/confiteria/carrito",
+      "width": 320,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/recuperar-clave",
+      "width": 320,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/restablecer-clave",
+      "width": 320,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/confirmar-cuenta",
+      "width": 320,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/confiteria/pedido/11d3b48462bba92436bf34b43f606eeaa87ff679a2f3e71d",
+      "width": 320,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/perfil",
+      "width": 390,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/perfil/seguridad",
+      "width": 390,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/perfil/compras",
+      "width": 390,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/perfil/calificaciones",
+      "width": 390,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/confiteria/pedidos",
+      "width": 390,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/confiteria/carrito",
+      "width": 390,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/recuperar-clave",
+      "width": 390,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/restablecer-clave",
+      "width": 390,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/confirmar-cuenta",
+      "width": 390,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/confiteria/pedido/11d3b48462bba92436bf34b43f606eeaa87ff679a2f3e71d",
+      "width": 390,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/perfil",
+      "width": 768,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/perfil/seguridad",
+      "width": 768,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/perfil/compras",
+      "width": 768,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/perfil/calificaciones",
+      "width": 768,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/confiteria/pedidos",
+      "width": 768,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/confiteria/carrito",
+      "width": 768,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/recuperar-clave",
+      "width": 768,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/restablecer-clave",
+      "width": 768,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/confirmar-cuenta",
+      "width": 768,
+      "overflow": 0,
+      "errorVisible": false
+    },
+    {
+      "route": "/confiteria/pedido/11d3b48462bba92436bf34b43f606eeaa87ff679a2f3e71d",
+      "width": 768,
+      "overflow": 0,
+      "errorVisible": false
+    }
+  ],
+  "errors": []
+}

@@ -18,6 +18,22 @@ public sealed class CatalogosController(ICatalogoService catalogos, CineSpaceDbC
     [HttpGet("referencias"), AllowAnonymous]
     public Task<ReferenciasCatalogo> Referencias(CancellationToken ct) => catalogos.ReferenciasAsync(ct);
 
+    [HttpGet("generos/disponibles"), AllowAnonymous]
+    public async Task<List<GeneroDisponible>> GenerosDisponibles(CancellationToken ct)
+    {
+        var hoy = DateOnly.FromDateTime(ReglasCine.Ahora);
+        // Counts cover the complete public catalogue, not only its first page.
+        var peliculas = db.Peliculas.Where(p => p.Publicada && (
+            ((p.Estreno == null || p.Estreno <= hoy || p.Preventa) && db.Funciones.Any(f => f.PeliculaId == p.Id && f.Sala.Activa && f.InicioUtc > DateTime.UtcNow &&
+                (p.Estreno == null || DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeBySystemTimeZoneId(f.InicioUtc, "America/La_Paz")) >= p.Estreno))) ||
+            db.Estrenos.Any(e => e.PeliculaId == p.Id && e.Publicado && e.Fecha >= hoy)));
+        return await db.Generos.AsNoTracking().Select(g => new { g.Id, g.Nombre,
+            Cantidad = peliculas.Count(p => p.Generos.Any(pg => pg.GeneroId == g.Id)) +
+            db.Estrenos.Count(e => e.PeliculaId == null && e.Publicado && e.Fecha >= hoy && e.Genero == g.Nombre) })
+            .Where(g => g.Cantidad > 0).OrderBy(g => g.Nombre)
+            .Select(g => new GeneroDisponible(g.Id, g.Nombre, g.Cantidad)).ToListAsync(ct);
+    }
+
     [HttpGet("disenos/{id:int}"), Authorize(Roles = "Administrador,Trabajador")]
     public async Task<PlanoSala> Diseno(int id, CancellationToken ct) => ReglasCine.Leer<PlanoSala>(await db.Disenos.Where(x => x.Id == id).Select(x => x.PlanoJson).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException());
 

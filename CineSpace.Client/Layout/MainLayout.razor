@@ -17,7 +17,7 @@
         @if (EsMostrarNavMenu())
         {
             <button type="button" class="menu-toggle-btn" @onclick="ToggleNavMenu" aria-label="@(NavMenuExpanded ? "Contraer menú" : "Ampliar menú")" title="@(NavMenuExpanded ? "Contraer menú" : "Ampliar menú")" aria-expanded="@(NavMenuExpanded ? "true" : "false")" aria-controls="main-navigation" @ref="menuTrigger">
-                <i class="fas fa-bars" aria-hidden="true"></i>
+                <i class="fas @(NavMenuExpanded && !desktop ? "fa-xmark" : "fa-bars")" aria-hidden="true"></i>
             </button>
         }
         <div class="header-brand-group" inert="@(NavMenuExpanded && !desktop ? "" : null)">
@@ -85,6 +85,9 @@
     private bool TieneCarritoLateral => RutaContenido == "/confiteria" && Pedidos.CantidadCarrito > 0;
     private void CarritoChanged() => _ = InvokeAsync(StateHasChanged);
     private bool desktop, desktopNavigationExpanded = true, managementNavigationAvailable;
+    private bool drawerLocked;
+    private bool disposed;
+    private int? viewportConnection;
     private ElementReference menuTrigger, sidebarElement;
     private IJSObjectReference? navigationModule;
     private DotNetObjectReference<MainLayout>? reference;
@@ -106,9 +109,14 @@
         if (firstRender)
         {
             navigationModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/navigation.js");
+            if (disposed) { await navigationModule.DisposeAsync(); return; }
             reference = DotNetObjectReference.Create(this);
-            desktop = await navigationModule.InvokeAsync<bool>("connectViewport", reference);
+            var viewportState = await navigationModule.InvokeAsync<int[]>("connectViewport", reference);
+            viewportConnection = viewportState[0];
+            if (disposed) { await navigationModule.InvokeVoidAsync("disconnectViewport", viewportConnection); return; }
+            desktop = viewportState[1] == 1;
             desktopNavigationExpanded = await navigationModule.InvokeAsync<bool>("getNavigationExpanded");
+            if (disposed) return;
             NavMenuExpanded = desktop && managementNavigationAvailable && desktopNavigationExpanded;
             StateHasChanged();
         }
@@ -116,6 +124,11 @@
         {
             volverArriba = false;
             await navigationModule.InvokeVoidAsync("resetPageScroll");
+        }
+        if (navigationModule != null && drawerLocked != (NavMenuExpanded && !desktop))
+        {
+            drawerLocked = NavMenuExpanded && !desktop;
+            await navigationModule.InvokeVoidAsync("setDrawerOpen", drawerLocked);
         }
     }
     [JSInvokable] public Task ViewportChanged(bool isDesktop) => InvokeAsync(async () =>
@@ -148,6 +161,7 @@
     }
     public async ValueTask DisposeAsync()
     {
+        disposed = true;
         AuthDialog.Changed -= AuthChanged;
         LogoutDialog.Changed -= AuthChanged;
         Transicion.Changed -= AuthChanged;
@@ -155,7 +169,7 @@
         Pedidos.Changed -= CarritoChanged;
         if (navigationModule != null)
         {
-            try { await navigationModule.InvokeVoidAsync("disconnectViewport"); await navigationModule.DisposeAsync(); }
+            try { await navigationModule.InvokeVoidAsync("setDrawerOpen", false); await navigationModule.InvokeVoidAsync("disconnectViewport", viewportConnection); await navigationModule.DisposeAsync(); }
             catch (JSDisconnectedException) { }
         }
         reference?.Dispose();
