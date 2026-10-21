@@ -8,10 +8,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 namespace CineSpace.Server.Controllers;
 [ApiController, Route("api/analitica"), Authorize(Roles = "Administrador")]
-public sealed class AnaliticaController(IAnaliticaService analitica, CineSpaceDbContext db, IRepositorioCine repo) : ControllerBase
+public sealed class AnaliticaController(IAnaliticaService analitica, IOcupacionDashboardService ocupacion, CineSpaceDbContext db, IRepositorioCine repo) : ControllerBase
 {
     [HttpGet("resumen")] public Task<ResumenSistema> Resumen(CancellationToken ct) => analitica.ResumenAsync(ct);
     [HttpGet] public Task<AnaliticaCine> Consultar([FromQuery] FiltroVentas filtro, CancellationToken ct) => analitica.ConsultarAsync(filtro, ct);
+    [HttpGet("ocupacion")] public Task<OcupacionDashboard> Ocupacion([FromQuery] DateOnly? fecha, [FromQuery] int? experiencia, CancellationToken ct)
+        => ocupacion.ConsultarAsync(fecha, experiencia, ct);
     [HttpGet("ventas")] public async Task<Pagina<VentaTicket>> Ventas([FromQuery] FiltroVentas filtro, [FromQuery] ConsultaPagina pagina, CancellationToken ct)
     {
         var p = await repo.PaginarAsync(AnaliticaService.Filtrar(db.Ventas.AsNoTracking(), filtro).OrderByDescending(x => x.FechaUtc).ThenBy(x => x.Id), pagina, ct);

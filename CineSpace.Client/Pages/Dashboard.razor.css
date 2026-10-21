@@ -21,6 +21,13 @@
 .dashboard-widget header p { margin: 0; color: var(--cinema-muted); font-size: 12px; line-height: 1.4; }
 .dashboard-widget-wide { grid-column: 1 / -1; }
 .dashboard-widget ::deep .analytics-chart { flex: 1; }
+.occupancy-filters { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin-bottom: 14px; }
+.occupancy-filters label { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: 12px; color: var(--cinema-muted); }
+.occupancy-filters select, .occupancy-filters ::deep input { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; border: 1px solid var(--cinema-control-border); border-radius: 4px; color: var(--cinema-ink); background: var(--cinema-input); font: inherit; }
+.occupancy-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin: 0 0 10px; }
+.occupancy-summary strong { font: 500 25px 'Outfit',sans-serif; color: var(--cinema-heading); }
+.occupancy-summary span { font-size: 12px; color: var(--cinema-muted); }
+.occupancy-status { display: grid; place-content: center; min-height: 250px; margin: 0; color: var(--cinema-muted); text-align: center; font-size: 13px; }
 :root[data-theme="dark"] .cinema-dashboard { --dashboard-panel: #24151e; --dashboard-panel-line: #50323e; --chart-1: #c7657e; --chart-2: #d6ad6d; --chart-3: #78aaa5; --chart-4: #b09bc9; --chart-5: #8ba4c0; }
 @media (max-width: 1000px) { .dashboard-metrics dd { font-size: 27px; } .dashboard-metrics > div { padding-inline: 12px; } .dashboard-analysis-heading { flex-direction: column; gap: 8px; } }
 @media (max-width: 767px) { .dashboard-charts { grid-template-columns: minmax(0, 1fr); } .dashboard-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 0; } .dashboard-metrics > div:nth-child(2) { border: 0; padding-right: 0; } .dashboard-metrics > div:nth-child(3) { padding-left: 0; } }

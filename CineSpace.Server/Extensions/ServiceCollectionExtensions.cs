@@ -86,6 +86,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPedidosService, PedidosService>();
         services.AddScoped<IPersonalService, PersonalService>();
         services.AddScoped<IAnaliticaService, AnaliticaService>();
+        services.AddScoped<IOcupacionDashboardService, OcupacionDashboardService>();
         services.AddScoped<IExportacionResenasService, ExportacionResenasService>();
         services.AddScoped<IPeliculaCatalogoService, PeliculaCatalogoService>();
         services.AddScoped<IEstrenosService, EstrenosService>();

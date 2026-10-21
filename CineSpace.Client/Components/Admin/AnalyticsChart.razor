@@ -3,20 +3,20 @@
 @inject IJSRuntime JS
 
 <div class="analytics-chart" @ref="raiz" data-chart-kind="@Tipo">
-    @if (Maximo <= 0)
+    @if (Maximo <= 0 && !Datos.Any(x => x.Capacidad > 0))
     {
-        <div class="analytics-empty" role="status"><i class="fas fa-chart-simple" aria-hidden="true"></i><p>@Vacio</p><span>Las ventas registradas se mostrarán aquí.</span></div>
+        <div class="analytics-empty" role="status"><i class="fas fa-chart-simple" aria-hidden="true"></i><p>@Vacio</p><span>@AyudaVacio</span></div>
     }
     else
     {
-        <div class="chart-plot @(Tipo == "line" ? "line-scroll" : "")">
-        <svg class="analytics-svg" viewBox="@($"0 0 {ancho} {Alto}")" role="group" aria-label="@Titulo">
+        <div class="chart-plot @(Tipo == "line" || AnchoMinimo > 0 ? "line-scroll" : "")">
+        <svg class="analytics-svg" style="@(AnchoMinimo > 0 ? $"min-width:{AnchoMinimo}px" : null)" viewBox="@($"0 0 {ancho} {Alto}")" role="group" aria-label="@Titulo">
             <desc>Consulta cada elemento para ver su importe o cantidad. También puedes abrir la tabla de datos.</desc>
             @if (Tipo is "pie" or "donut")
             {
                 var total = Datos.Sum(x => x.Valor);
                 var angulo = -90d;
-                @foreach (var item in Datos.Where(x => x.Valor > 0).Select((dato, i) => (dato, i)))
+                @foreach (var item in Datos.Select((dato, i) => (dato, i)).Where(x => x.dato.Valor > 0))
                 {
                     var fin = angulo + (double)(item.dato.Valor / total) * 360;
                     <g class="chart-mark" tabindex="0" role="button" aria-label="@Descripcion(item.dato)" data-tooltip-title="@item.dato.Nombre" data-tooltip-value="@Valor(item.dato.Valor)" data-tooltip-detail="@Detalle(item.dato, total)" style="@Color(item.i)">
@@ -114,15 +114,15 @@
         @if (Tipo == "line") { <p class="chart-scroll-hint">Desliza el gráfico para recorrer los 30 días.</p> }
         @if (Tipo is "pie" or "donut" || Tipo == "vertical" && ancho < 380)
         {
-            <div class="chart-legend">@foreach (var item in Datos.Select((dato, i) => (dato, i))) { <span style="@Color(item.i)"><i aria-hidden="true"></i>@(Tipo == "vertical" ? $"{item.i + 1}. {item.dato.Nombre}" : item.dato.Nombre)</span> }</div>
+            <div class="chart-legend">@foreach (var item in Datos.Select((dato, i) => (dato, i))) { <span style="@Color(item.i)"><i aria-hidden="true"></i>@(Tipo == "vertical" ? $"{item.i + 1}. {item.dato.Nombre}" : item.dato.Nombre)@if(MostrarPorcentajes){<strong>@item.dato.Valor.ToString("N0") · @(Datos.Sum(x=>x.Valor)>0 ? (item.dato.Valor/Datos.Sum(x=>x.Valor)).ToString("P1") : "0 %")</strong>}</span> }</div>
         }
         else if (Series.Count > 0)
         {
             <div class="chart-legend">@foreach (var item in Series.Select((serie, i) => (serie, i))) { <span style="@Color(item.i)"><i class="@(item.serie.Nombre == "Total" ? "legend-total" : "")" aria-hidden="true"></i>@item.serie.Nombre</span> }</div>
         }
-        <details class="chart-data"><summary>Ver datos</summary><div class="chart-data-scroll"><table><thead><tr><th scope="col">@(Series.Count > 0 ? "Fecha" : "Categoría")</th>@if (Series.Count > 0) { @foreach (var serie in Series) { <th scope="col">@serie.Nombre</th> } } else { <th scope="col">@Unidad</th>@if (MostrarDetalle) { <th scope="col">Ventas</th><th scope="col">Tickets</th> } }</tr></thead><tbody>
+        <details class="chart-data"><summary>Ver datos</summary><div class="chart-data-scroll"><table><thead><tr><th scope="col">@(Series.Count > 0 ? "Fecha" : "Categoría")</th>@if (Series.Count > 0) { @foreach (var serie in Series) { <th scope="col">@serie.Nombre</th> } } else { <th scope="col">@Unidad</th>@if (MostrarDetalle) { @if(EsOcupacion){<th scope="col">Vendidas</th><th scope="col">Libres</th><th scope="col">Capacidad</th>}else{<th scope="col">Ventas</th><th scope="col">Tickets</th>} }@if(TieneIngresos){<th scope="col">Ingresos (Bs)</th>} }</tr></thead><tbody>
         @if (Series.Count > 0) { @for (var i = 0; i < Etiquetas.Count; i++) { <tr><th scope="row">@Etiquetas[i]</th>@foreach (var serie in Series) { <td>@Valor(serie.Valores[i])</td> }</tr> } }
-        else { @foreach (var dato in Datos) { <tr><th scope="row">@dato.Nombre</th><td>@Valor(dato.Valor)</td>@if (MostrarDetalle) { <td>@dato.Ventas</td><td>@dato.Tickets</td> }</tr> } }
+        else { @foreach (var dato in Datos) { <tr><th scope="row">@dato.Nombre</th><td>@Valor(dato.Valor)</td>@if (MostrarDetalle) { @if(EsOcupacion){<td>@dato.Tickets</td><td>@((dato.Capacidad??0)-dato.Tickets)</td><td>@dato.Capacidad</td>}else{<td>@dato.Ventas</td><td>@dato.Tickets</td>} }@if(TieneIngresos){<td>@dato.Ingresos?.ToString("N2")</td>}</tr> } }
         </tbody></table></div></details>
     }
     <div id="@tooltipId" class="analytics-tooltip" role="tooltip" popover="manual" @ref="tooltip"><strong data-tooltip-heading></strong><span data-tooltip-number></span><small data-tooltip-description></small></div>
@@ -133,6 +133,10 @@
     [Parameter] public string Titulo { get; set; } = "Gráfico de ventas";
     [Parameter] public string Unidad { get; set; } = "tickets";
     [Parameter] public string Vacio { get; set; } = "Aún no hay ventas registradas.";
+    [Parameter] public string AyudaVacio { get; set; } = "Las ventas registradas se mostrarán aquí.";
+    [Parameter] public int AnchoMinimo { get; set; }
+    [Parameter] public decimal? MaximoEje { get; set; }
+    [Parameter] public bool MostrarPorcentajes { get; set; }
     [Parameter] public bool MostrarDetalle { get; set; }
     [Parameter] public IReadOnlyList<DatoGrafico> Datos { get; set; } = Array.Empty<DatoGrafico>();
     [Parameter] public IReadOnlyList<SerieGrafico> Series { get; set; } = Array.Empty<SerieGrafico>();
@@ -142,21 +146,25 @@
     private IJSObjectReference? modulo;
     private DotNetObjectReference<AnalyticsChart>? referencia;
     private int ancho = 480;
+    private int anchoDisponible = 480;
     private const int BaseDibujo = 188, CentroCircular = 104, RadioCircular = 92;
     private int Alto => Tipo is "pie" or "donut" ? 208 : 232;
     private bool disposed;
+    private bool EsOcupacion => Datos.Any(x => x.Capacidad.HasValue);
+    private bool TieneIngresos => Datos.Any(x => x.Ingresos.HasValue);
     private decimal Maximo => Series.Count > 0 ? Series.SelectMany(s => s.Valores).DefaultIfEmpty().Max() : Datos.Select(x => x.Valor).DefaultIfEmpty().Max();
     private decimal Paso
     {
         get {
-            if (Maximo <= 0) return 1;
-            var bruto = (double)Maximo / 4;
+            var maximo = MaximoEje ?? Maximo;
+            if (maximo <= 0) return 1;
+            var bruto = (double)maximo / 4;
             var potencia = Math.Pow(10, Math.Floor(Math.Log10(bruto)));
             var factor = bruto / potencia;
             return Math.Max(Unidad == "Bs" ? .01m : 1m, (decimal)((factor <= 1 ? 1 : factor <= 2 ? 2 : factor <= 5 ? 5 : 10) * potencia));
         }
     }
-    private decimal Techo => Math.Max(Paso, Math.Ceiling(Maximo / Paso) * Paso);
+    private decimal Techo => Math.Max(Paso, Math.Ceiling((MaximoEje ?? Maximo) / Paso) * Paso);
     private IEnumerable<decimal> Ticks => Enumerable.Range(0, (int)(Techo / Paso) + 1).Select(i => i * Paso);
     private int Izquierda => Tipo == "horizontal" ? (ancho < 380 ? 102 : 140) : 48;
     private double AnchoDibujo => ancho - Izquierda - 12;
@@ -164,11 +172,20 @@
     private double X(int i) => Izquierda + (Etiquetas.Count <= 1 ? AnchoDibujo / 2 : i * AnchoDibujo / (Etiquetas.Count - 1));
     private static string N(double numero) => numero.ToString("0.###", CultureInfo.InvariantCulture);
     private static string Color(int i) => $"--series-color: var(--chart-{i % 5 + 1})";
-    private string Valor(decimal valor) => Unidad == "Bs" ? $"{valor:N2} Bs" : $"{valor:N0} {Unidad}";
+    private string Valor(decimal valor) => Unidad == "Bs" ? $"{valor:N2} Bs" : Unidad == "%" ? $"{valor:N1} %" : $"{valor:N0} {Unidad}";
     private static string Cortar(string valor, int maximo) => valor.Length > maximo ? valor[..(maximo - 1)] + "…" : valor;
     private static string Abreviar(decimal valor) => valor >= 1_000_000 ? $"{valor / 1_000_000:0.#} M" : valor >= 1000 ? $"{valor / 1000:0.#} mil" : $"{valor:0.##}";
     private string Descripcion(DatoGrafico dato) => $"{dato.Nombre}: {Valor(dato.Valor)}. {Detalle(dato)}";
-    private string Detalle(DatoGrafico dato, decimal total = 0) => total > 0 ? $"{dato.Valor / total:P1} del total" + (dato.Ventas > 0 ? $" · {dato.Ventas:N0} ventas" : "") : MostrarDetalle ? $"{dato.Ventas:N0} ventas · {dato.Tickets:N0} tickets" : dato.Ventas > 0 ? $"{dato.Ventas:N0} ventas" : "";
+    private string Detalle(DatoGrafico dato, decimal total = 0)
+    {
+        var partes = new List<string>();
+        if (total > 0) partes.Add($"{dato.Valor / total:P1} del total");
+        if (dato.Capacidad.HasValue) partes.Add($"{dato.Tickets:N0} butacas vendidas · {dato.Capacidad.Value-dato.Tickets:N0} libres · {dato.Capacidad:N0} de capacidad");
+        else if (MostrarDetalle) partes.Add($"{dato.Ventas:N0} ventas · {dato.Tickets:N0} tickets");
+        else if (dato.Ventas > 0) partes.Add($"{dato.Ventas:N0} ventas");
+        if (dato.Ingresos.HasValue) partes.Add($"{dato.Ingresos:N2} Bs de ingresos");
+        return string.Join(" · ", partes);
+    }
     private string Sector(double inicio, double fin)
     {
         var cx = ancho / 2d; var a = inicio * Math.PI / 180; var b = fin * Math.PI / 180;
@@ -183,7 +200,8 @@
         referencia = DotNetObjectReference.Create(this);
         await modulo.InvokeVoidAsync("connectChart", raiz, tooltip, referencia);
     }
-    [JSInvokable] public void AjustarAncho(int valor) { var nuevo = Math.Max(Tipo == "line" ? 640 : 200, valor); if (disposed || nuevo == ancho) return; ancho = nuevo; StateHasChanged(); }
+    protected override void OnParametersSet() => ancho = Math.Max(Math.Max(AnchoMinimo, Tipo == "line" ? 640 : 200), anchoDisponible);
+    [JSInvokable] public void AjustarAncho(int valor) { anchoDisponible = valor; var nuevo = Math.Max(Math.Max(AnchoMinimo, Tipo == "line" ? 640 : 200), valor); if (disposed || nuevo == ancho) return; ancho = nuevo; StateHasChanged(); }
     public async ValueTask DisposeAsync()
     {
         disposed = true;

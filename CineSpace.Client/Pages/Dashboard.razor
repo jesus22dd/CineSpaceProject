@@ -9,7 +9,7 @@
 else
 {
     <div class="container cinema-dashboard">
-        <div class="management-heading"><div><h1>Dashboard</h1><p>Ventas, público y rendimiento del cine.</p></div><a class="btn btn-secondary" href="/ventas"><i class="fas fa-table-list" aria-hidden="true"></i>Ver resumen de ventas</a></div>
+        <div class="management-heading"><div><h1>Dashboard</h1><p>Ventas, ocupación y rendimiento del cine.</p></div><a class="btn btn-secondary" href="/ventas"><i class="fas fa-table-list" aria-hidden="true"></i>Ver resumen de ventas</a></div>
         <section class="dashboard-overview" aria-labelledby="overview-title">
             <div class="overview-heading"><h2 id="overview-title">Ventas de entradas</h2><span>Los filtros se aplican a estos indicadores.</span></div>
             <SalesFilters Id="dashboard" Etiqueta="Filtros de indicadores" Valor="filtro" ValorChanged="CambiarFiltros" GenerosHistoricos="generos.Select(x => x.Nombre)" />
@@ -21,9 +21,27 @@ else
             </dl>
         </section>
 
-        <div class="dashboard-analysis-heading"><div><h2>Rendimiento del cine</h2><p>Estos gráficos son independientes de los filtros de arriba. Consulta los detalles con el cursor, el teclado o un toque.</p></div><span class="analysis-scope"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i>Histórico registrado</span></div>
+        <div class="dashboard-analysis-heading"><div><h2>Rendimiento del cine</h2><p>La ocupación usa su fecha y experiencia. Los rankings e ingresos muestran el histórico registrado. Consulta los detalles con el cursor, el teclado o un toque.</p></div></div>
         <div class="dashboard-charts">
-            <section class="dashboard-widget" aria-labelledby="audience-title"><header><h3 id="audience-title">Nuestro público</h3><p>Entradas generales vendidas</p></header><AnalyticsChart Tipo="pie" Titulo="Distribución de tickets por público" Datos="publico" /></section>
+            <section class="dashboard-widget" aria-labelledby="occupancy-title" aria-busy="@cargandoOcupacion.ToString().ToLowerInvariant()">
+                <header><h3 id="occupancy-title">Ocupación de funciones</h3><p>Distribución por estado · fecha de la función</p></header>
+                <div class="occupancy-filters" role="group" aria-label="Filtros de ocupación">
+                    <label>Fecha<InputDate TValue="DateOnly?" @bind-Value="fechaOcupacion" @bind-Value:after="CargarOcupacion" aria-label="Fecha de las funciones" /></label>
+                    <label>Experiencia<select @bind="experienciaOcupacion" @bind:after="CargarOcupacion" aria-label="Experiencia de las funciones"><option value="0">Todas</option>@foreach(var experiencia in Salas.Experiencias){<option value="@experiencia.Id">@experiencia.Nombre</option>}</select></label>
+                </div>
+                @if(cargandoOcupacion){<p class="occupancy-status" role="status">Consultando funciones…</p>}
+                else if(errorOcupacion is not null){<div class="occupancy-status" role="alert"><p>@errorOcupacion</p><button type="button" class="btn btn-secondary" @onclick="CargarOcupacion">Reintentar</button></div>}
+                else{
+                    <p class="occupancy-summary"><strong>@ocupacion.Porcentaje.ToString("N1") %</strong><span>de butacas vendidas · @ocupacion.Funciones.ToString("N0") funciones</span></p>
+                    <AnalyticsChart Tipo="pie" Titulo="Funciones completas, con disponibilidad y sin ventas" Datos="ocupacion.Estados" Unidad="funciones" MostrarDetalle="true" MostrarPorcentajes="true" Vacio="No hay funciones para esta selección." AyudaVacio="Elige otra fecha o experiencia." />
+                }
+            </section>
+            <section class="dashboard-widget" aria-labelledby="movies-title"><header><h3 id="movies-title">Top 5 películas</h3><p>Histórico · entradas vendidas e ingresos por película</p></header><AnalyticsChart Tipo="horizontal" Titulo="Top 5 películas por entradas vendidas" Datos="datos.PeliculasTop" MostrarDetalle="true" /></section>
+            <section class="dashboard-widget" aria-labelledby="hours-title"><header><h3 id="hours-title">Ocupación por horario</h3><p>@(fechaOcupacion?.ToString("dd/MM/yyyy") ?? "Hoy") · comparte los filtros de ocupación · agrupado por hora</p></header>
+                @if(cargandoOcupacion){<p class="occupancy-status" role="status">Consultando horarios…</p>}
+                else if(errorOcupacion is not null){<p class="occupancy-status">No se pudieron cargar los horarios de esta selección.</p>}
+                else{<AnalyticsChart Tipo="vertical" Titulo="Porcentaje de butacas vendidas por horario" Datos="ocupacion.Horarios" Unidad="%" MaximoEje="100" MostrarDetalle="true" AnchoMinimo="@(ocupacion.Horarios.Count*52)" Vacio="No hay horarios para esta selección." AyudaVacio="Elige otra fecha o experiencia en Ocupación de funciones." />}
+            </section>
             <section class="dashboard-widget" aria-labelledby="genres-title"><header><h3 id="genres-title">Top 5 géneros</h3><p>Tickets por género · una película puede pertenecer a varios</p></header><AnalyticsChart Tipo="vertical" Titulo="Top 5 géneros por tickets" Datos="generos" MostrarDetalle="true" /></section>
             <section class="dashboard-widget" aria-labelledby="rooms-title"><header><h3 id="rooms-title">Salas con más ventas</h3><p>Top 5 · cada compra cuenta como una venta</p></header><AnalyticsChart Tipo="horizontal" Titulo="Top 5 salas por ventas" Datos="salas" Unidad="ventas" MostrarDetalle="true" /></section>
             <section class="dashboard-widget" aria-labelledby="experiences-title"><header><h3 id="experiences-title">Experiencias con más ventas</h3><p>Top 5 · consulta también los tickets de cada experiencia</p></header><AnalyticsChart Tipo="horizontal" Titulo="Top experiencias por ventas" Datos="experiencias" Unidad="ventas" MostrarDetalle="true" /></section>
@@ -36,7 +54,11 @@ else
 @code {
     private AnaliticaCine datos = new();
     private FiltroVentas filtro = new();
-    private IReadOnlyList<DatoGrafico> publico => datos.Publico;
+    private OcupacionDashboard ocupacion = new();
+    private DateOnly? fechaOcupacion;
+    private int experienciaOcupacion, versionOcupacion;
+    private bool cargandoOcupacion;
+    private string? errorOcupacion;
     private IReadOnlyList<DatoGrafico> generos => datos.Generos;
     private IReadOnlyList<DatoGrafico> salas => datos.SalasTop;
     private IReadOnlyList<DatoGrafico> experiencias => datos.Experiencias;
@@ -45,7 +67,20 @@ else
     private IReadOnlyList<SerieGrafico> ingresosMes => datos.IngresosMes;
     private IReadOnlyList<string> etiquetasCinco => datos.EtiquetasCinco;
     private IReadOnlyList<string> etiquetasMes => datos.EtiquetasMes;
-    protected override async Task OnInitializedAsync() { if (Usuarios.EsAdministrador()) await CambiarFiltros(filtro); }
+    protected override async Task OnInitializedAsync() { if (Usuarios.EsAdministrador()) await Task.WhenAll(CambiarFiltros(filtro), CargarOcupacion()); }
+    private async Task CargarOcupacion()
+    {
+        var version = ++versionOcupacion;
+        cargandoOcupacion = true; errorOcupacion = null;
+        try
+        {
+            var resultado = await Ventas.OcupacionAsync(fechaOcupacion, experienciaOcupacion == 0 ? null : experienciaOcupacion);
+            if (version != versionOcupacion) return;
+            ocupacion = resultado; fechaOcupacion = resultado.Fecha;
+        }
+        catch (InvalidOperationException ex) { if (version == versionOcupacion) errorOcupacion = ex.Message; }
+        finally { if (version == versionOcupacion) cargandoOcupacion = false; }
+    }
     private int versionCarga;
     private async Task CambiarFiltros(FiltroVentas valor) { var version=++versionCarga; filtro=valor; var resultado=await Ventas.AnaliticaAsync(valor); if(version==versionCarga) datos=resultado; }
 }

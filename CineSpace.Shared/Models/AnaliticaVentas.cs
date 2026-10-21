@@ -1,7 +1,7 @@
 namespace CineSpace.Shared.Models;
 
 public sealed record FiltroVentas(string Periodo = "hoy", string TipoSala = "todos", string Experiencia = "todos", string Genero = "todos");
-public sealed record DatoGrafico(string Nombre, decimal Valor, int Ventas = 0, int Tickets = 0);
+public sealed record DatoGrafico(string Nombre, decimal Valor, int Ventas = 0, int Tickets = 0, decimal? Ingresos = null, int? Capacidad = null);
 public sealed record SerieGrafico(string Nombre, IReadOnlyList<decimal> Valores);
 
 // Historical sale lines keep their category and price, even when the catalogue changes.

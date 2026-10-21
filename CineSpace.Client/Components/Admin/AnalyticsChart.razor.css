@@ -20,6 +20,7 @@
 .chart-legend > span { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 1.35; color: var(--cinema-ink); }
 .chart-legend i { width: 10px; height: 10px; flex-shrink: 0; border-radius: 2px; background: var(--series-color); }
 .chart-legend i.legend-total { height: 0; border-top: 2px dashed var(--series-color); width: 18px; background: transparent; }
+.chart-legend strong { margin-inline-start: 4px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .analytics-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 232px; padding: 16px; text-align: center; }
 .analytics-empty i { font-size: 26px; color: var(--cinema-muted); margin-bottom: 12px; }
 .analytics-empty p { margin: 0 0 8px; color: var(--cinema-ink); font-size: 14px; }

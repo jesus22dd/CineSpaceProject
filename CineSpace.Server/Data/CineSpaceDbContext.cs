@@ -85,6 +85,8 @@ public sealed class CineSpaceDbContext(DbContextOptions<CineSpaceDbContext> opti
         builder.Entity<FuncionRegistro>().HasOne(x => x.Experiencia).WithMany().HasForeignKey(x => x.ExperienciaId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<FuncionRegistro>().HasIndex(x => new { x.SalaId, x.InicioUtc }).IsUnique();
         builder.Entity<FuncionRegistro>().HasIndex(x => new { x.PeliculaId, x.InicioUtc });
+        builder.Entity<FuncionRegistro>().HasIndex(x => new { x.InicioUtc, x.ExperienciaId })
+            .HasDatabaseName("funciones_fecha_experiencia").IncludeProperties(x => new { x.SalaId, x.PeliculaId });
         builder.Entity<VentaRegistro>().ToTable("ventas");
         builder.Entity<VentaRegistro>().HasIndex(x => x.NumeroFactura).IsUnique();
         builder.Entity<VentaRegistro>().HasIndex(x => x.Codigo).IsUnique();

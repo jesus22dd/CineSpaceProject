@@ -43,17 +43,20 @@ public sealed class AnaliticaService(CineSpaceDbContext db, Microsoft.Extensions
         var filas = await cache.GetOrCreateAsync(lecturas.Key("analitica.historico"), async entry => {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30);
             return await db.Database.SqlQueryRaw<FilaAnalitica>("""
-            SELECT 'publico' AS "Tipo", 'Entradas' AS "Nombre", coalesce(sum(cantidad),0)::numeric AS "Valor", count(*)::int AS "Cantidad", coalesce(sum(cantidad),0)::int AS "Tickets" FROM cine.ventas
-            UNION ALL (SELECT 'generos',g.nombre,sum(v.cantidad)::numeric,count(*)::int,sum(v.cantidad)::int FROM cine.ventas v JOIN cine.funciones f ON f.id=v.funcion_id JOIN cine.peliculas_generos pg ON pg.pelicula_id=f.pelicula_id JOIN cine.generos g ON g.id=pg.genero_id GROUP BY g.nombre ORDER BY sum(v.cantidad) DESC LIMIT 5)
-            UNION ALL (SELECT 'salas',s.nombre,count(*)::numeric,count(*)::int,sum(v.cantidad)::int FROM cine.ventas v JOIN cine.funciones f ON f.id=v.funcion_id JOIN cine.salas s ON s.id=f.sala_id GROUP BY s.nombre ORDER BY count(*) DESC LIMIT 5)
-            UNION ALL (SELECT 'experiencias',e.nombre,count(*)::numeric,count(*)::int,sum(v.cantidad)::int FROM cine.ventas v JOIN cine.funciones f ON f.id=v.funcion_id JOIN cine.experiencias e ON e.id=f.experiencia_id GROUP BY e.nombre ORDER BY count(*) DESC LIMIT 5)
-            UNION ALL (SELECT 'categorias',l.categoria,sum(l.cantidad*l.precio_unitario)::numeric,count(*)::int,sum(l.cantidad)::int FROM cine.pedido_lineas l JOIN cine.pedidos p ON p.id=l.pedido_id WHERE p.estado='Retirado' GROUP BY l.categoria ORDER BY sum(l.cantidad*l.precio_unitario) DESC LIMIT 5)
-            UNION ALL SELECT 'cine',to_char(fecha_utc AT TIME ZONE 'America/La_Paz','YYYY-MM-DD'),sum(total)::numeric,count(*)::int,sum(cantidad)::int FROM cine.ventas WHERE fecha_utc >= (((CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date - 29)::timestamp AT TIME ZONE 'America/La_Paz') GROUP BY 2
-            UNION ALL SELECT 'confiteria',to_char(retirado_utc AT TIME ZONE 'America/La_Paz','YYYY-MM-DD'),sum(total)::numeric,count(*)::int,0 FROM cine.pedidos WHERE estado='Retirado' AND retirado_utc >= (((CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date - 29)::timestamp AT TIME ZONE 'America/La_Paz') GROUP BY 2
+            WITH peliculas_top AS (SELECT 'peliculas' AS "Tipo",p.titulo AS "Nombre",sum(v.cantidad)::numeric AS "Valor",count(*)::int AS "Cantidad",sum(v.cantidad)::int AS "Tickets",sum(v.total)::numeric AS "Ingresos"
+             FROM cine.ventas v JOIN cine.funciones f ON f.id=v.funcion_id JOIN cine.peliculas p ON p.id=f.pelicula_id
+             GROUP BY p.id,p.titulo ORDER BY sum(v.cantidad) DESC,sum(v.total) DESC,p.id LIMIT 5)
+            SELECT * FROM peliculas_top
+            UNION ALL (SELECT 'generos',g.nombre,sum(v.cantidad)::numeric,count(*)::int,sum(v.cantidad)::int,NULL::numeric FROM cine.ventas v JOIN cine.funciones f ON f.id=v.funcion_id JOIN cine.peliculas_generos pg ON pg.pelicula_id=f.pelicula_id JOIN cine.generos g ON g.id=pg.genero_id GROUP BY g.nombre ORDER BY sum(v.cantidad) DESC LIMIT 5)
+            UNION ALL (SELECT 'salas',s.nombre,count(*)::numeric,count(*)::int,sum(v.cantidad)::int,NULL::numeric FROM cine.ventas v JOIN cine.funciones f ON f.id=v.funcion_id JOIN cine.salas s ON s.id=f.sala_id GROUP BY s.nombre ORDER BY count(*) DESC LIMIT 5)
+            UNION ALL (SELECT 'experiencias',e.nombre,count(*)::numeric,count(*)::int,sum(v.cantidad)::int,NULL::numeric FROM cine.ventas v JOIN cine.funciones f ON f.id=v.funcion_id JOIN cine.experiencias e ON e.id=f.experiencia_id GROUP BY e.nombre ORDER BY count(*) DESC LIMIT 5)
+            UNION ALL (SELECT 'categorias',l.categoria,sum(l.cantidad*l.precio_unitario)::numeric,count(*)::int,sum(l.cantidad)::int,NULL::numeric FROM cine.pedido_lineas l JOIN cine.pedidos p ON p.id=l.pedido_id WHERE p.estado='Retirado' GROUP BY l.categoria ORDER BY sum(l.cantidad*l.precio_unitario) DESC LIMIT 5)
+            UNION ALL SELECT 'cine',to_char(fecha_utc AT TIME ZONE 'America/La_Paz','YYYY-MM-DD'),sum(total)::numeric,count(*)::int,sum(cantidad)::int,NULL::numeric FROM cine.ventas WHERE fecha_utc >= (((CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date - 29)::timestamp AT TIME ZONE 'America/La_Paz') GROUP BY 2
+            UNION ALL SELECT 'confiteria',to_char(retirado_utc AT TIME ZONE 'America/La_Paz','YYYY-MM-DD'),sum(total)::numeric,count(*)::int,0,NULL::numeric FROM cine.pedidos WHERE estado='Retirado' AND retirado_utc >= (((CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date - 29)::timestamp AT TIME ZONE 'America/La_Paz') GROUP BY 2
             """).ToListAsync(ct);
         }) ?? [];
-        List<DatoGrafico> Serie(string tipo) => filas.Where(x => x.Tipo == tipo).Select(x => new DatoGrafico(x.Nombre,x.Valor,x.Cantidad,x.Tickets)).ToList();
-        dto.Publico = Serie("publico"); dto.Generos = Serie("generos"); dto.SalasTop = Serie("salas"); dto.Experiencias = Serie("experiencias"); dto.Categorias = Serie("categorias");
+        List<DatoGrafico> Serie(string tipo) => filas.Where(x => x.Tipo == tipo).Select(x => new DatoGrafico(x.Nombre,x.Valor,x.Cantidad,x.Tickets,x.Ingresos)).ToList();
+        dto.PeliculasTop = Serie("peliculas"); dto.Generos = Serie("generos"); dto.SalasTop = Serie("salas"); dto.Experiencias = Serie("experiencias"); dto.Categorias = Serie("categorias");
         var hoy = ReglasCine.Ahora.Date;
         var dias = Enumerable.Range(0,30).Select(i => hoy.AddDays(i-29)).ToArray();
         decimal[] Diarios(string tipo) { var valores = filas.Where(x => x.Tipo == tipo).ToDictionary(x => x.Nombre,x => x.Valor); return dias.Select(d => valores.GetValueOrDefault(d.ToString("yyyy-MM-dd"))).ToArray(); }
@@ -87,4 +90,5 @@ public sealed class FilaAnalitica
 {
     public string Tipo {get;set;} = ""; public string Nombre {get;set;} = "";
     public decimal Valor {get;set;} public int Cantidad {get;set;} public int Tickets {get;set;}
+    public decimal? Ingresos {get;set;}
 }

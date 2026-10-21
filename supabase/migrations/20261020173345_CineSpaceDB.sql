@@ -581,6 +581,7 @@ CREATE INDEX pedidos_usuario_fecha ON cine.pedidos(usuario_id, creado_utc DESC, 
 CREATE INDEX pedidos_invitado_fecha ON cine.pedidos(propietario_invitado, creado_utc DESC) WHERE usuario_id IS NULL;
 CREATE INDEX pedidos_estado_fecha ON cine.pedidos(estado, creado_utc DESC);
 CREATE INDEX funciones_pelicula_fecha ON cine.funciones(pelicula_id, inicio_utc, sala_id);
+CREATE INDEX funciones_fecha_experiencia ON cine.funciones(inicio_utc, experiencia_id) INCLUDE(sala_id,pelicula_id);
 CREATE INDEX funciones_sala_periodo ON cine.funciones(sala_id, inicio_utc, sala_lista_utc);
 ALTER TABLE cine.ventas ADD CONSTRAINT venta_funcion_unica UNIQUE(id,funcion_id);
 ALTER TABLE cine.butacas_vendidas ADD CONSTRAINT butaca_venta_funcion_coherente FOREIGN KEY(venta_id,funcion_id) REFERENCES cine.ventas(id,funcion_id);

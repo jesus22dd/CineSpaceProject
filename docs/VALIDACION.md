@@ -1,5 +1,15 @@
 # Validación — 20/10/2026
 
+## Analítica de ocupación — 21/10/2026
+
+El primer gráfico ahora es una torta SVG de funciones completas, con disponibilidad y sin ventas. Tiene filtros propios por fecha de función y experiencia, detalle de butacas, cantidades y porcentajes en la leyenda y tabla accesible. La ocupación por horario comparte esos filtros y mantiene el eje entre 0 y 100 %. El ranking histórico de cinco películas incluye tickets, ventas e ingresos. Los filtros superiores conservan su alcance exclusivo sobre los indicadores.
+
+Se aprobaron 38 comprobaciones en PostgreSQL aislado: resultados contra SQL independiente, permisos, caché, filtros, fecha sin funciones, 24 horarios sin ventas con desplazamiento interno, torta de una sola categoría, colores consistentes al existir estados en cero, teclado, tablas, temas claro/oscuro y anchos de 320, 390, 768, 1024 y 1440 px. Publicaciones Release de cliente y servidor correctas. Se retiraron los programas temporales al terminar.
+
+La ocupación se obtiene con una consulta agregada acotada al intervalo UTC del día, sin cargar butacas individuales en .NET ni en el cliente. Se añadieron caché de 30 segundos con invalidación tras escrituras y el índice `funciones_fecha_experiencia` al SQL único y al mapeo EF. El plan PostgreSQL comprobó el uso de ese índice y del índice de butacas por función: ejecución local de 2,497 ms, sin considerarla una garantía de producción. El índice remoto queda pendiente de la aplicación manual del SQL por el propietario; el código también funciona sin él.
+
+Informes: [38 comprobaciones](validacion/dashboard-occupancy-report.json), [plan de consulta](validacion/dashboard-occupancy-query-plan.json), [escritorio](validacion/dashboard-occupancy-desktop.png) y [móvil](validacion/dashboard-occupancy-mobile.png). No se modificó Supabase remoto.
+
 ## Tema, carga inicial, navegación y datos — 21/10/2026
 
 Esta revisión se probó en PostgreSQL 18 aislado, ejecutando el SQL único completo dos veces para verificar la reconstrucción. No se ejecutó el BAT ni se modificó Supabase remoto.
