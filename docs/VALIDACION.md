@@ -41,3 +41,10 @@ Reportes en `docs/validacion`: performance-before/after, refinement-unit, refine
 
 
 Cierre de esta revisión: 129 comprobaciones, incluidas 44 visitas de rutas; Debug y publicación Release sin errores ni advertencias. Los arneses temporales se retiraron; se conservaron los reportes. El Git inicial se eliminó a petición del propietario.
+# Despliegue y PWA (21/10/2026)
+
+Publicación Release de Server y Client, ejecución del script de Netlify y 59 comprobaciones correctas en `validacion/deployment-pwa-report.json`. Se verificaron 243 recursos por publicación, integridad del shell, exclusión de secretos, iconos 192/512, rutas de Docker, rechazo de URLs inválidas, reglas del proxy, API Production con Supabase, cookies OAuth y callback canónico de Netlify sin puerto HTTPS redundante.
+
+En Edge real: worker activado, 158 recursos de interfaz en caché, navegación del shell sin conexión, API excluida del modo offline, recarga y vista móvil de 390 px sin desbordamiento. Las capturas están en `validacion/pwa-desktop.png` y `validacion/pwa-mobile.png`. Los programas temporales de pruebas fueron retirados y el servidor temporal se detuvo.
+
+Docker no está instalado en este equipo: no se ejecutó una construcción local del contenedor. El workflow de GitHub construye la imagen y publica el cliente con configuración ficticia de CI. Netlify/Render públicos y consentimiento Google interactivo se validarán cuando existan sus URLs reales. Pasos y variables en [DESPLIEGUE](DESPLIEGUE.md).

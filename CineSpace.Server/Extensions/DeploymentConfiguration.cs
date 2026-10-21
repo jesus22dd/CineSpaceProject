@@ -30,4 +30,13 @@ public static class DeploymentConfiguration
         return string.IsNullOrWhiteSpace(value) ? null
             : new Uri(NormalizeOrigin(value, environment.IsDevelopment()));
     }
+
+    public static Uri? GetBrowserOrigin(IConfiguration configuration, IHostEnvironment environment)
+    {
+        // En Netlify /api y /signin-google son proxies al servidor. El navegador
+        // conserva este origen en todo el flujo OAuth y en sus cookies HttpOnly.
+        var value = configuration["Frontend:Url"];
+        return string.IsNullOrWhiteSpace(value) ? GetBackendOrigin(configuration, environment)
+            : new Uri(NormalizeOrigin(value, environment.IsDevelopment()));
+    }
 }

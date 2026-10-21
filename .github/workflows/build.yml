@@ -10,4 +10,10 @@ jobs:
           global-json-file: global.json
       - run: dotnet restore CineSpace.sln
       - run: dotnet build CineSpace.sln --no-restore --configuration Release
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: bash scripts/build-netlify.sh
+        env:
+          RENDER_API_ORIGIN: https://cinespace-ci.onrender.com
       - run: docker build --tag cinespace:ci .

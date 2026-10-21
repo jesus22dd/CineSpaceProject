@@ -16,9 +16,17 @@
 **/*.pfx
 **/*.p12
 **/*.pem
+**/*.key
+**/*.log
+**/*.tmp
+**/*.dmp
 .github
 **/*.user
 **/*.suo
 **/appsettings.Development.json
 supabase/
 .local/
+docs/
+scripts/
+netlify.toml
+**/.vscode

@@ -7,7 +7,15 @@ if (args.Length == 2 && args[0] == "--database")
     return;
 }
 // Orden estándar: JSON global, JSON del entorno, User Secrets, entorno y argumentos.
-var publicBackend = DeploymentConfiguration.GetBackendOrigin(builder.Configuration, builder.Environment);
+var browserOrigin = DeploymentConfiguration.GetBrowserOrigin(builder.Configuration, builder.Environment);
+// También valida el origen interno público aunque el callback use el frontend.
+_ = DeploymentConfiguration.GetBackendOrigin(builder.Configuration, builder.Environment);
+if (builder.Configuration["PORT"] is { Length: > 0 } portValue)
+{
+    if (!int.TryParse(portValue, out var port) || port is < 1 or > 65535)
+        throw new InvalidOperationException("PORT debe ser un puerto TCP válido.");
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Services.AddControllers(options =>
@@ -38,7 +46,7 @@ if (behindProxy)
     });
 var app = builder.Build();
 if (behindProxy) app.UseForwardedHeaders();
-if (publicBackend is not null)
+if (browserOrigin is not null)
     app.Use((context, next) =>
     {
         // El retorno OAuth usa el origen configurado, nunca un X-Forwarded-Host arbitrario.
@@ -46,8 +54,9 @@ if (publicBackend is not null)
             context.Request.Path == "/api/auth/google" ||
             context.Request.Path == "/api/auth/google-callback")
         {
-            context.Request.Scheme = publicBackend.Scheme;
-            context.Request.Host = HostString.FromUriComponent(publicBackend);
+            context.Request.Scheme = browserOrigin.Scheme;
+            context.Request.Host = browserOrigin.IsDefaultPort ? new HostString(browserOrigin.Host)
+                : new HostString(browserOrigin.Host, browserOrigin.Port);
         }
         return next(context);
     });
@@ -56,7 +65,11 @@ app.Use(async (context, next) =>
 {
     context.Response.Headers.XContentTypeOptions = "nosniff";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-    if (context.Request.Path.StartsWithSegments("/api")) context.Response.Headers.CacheControl = "no-store";
+    if (context.Request.Path.StartsWithSegments("/api") || context.Request.Path == "/signin-google")
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers["Netlify-CDN-Cache-Control"] = "no-store";
+    }
     await next(context);
 });
 app.UseStatusCodePages();
@@ -66,7 +79,15 @@ else app.UseHsts();
 // Render termina TLS; localmente la redirección está activa solo en el perfil HTTPS.
 if (!behindProxy && !string.IsNullOrWhiteSpace(builder.Configuration["HTTPS_PORT"])) app.UseHttpsRedirection();
 app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = context =>
+    {
+        var path = context.Context.Request.Path.Value;
+        if (path is "/service-worker.js" or "/service-worker-assets.js" or "/index.html" or "/manifest.webmanifest" or "/appsettings.json")
+            context.Context.Response.Headers.CacheControl = "no-cache";
+    }
+});
 app.UseRouting();
 app.UseCors("Frontend");
 app.UseAuthentication();

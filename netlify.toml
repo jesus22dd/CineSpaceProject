@@ -1,0 +1,39 @@
+[build]
+  command = "bash scripts/build-netlify.sh"
+  publish = ".publish/netlify/wwwroot"
+
+[build.environment]
+  NODE_VERSION = "22"
+  DOTNET_CLI_TELEMETRY_OPTOUT = "1"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE = "1"
+
+# _redirects se genera al compilar con RENDER_API_ORIGIN, antes del fallback SPA.
+# No activar transformación/minificación del HTML o JS: Blazor/PWA verifica hashes.
+[build.processing]
+  skip_processing = true
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(self), microphone=(), geolocation=()"
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/service-worker.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Service-Worker-Allowed = "/"
+
+[[headers]]
+  for = "/service-worker-assets.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+    Cache-Control = "no-cache"

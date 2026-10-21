@@ -1,0 +1,17 @@
+{
+  "id": "/",
+  "name": "CineSpace",
+  "short_name": "CineSpace",
+  "description": "Cartelera, entradas y confitería de CineSpace.",
+  "lang": "es-BO",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0c0d0f",
+  "theme_color": "#642633",
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

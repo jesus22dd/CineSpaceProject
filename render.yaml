@@ -12,6 +12,8 @@ services:
         value: Production
       - key: ASPNETCORE_HTTP_PORTS
         value: "8080"
+      - key: PORT
+        value: "8080"
       - key: Deployment__BehindProxy
         value: "true"
       - key: ConnectionStrings__CineSpace
@@ -23,7 +25,7 @@ services:
       - key: Supabase__SecretKey
         sync: false
       - key: Supabase__Bucket
-        sync: false
+        value: cinespace-media
       - key: Authentication__Google__ClientId
         sync: false
       - key: Authentication__Google__ClientSecret
@@ -35,7 +37,7 @@ services:
       - key: BrevoSettings__FromEmail
         sync: false
       - key: BrevoSettings__FromName
-        sync: false
+        value: CineSpace
       - key: Frontend__Url
         sync: false
       - key: Backend__PublicUrl

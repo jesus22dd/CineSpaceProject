@@ -37,7 +37,7 @@ Render y Docker Compose ya tienen preparados los siguientes campos; se proporcio
 | BrevoSettings__FromEmail | BrevoSettings:FromEmail | Direccion de remitente verificada en Brevo |
 | BrevoSettings__FromName | BrevoSettings:FromName | CineSpace |
 | Frontend__Url | Frontend:Url | Origen HTTPS publico del cine, sin rutas |
-| Backend__PublicUrl | Backend:PublicUrl | Origen HTTPS publico que recibe el callback OAuth |
+| Backend__PublicUrl | Backend:PublicUrl | Origen HTTPS publico del servicio Render |
 | Deployment__BehindProxy | Deployment:BehindProxy | true solo detras del proxy de Render |
 
 ASPNETCORE_ENVIRONMENT=Production y ASPNETCORE_HTTP_PORTS=8080 ya estan declarados. AllowedHosts puede restringirse al dominio real cuando exista. Si se necesitan mas origenes, se anaden como Frontend__Origins__0, Frontend__Origins__1, etc.; no se acepta un comodin con credenciales.
@@ -48,9 +48,9 @@ En Compose, .env.example documenta los nombres equivalentes del archivo .env pri
 
 ## Frontend y backend
 
-La opcion actual sirve ambos desde Render, con el mismo dominio. Por eso Client deja Api:BaseUrl vacio y utiliza rutas relativas: una URL de despliegue nueva no exige incrustar claves ni direcciones privadas en WebAssembly. Frontend__Url y Backend__PublicUrl tendran ese mismo origen.
+Client deja Api:BaseUrl vacío y utiliza rutas relativas. Se puede servir desde Render o publicar como PWA en Netlify usando `netlify.toml` y `scripts/build-netlify.sh`. En Netlify, `RENDER_API_ORIGIN` genera las reglas de proxy de `/api`, `/signin-google` y `/healthz` durante la compilación. `Frontend__Url` es el dominio de Netlify y `Backend__PublicUrl` el de Render.
 
-Si luego se publica Client por separado en Netlify, necesitara su URL publica de API/proxy en la configuracion estatica generada al compilar. Las variables del proceso del servidor no modifican por si mismas los archivos de un cliente WebAssembly. El proxy, cookies y callback se deben configurar y probar juntos; esa variante todavia no esta implementada.
+Las cookies HttpOnly/Secure y el retorno OAuth usan el origen canónico de `Frontend__Url`. El navegador conserva el dominio del frontend durante todo el flujo. Las variables privadas del servidor nunca se incorporan al cliente WebAssembly. Los pasos completos y la tabla para los paneles están en [DESPLIEGUE](DESPLIEGUE.md).
 
 En Google se agregara exactamente https://DOMINIO_PUBLICO/signin-google. El callback local configurado es https://localhost:7043/signin-google. Los endpoints de identidad y el callback de negocio están implementados; falta probar un acceso Google interactivo.
 

@@ -1,0 +1,270 @@
+{
+  "date": "2026-10-21T04:04:40.198Z",
+  "checks": 59,
+  "passed": 59,
+  "results": [
+    {
+      "name": "Integridad y ausencia de secretos: production/wwwroot",
+      "passed": true,
+      "details": {
+        "assets": 243,
+        "bytes": 29257774
+      }
+    },
+    {
+      "name": "Worker publicado: production/wwwroot",
+      "passed": true
+    },
+    {
+      "name": "Manifest instalable: production/wwwroot",
+      "passed": true
+    },
+    {
+      "name": "Icono 192x192: production/wwwroot",
+      "passed": true
+    },
+    {
+      "name": "Icono 512x512: production/wwwroot",
+      "passed": true
+    },
+    {
+      "name": "Integridad y ausencia de secretos: netlify/wwwroot",
+      "passed": true,
+      "details": {
+        "assets": 243,
+        "bytes": 29257774
+      }
+    },
+    {
+      "name": "Worker publicado: netlify/wwwroot",
+      "passed": true
+    },
+    {
+      "name": "Manifest instalable: netlify/wwwroot",
+      "passed": true
+    },
+    {
+      "name": "Icono 192x192: netlify/wwwroot",
+      "passed": true
+    },
+    {
+      "name": "Icono 512x512: netlify/wwwroot",
+      "passed": true
+    },
+    {
+      "name": "Servidor sin JSON privado",
+      "passed": true
+    },
+    {
+      "name": "Rechazo de origen Netlify inválido 11",
+      "passed": true
+    },
+    {
+      "name": "Rechazo de origen Netlify inválido 12",
+      "passed": true
+    },
+    {
+      "name": "Rechazo de origen Netlify inválido 13",
+      "passed": true
+    },
+    {
+      "name": "Rechazo de origen Netlify inválido 14",
+      "passed": true
+    },
+    {
+      "name": "Rechazo de origen Netlify inválido 15",
+      "passed": true
+    },
+    {
+      "name": "Rechazo de origen Netlify inválido 16",
+      "passed": true
+    },
+    {
+      "name": "Proxy API y OAuth antes del fallback",
+      "passed": true
+    },
+    {
+      "name": "COPY existente: global.json",
+      "passed": true
+    },
+    {
+      "name": "COPY existente: Directory.Build.props",
+      "passed": true
+    },
+    {
+      "name": "COPY existente: NuGet.Config",
+      "passed": true
+    },
+    {
+      "name": "COPY existente: CineSpace.Shared/CineSpace.Shared.csproj",
+      "passed": true
+    },
+    {
+      "name": "COPY existente: CineSpace.Server/CineSpace.Server.csproj",
+      "passed": true
+    },
+    {
+      "name": "COPY existente: CineSpace.Client/CineSpace.Client.csproj",
+      "passed": true
+    },
+    {
+      "name": "COPY existente: .",
+      "passed": true
+    },
+    {
+      "name": "Contenedor no root",
+      "passed": true
+    },
+    {
+      "name": "Protección de secretos Docker",
+      "passed": true
+    },
+    {
+      "name": "Worker precarga runtime",
+      "passed": true
+    },
+    {
+      "name": "Worker no precarga datos ni PDF",
+      "passed": true
+    },
+    {
+      "name": "Activación elimina solo versiones propias antiguas",
+      "passed": true
+    },
+    {
+      "name": "Red sin caché /api/auth/sesion",
+      "passed": true
+    },
+    {
+      "name": "Red sin caché /API/test",
+      "passed": true
+    },
+    {
+      "name": "Red sin caché /signin-google",
+      "passed": true
+    },
+    {
+      "name": "Red sin caché /healthz",
+      "passed": true
+    },
+    {
+      "name": "Red sin caché /api/compra",
+      "passed": true
+    },
+    {
+      "name": "Red sin caché /test.js",
+      "passed": true
+    },
+    {
+      "name": "Navegación offline sirve solo el shell",
+      "passed": true
+    },
+    {
+      "name": "Producción HTTP /healthz",
+      "passed": true
+    },
+    {
+      "name": "Producción HTTP /manifest.webmanifest",
+      "passed": true
+    },
+    {
+      "name": "Producción HTTP /service-worker.js",
+      "passed": true
+    },
+    {
+      "name": "Worker revalidable",
+      "passed": true
+    },
+    {
+      "name": "Producción HTTP /service-worker-assets.js",
+      "passed": true
+    },
+    {
+      "name": "Producción HTTP /confiteria",
+      "passed": true
+    },
+    {
+      "name": "Producción HTTP /api/auth/sesion",
+      "passed": true
+    },
+    {
+      "name": "API sin caché CDN",
+      "passed": true
+    },
+    {
+      "name": "Producción HTTP /api/catalogos/referencias",
+      "passed": true
+    },
+    {
+      "name": "Supabase preparado en Production",
+      "passed": true,
+      "details": {
+        "conexion": true,
+        "preparada": true,
+        "mensaje": "CineSpace está listo."
+      }
+    },
+    {
+      "name": "API desconocida no devuelve SPA",
+      "passed": true
+    },
+    {
+      "name": "Ruta privada sin sesión devuelve 401",
+      "passed": true
+    },
+    {
+      "name": "Inicio OAuth responde 302",
+      "passed": true
+    },
+    {
+      "name": "OAuth vuelve al frontend canónico y rechaza host inyectado",
+      "passed": true
+    },
+    {
+      "name": "Cookie OAuth segura",
+      "passed": true
+    },
+    {
+      "name": "PWA activa en navegador real",
+      "passed": true,
+      "details": {
+        "secure": true,
+        "active": "activated",
+        "keys": [
+          "dotnet-resources-/",
+          "cinespace-shell-eEj7gEqg"
+        ]
+      }
+    },
+    {
+      "name": "PWA controla navegación",
+      "passed": true
+    },
+    {
+      "name": "Caché real contiene solo interfaz",
+      "passed": true,
+      "details": {
+        "resources": 158
+      }
+    },
+    {
+      "name": "PWA navega offline",
+      "passed": true
+    },
+    {
+      "name": "API exige conexión incluso con PWA",
+      "passed": true
+    },
+    {
+      "name": "Vista móvil sin desbordamiento",
+      "passed": true
+    },
+    {
+      "name": "Sin excepciones JavaScript",
+      "passed": true,
+      "details": []
+    }
+  ],
+  "dockerBuild": "No ejecutado: Docker no está instalado.",
+  "publicDeployment": "Pendiente de URLs reales y consentimiento Google."
+}

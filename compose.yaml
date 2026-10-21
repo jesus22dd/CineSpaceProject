@@ -7,6 +7,7 @@ services:
       - "8080:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      PORT: "8080"
       ConnectionStrings__CineSpace: ${CINESPACE_DB_CONNECTION:-}
       Supabase__ProjectRef: ${SUPABASE_PROJECT_REF:-}
       Supabase__Url: ${SUPABASE_URL:-}
