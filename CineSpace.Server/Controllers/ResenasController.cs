@@ -39,16 +39,24 @@ public sealed class ResenasController(CineSpaceDbContext db, IRepositorioCine re
             "Calificacion" => asc ? q.OrderBy(x => x.Puntuacion).ThenBy(x => x.Id) : q.OrderByDescending(x => x.Puntuacion).ThenBy(x => x.Id),
             _ => asc ? q.OrderBy(x => x.FechaUtc).ThenBy(x => x.Id) : q.OrderByDescending(x => x.FechaUtc).ThenBy(x => x.Id)
         };
-        var p = await repositorio.PaginarAsync(orden.Select(x => new CalificacionPelicula { Id = x.Id.ToString("N"), FuncionId = x.FuncionId.ToString("N"), ImagenPanoramicaUrl = x.Pelicula.Fondo, FechaFuncion = x.Funcion.InicioUtc, Destacada = x.Destacada, PeliculaId = x.PeliculaId, NombrePelicula = x.Pelicula.Titulo, EmailUsuario = x.Usuario.Email!, Calificacion = x.Puntuacion, Comentario = x.Comentario, FechaCalificacion = x.FechaUtc }), f, ct);
+        var p = await repositorio.PaginarAsync(orden, f, x => new CalificacionPelicula { Id = x.Id.ToString("N"), FuncionId = x.FuncionId.ToString("N"), ImagenPanoramicaUrl = x.Pelicula.Fondo, FechaFuncion = x.Funcion.InicioUtc, Destacada = x.Destacada, PeliculaId = x.PeliculaId, NombrePelicula = x.Pelicula.Titulo, EmailUsuario = x.Usuario.Email!, Calificacion = x.Puntuacion, Comentario = x.Comentario, FechaCalificacion = x.FechaUtc }, ct);
         foreach (var r in p.Items) { r.FechaCalificacion = ReglasCine.Local(r.FechaCalificacion); if(r.FechaFuncion.HasValue)r.FechaFuncion = ReglasCine.Local(r.FechaFuncion.Value); }
         return p;
     }
     [HttpGet("estadisticas"), Authorize(Roles = "Administrador")]
     public async Task<EstadisticasResenas> Estadisticas(CancellationToken ct)
     {
-        var resumen = await db.Resenas.GroupBy(x => 1).Select(g => new { Total = g.Count(), Peliculas = g.Select(x => x.PeliculaId).Distinct().Count(), Usuarios = g.Select(x => x.UsuarioId).Distinct().Count(), Promedio = g.Average(x => x.Puntuacion) }).SingleOrDefaultAsync(ct);
-        var distribucion = await db.Resenas.GroupBy(x => x.Puntuacion).OrderBy(g => g.Key).Select(g => new RecuentoCatalogo(g.Key, g.Count())).ToListAsync(ct);
-        return new(resumen?.Total ?? 0, resumen?.Peliculas ?? 0, resumen?.Usuarios ?? 0, resumen?.Promedio ?? 0, distribucion);
+        var resumen = await db.Database.SqlQueryRaw<FilaEstadisticasResenas>("""
+            SELECT count(*)::int AS "Total",count(DISTINCT pelicula_id)::int AS "Peliculas",
+                count(DISTINCT usuario_id)::int AS "Usuarios",coalesce(avg(puntuacion),0)::double precision AS "Promedio",
+                count(*) FILTER(WHERE puntuacion=1)::int AS "Uno",count(*) FILTER(WHERE puntuacion=2)::int AS "Dos",
+                count(*) FILTER(WHERE puntuacion=3)::int AS "Tres",count(*) FILTER(WHERE puntuacion=4)::int AS "Cuatro",
+                count(*) FILTER(WHERE puntuacion=5)::int AS "Cinco"
+            FROM cine.resenas
+            """).SingleAsync(ct);
+        var cantidades = new[] { resumen.Uno, resumen.Dos, resumen.Tres, resumen.Cuatro, resumen.Cinco };
+        return new(resumen.Total, resumen.Peliculas, resumen.Usuarios, resumen.Promedio,
+            cantidades.Select((cantidad, indice) => new RecuentoCatalogo(indice + 1, cantidad)).Where(x => x.Uso > 0).ToList());
     }
     [HttpDelete("{id:guid}"), Authorize(Roles = "Administrador")]
     public async Task Eliminar(Guid id, CancellationToken ct)
@@ -92,4 +100,17 @@ public sealed class ResenasController(CineSpaceDbContext db, IRepositorioCine re
         foreach(var pendiente in pagina.Items)pendiente.FechaFuncion = ReglasCine.Local(pendiente.FechaFuncion);
         return pagina;
     }
+}
+
+public sealed class FilaEstadisticasResenas
+{
+    public int Total { get; set; }
+    public int Peliculas { get; set; }
+    public int Usuarios { get; set; }
+    public double Promedio { get; set; }
+    public int Uno { get; set; }
+    public int Dos { get; set; }
+    public int Tres { get; set; }
+    public int Cuatro { get; set; }
+    public int Cinco { get; set; }
 }

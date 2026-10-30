@@ -38,7 +38,7 @@ public sealed class UsuarioService(ApiCine api)
     public int ObtenerTotalUsuarios() => api.Resumen.Usuarios;
     public int ObtenerTotalUsuariosPorRol(RolUsuario rol) => rol == RolUsuario.Administrador ? api.Resumen.Administradores : rol == RolUsuario.Cliente ? api.Resumen.Clientes : api.Resumen.Trabajadores;
     public Dictionary<RolUsuario, int> ObtenerDistribucionPorRoles() => Enum.GetValues<RolUsuario>().ToDictionary(x => x, ObtenerTotalUsuariosPorRol);
-    public async Task<Pagina<CalificacionPelicula>> ConsultarResenasAsync(ConsultaPagina f, bool todas = false) => resenas = await api.Get<Pagina<CalificacionPelicula>>("api/resenas" + (todas ? "?" : "/mias?") + ApiCine.Consulta(f));
+    public async Task<Pagina<CalificacionPelicula>> ConsultarResenasAsync(ConsultaPagina f, bool todas = false, CancellationToken ct = default) => resenas = await api.Get<Pagina<CalificacionPelicula>>("api/resenas" + (todas ? "?" : "/mias?") + ApiCine.Consulta(f), ct);
     public List<CalificacionPelicula> ObtenerTodasLasCalificaciones() => resenas.Items;
     public Task GuardarCalificacionAsync(CalificacionPelicula dato) => api.Post<CalificacionPelicula>("api/resenas", dato);
     public Task<Pagina<CalificacionPendiente>> ConsultarPendientesAsync(int pagina) => api.Get<Pagina<CalificacionPendiente>>("api/resenas/pendientes?pagina=" + pagina);

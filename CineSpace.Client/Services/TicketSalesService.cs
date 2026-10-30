@@ -14,6 +14,6 @@ public sealed class TicketSalesService(ApiCine api)
     public Task<VentaTicket> ConfirmarIngresoAsync(string codigo) => api.Post<VentaTicket>("api/ventas/verificar/" + Uri.EscapeDataString(codigo));
     public Task<AnaliticaCine> AnaliticaAsync(FiltroVentas f) => api.Get<AnaliticaCine>("api/analitica?" + Filtro(f));
     public Task<OcupacionDashboard> OcupacionHoyAsync(CancellationToken ct = default) => api.Get<OcupacionDashboard>("api/analitica/ocupacion", ct);
-    public Task<Pagina<VentaTicket>> ResumenVentasAsync(FiltroVentas f, int pagina) => api.Get<Pagina<VentaTicket>>("api/analitica/ventas?pagina=" + pagina + "&tamano=10&" + Filtro(f));
+    public Task<ResultadoResumenVentas> ResumenVentasAsync(FiltroVentas f, int pagina, CancellationToken ct = default) => api.Get<ResultadoResumenVentas>("api/analitica/ventas?pagina=" + pagina + "&tamano=10&" + Filtro(f), ct);
     private static string Filtro(FiltroVentas f) => "periodo=" + Uri.EscapeDataString(f.Periodo) + "&tipoSala=" + Uri.EscapeDataString(f.TipoSala) + "&experiencia=" + Uri.EscapeDataString(f.Experiencia) + "&genero=" + Uri.EscapeDataString(f.Genero);
 }

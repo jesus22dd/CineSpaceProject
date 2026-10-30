@@ -2,6 +2,7 @@
 @inject HttpClient Http
 @inject IJSRuntime JS
 @page "/reviews"
+@implements IDisposable
 @using CineSpace.Shared.Models
 @using CineSpace.Client.Components.Reviews
 @using System.Globalization
@@ -90,16 +91,19 @@
 
         <ReviewsFilter OnFiltroAplicado="AplicarFiltros" />
 
+        @if (cargando) { <p role="status">Cargando reseñas…</p> }
+
         <ReviewGrid Calificaciones="calificacionesFiltradas" 
                    OnEliminar="EliminarCalificacion"
                    OnDestacar="DestacarCalificacion"
                    CalificacionesDestacadas="calificacionesDestacadas"
-                   ElementosPorPaginaInicial="10" TotalItems="totalItems" OnConsulta="ConsultarGrid" />
+                   ElementosPorPaginaInicial="10" TotalItems="totalItems" PaginaActual="consulta.Pagina" Cargando="cargando" OnConsulta="ConsultarGrid" />
 
         @if (!string.IsNullOrEmpty(statusMessage))
         {
             <div class="alert @(isError ? "alert-danger" : "alert-success") mt-4">
                 @statusMessage
+                @if (isError && !cargando) { <button type="button" class="btn btn-secondary ms-2" @onclick="Reintentar">Reintentar</button> }
             </div>
         }
     </div>
@@ -120,15 +124,27 @@ else
     private int totalItems;
     private string statusMessage = "";
     private bool isError;
+    private bool cargando, estadisticasCargadas;
+    private int versionCarga;
+    private CancellationTokenSource? carga;
     private List<DistribucionCalificacion> distribucionCalificaciones = [];
-    protected override async Task OnInitializedAsync() { if(UsuarioService.EsAdministrador()) await Cargar(); }
-    private async Task Cargar() {
+    protected override async Task OnInitializedAsync() { if(UsuarioService.EsAdministrador()) await Cargar(true); }
+    private async Task Cargar(bool actualizarEstadisticas = false) {
+        var version = ++versionCarga; carga?.Cancel();
+        var actual = new CancellationTokenSource(); carga = actual; cargando = true;
         try {
-            var page = await UsuarioService.ConsultarResenasAsync(consulta,true); calificacionesFiltradas = page.Items; totalItems = page.Total;
+            var paginaTask = UsuarioService.ConsultarResenasAsync(consulta,true,actual.Token);
+            var estadisticasTask = actualizarEstadisticas || !estadisticasCargadas ? Api.Get<EstadisticasResenas>("api/resenas/estadisticas",actual.Token) : Task.FromResult(estadisticas);
+            await Task.WhenAll(paginaTask,estadisticasTask);
+            if (version != versionCarga) return;
+            var page = await paginaTask; calificacionesFiltradas = page.Items; totalItems = page.Total; consulta.Pagina = page.Numero;
             calificacionesDestacadas = page.Items.Where(x=>x.Destacada).ToHashSet();
-            estadisticas = await Api.Get<EstadisticasResenas>("api/resenas/estadisticas");
+            estadisticas = await estadisticasTask; estadisticasCargadas = true;
+            if (isError) { statusMessage = ""; isError = false; }
             distribucionCalificaciones = Enumerable.Range(1,5).Select(n => { var total = estadisticas.Distribucion.FirstOrDefault(x=>x.Id==n)?.Uso ?? 0; return new DistribucionCalificacion { Key = n, Count = total, Porcentaje = estadisticas.Total == 0 ? 0 : total * 100d / estadisticas.Total }; }).ToList();
-        } catch(Exception ex) { statusMessage = ex.Message; isError = true; }
+        } catch(OperationCanceledException) when(actual.IsCancellationRequested) { }
+        catch(InvalidOperationException ex) { if(version == versionCarga) { statusMessage = ex.Message; isError = true; } }
+        finally { if(version == versionCarga) { cargando = false; carga = null; } actual.Dispose(); }
     }
     private async Task ConsultarGrid(ConsultaPagina pagina) { consulta.Pagina = pagina.Pagina; consulta.Campo = pagina.Campo; consulta.Orden = pagina.Orden; consulta.Destacadas = pagina.Destacadas; await Cargar(); }
     private async Task AplicarFiltros(FiltroCalificacion f) {
@@ -137,10 +153,12 @@ else
         consulta.Desde = f.FechaInicio.HasValue ? DateOnly.FromDateTime(f.FechaInicio.Value) : null;
         consulta.Hasta = f.FechaFin.HasValue ? DateOnly.FromDateTime(f.FechaFin.Value) : null; await Cargar();
     }
-    private async Task EliminarCalificacion(CalificacionPelicula c) { try { await UsuarioService.EliminarCalificacion(c.Id); statusMessage = "Reseña eliminada."; isError = false; await Cargar(); } catch(Exception ex) { statusMessage = ex.Message; isError = true; } }
+    private async Task EliminarCalificacion(CalificacionPelicula c) { try { await UsuarioService.EliminarCalificacion(c.Id); statusMessage = "Reseña eliminada."; isError = false; await Cargar(true); } catch(Exception ex) { statusMessage = ex.Message; isError = true; } }
     private async Task DestacarCalificacion(CalificacionPelicula c) { try { await Api.Put<object>($"api/resenas/{c.Id}/destacada",new CambiarEstado(c.Destacada)); await Cargar(); } catch(Exception ex) { statusMessage = ex.Message; isError = true; } }
     private async Task ExportarReseñas() { try { var bytes = await Http.GetByteArrayAsync("api/resenas/exportar"); await JS.InvokeVoidAsync("downloadFileFromBase64",Convert.ToBase64String(bytes),"Reseñas_CineSpace.xlsx"); } catch(Exception ex) { statusMessage = ex.Message; isError = true; } }
     private void VolverADashboard() => NavigationManager.NavigateTo("/Dashboard");
+    private Task Reintentar() => Cargar(true);
+    public void Dispose() { ++versionCarga; carga?.Cancel(); }
     public sealed class FiltroCalificacion {
         public string PeliculaId { get; set; } = "";
         public string EmailUsuario { get; set; } = "";

@@ -32,9 +32,14 @@ public sealed class CineSpaceDbContext(DbContextOptions<CineSpaceDbContext> opti
     public DbSet<EstrenoRegistro> Estrenos => Set<EstrenoRegistro>();
     public DbSet<AjusteRegistro> Ajustes => Set<AjusteRegistro>();
 
+    // Función nativa de PostgreSQL; permite proyectar y agregar JSON sin descargarlo.
+    public static string? JsonTexto(string json, string clave) => throw new NotSupportedException("Solo puede usarse dentro de consultas SQL.");
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.HasDbFunction(typeof(CineSpaceDbContext).GetMethod(nameof(JsonTexto))!)
+            .HasName("jsonb_extract_path_text").IsBuiltIn();
         builder.HasDefaultSchema("cine");
         builder.Entity<Usuario>(usuario =>
         {

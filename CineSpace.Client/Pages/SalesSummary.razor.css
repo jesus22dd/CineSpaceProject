@@ -5,4 +5,5 @@
 .sales-table-scroll thead th { font-size: 12px; font-weight: 600; }
 .sales-table-scroll tfoot { font-weight: 600; font-variant-numeric: tabular-nums; }
 .sales-summary-empty { padding: 36px 0 16px; color: var(--cinema-muted); font-size: 14px; }
+.sales-summary-status { margin: 16px 0 0; color: var(--cinema-muted); font-size: 13px; }
 @media (max-width: 600px) { .sales-summary-panel { padding: 20px 16px; } }

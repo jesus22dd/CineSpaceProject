@@ -4,7 +4,8 @@ window.cineWork = (() => {
     const requests = new Map(), buttons = new Map();
     document.addEventListener('click', e => { clicked = e.target.closest('button'); }, true);
     document.addEventListener('submit', e => { clicked = e.submitter || e.target.querySelector('button[type="submit"]'); }, true);
-    const eligible = b => b?.isConnected && !b.closest('[data-booking-step], .order-quantity, .order-cart-items, .confectionery-edge-cart, .confectionery-page') && !b.classList.contains('menu-toggle-btn');
+    // Los componentes que gestionan su carga conservan el control de disabled.
+    const eligible = b => b?.isConnected && !b.closest('[data-request-feedback="managed"], [data-booking-step], .order-quantity, .order-cart-items, .confectionery-edge-cart, .confectionery-page') && !b.classList.contains('menu-toggle-btn');
     return {
         begin() {
             const id = ++serial, button = eligible(clicked) ? clicked : null;

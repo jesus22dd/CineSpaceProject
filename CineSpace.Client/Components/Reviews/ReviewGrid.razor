@@ -3,7 +3,7 @@
 @using CineSpace.Client.Components.Cinema
 @using CineSpace.Client.Components.Shared
 
-<section class="reviews-list" aria-label="Lista de reseñas">
+<section class="reviews-list" aria-label="Lista de reseñas" aria-busy="@Cargando.ToString().ToLowerInvariant()" data-request-feedback="managed">
     <div class="reviews-toolbar">
         <h2>Lista de reseñas (@TotalItems)</h2>
         <div class="reviews-view-controls">
@@ -11,7 +11,7 @@
             <button type="button" class="btn @(soloDestacadas ? "btn-primary" : "btn-secondary")" aria-pressed="@(soloDestacadas ? "true" : "false")" @onclick="ToggleFiltro"><i class="fas fa-star" aria-hidden="true"></i>@(soloDestacadas ? "Mostrar todas" : "Solo destacadas")</button>
         </div>
     </div>
-    @if (Filtradas.Count == 0)
+    @if (!Cargando && Filtradas.Count == 0)
     {
         <div class="reviews-empty" role="status"><i class="fas fa-circle-info" aria-hidden="true"></i>No encontramos reseñas con estos filtros.</div>
     }
@@ -39,7 +39,7 @@
             }
             </tbody></table></div>
     }
-    <Pagination CurrentPage="pagina" TotalPages="TotalPaginas" TotalItems="TotalItems" PageSize="porPagina" ShowPageSizeSelector="false" Label="Paginación de reseñas" OnPageChanged="CambiarPagina" />
+    <Pagination CurrentPage="pagina" TotalPages="TotalPaginas" TotalItems="TotalItems" PageSize="porPagina" ShowPageSizeSelector="false" Label="Paginación de reseñas" Disabled="Cargando" OnPageChanged="CambiarPagina" />
 </section>
 
 @if (detalle != null)
@@ -77,6 +77,8 @@
     [Parameter] public EventCallback<CalificacionPelicula> OnDestacar { get; set; }
     [Parameter] public HashSet<CalificacionPelicula> CalificacionesDestacadas { get; set; } = new();
     [Parameter] public int TotalItems { get; set; }
+    [Parameter] public int PaginaActual { get; set; } = 1;
+    [Parameter] public bool Cargando { get; set; }
     [Parameter] public EventCallback<ConsultaPagina> OnConsulta { get; set; }
     [Parameter] public int ElementosPorPaginaInicial { get; set; } = 10;
     private readonly HashSet<CalificacionPelicula> expandidos = new();
@@ -88,6 +90,7 @@
     private List<CalificacionPelicula> Filtradas => Calificaciones;
     private int TotalPaginas => Math.Max(1,(int)Math.Ceiling(TotalItems/(double)porPagina));
     private IEnumerable<CalificacionPelicula> Paginadas => Calificaciones;
+    protected override void OnParametersSet() => pagina = PaginaActual;
     private string Direccion(string campo) => orden == campo ? (ascendente ? "ascending" : "descending") : "none";
     private Task Consultar() => OnConsulta.InvokeAsync(new() { Pagina = pagina, Tamano = porPagina, Campo = orden, Orden = ascendente ? "antiguas" : "recientes", Destacadas = soloDestacadas });
     private async Task Ordenar(string campo) { ascendente = orden == campo ? !ascendente : true; orden = campo; pagina = 1; await Consultar(); }

@@ -25,7 +25,9 @@ public sealed class ApiCine(HttpClient http, ActividadSolicitudes actividad, IJS
             !path.StartsWith("api/funciones/", StringComparison.Ordinal) &&
             !path.Contains("/verificar", StringComparison.Ordinal) && !path.Contains("/carrito", StringComparison.Ordinal) &&
             (!path.StartsWith("api/pedidos/", StringComparison.Ordinal) || path == "api/pedidos/mios");
-        if (!cacheable) return JsonSerializer.Deserialize<T>(await LeerJson(ruta, ct), json)!;
+        // Las búsquedas cancelables tienen su propia solicitud: cancelar una
+        // anterior nunca deja una tarea cancelada compartida con la siguiente.
+        if (!cacheable || ct.CanBeCanceled) return JsonSerializer.Deserialize<T>(await LeerJson(ruta, ct), json)!;
         if (!lecturas.TryGetValue(ruta, out var entrada) || entrada.Hasta <= DateTime.UtcNow)
         {
             if (lecturas.Count > 100) lecturas.Clear();
