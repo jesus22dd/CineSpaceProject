@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using CineSpace.Server.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Caching.Memory;
@@ -35,7 +36,7 @@ public sealed class CacheLecturas : IDisposable
     };
 }
 
-public sealed class CacheLecturasFilter(CacheLecturas cache, IMemoryCache referencias) : IAsyncActionFilter
+public sealed class CacheLecturasFilter(CacheLecturas cache, IMemoryCache referencias, TimeProvider reloj) : IAsyncActionFilter
 {
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
@@ -53,7 +54,9 @@ public sealed class CacheLecturasFilter(CacheLecturas cache, IMemoryCache refere
         if (seconds == 0) { await next(); return; }
         var owner = context.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "public";
         var query = string.Join('&', request.Query.OrderBy(x => x.Key).Select(x => Uri.EscapeDataString(x.Key) + "=" + Uri.EscapeDataString(x.Value.ToString())));
-        var key = cache.Key(owner + ":" + path + "?" + query);
+        // Una respuesta de ayer no puede reutilizarse después de medianoche en Bolivia.
+        var dia = path == "/api/analitica/ocupacion" ? ReglasCine.Local(reloj.GetUtcNow().UtcDateTime).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) : "";
+        var key = cache.Key(owner + ":" + path + "?" + query + ":" + dia);
         var gate = cache.Lock(key);
         await gate.WaitAsync(context.HttpContext.RequestAborted);
         try

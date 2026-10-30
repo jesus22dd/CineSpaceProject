@@ -1200,33 +1200,47 @@ INSERT INTO cine.ajustes (clave, valor) VALUES
 
 
 
--- Historial distribuido entre clientes, con entradas, precios y butacas de las nuevas funciones.
+-- Histórico de los veintinueve días anteriores: solo funciones que ya terminaron.
+-- Hoy conserva la ocupación de demostración y sus pagos del bloque siguiente.
+-- Más actividad en fin de semana y por la noche, con variación diaria y por sala.
+-- Se reservan dos butacas libres para las compras del cliente de demostración.
 WITH clientes AS (
  SELECT u.*,row_number() OVER(ORDER BY u.id)-1 posicion,count(*) OVER() cantidad_clientes
  FROM cine.usuarios u WHERE u.activo AND u.email<>'cliente@cliente.com'
+ AND u.fecha_registro_utc <= (((CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date-30)::timestamp AT TIME ZONE 'America/La_Paz')
  AND EXISTS(SELECT 1 FROM cine.usuarios_roles ur JOIN cine.roles r ON r.id=ur.role_id WHERE ur.user_id=u.id AND r.name='Cliente')
 ), candidatas AS (
  SELECT f.*,s.precio,s.descuento,s.tipo_sala_id,d.plano_json,
-   (CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date-(f.inicio_utc AT TIME ZONE 'America/La_Paz')::date AS dia
+   (CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date-(f.inicio_utc AT TIME ZONE 'America/La_Paz')::date AS dia,
+   extract(hour FROM f.inicio_utc AT TIME ZONE 'America/La_Paz')::int AS hora,
+   CASE WHEN extract(isodow FROM f.inicio_utc AT TIME ZONE 'America/La_Paz') IN(5,6,7) THEN 16 ELSE 0 END AS refuerzo
  FROM cine.funciones f JOIN cine.salas s ON s.id=f.sala_id JOIN cine.disenos d ON d.id=s.diseno_id
- WHERE NOT f.preventa AND (f.inicio_utc AT TIME ZONE 'America/La_Paz')::time='10:00'
- AND (f.inicio_utc AT TIME ZONE 'America/La_Paz')::date BETWEEN (CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date-30 AND (CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date-1
+ WHERE NOT f.preventa AND f.inicio_utc+make_interval(mins=>f.duracion)<=CURRENT_TIMESTAMP
+ AND (f.inicio_utc AT TIME ZONE 'America/La_Paz')::date BETWEEN (CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date-29 AND (CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date-1
+), asientos AS (
+ SELECT c.*,a.asiento,a.posicion,(a.posicion-1)/4 AS grupo
+ FROM candidatas c CROSS JOIN LATERAL (
+   SELECT asiento,row_number() OVER(ORDER BY regexp_replace(asiento,'[0-9]','','g'),substring(asiento from '[0-9]+')::int) AS posicion
+   FROM jsonb_array_elements_text(c.plano_json->'asientos') a(asiento)
+ ) a
+ WHERE a.posicion <= greatest(0,least(jsonb_array_length(c.plano_json->'asientos')-2,
+   8+(c.dia*7)%13+c.sala_id%7+c.refuerzo+CASE WHEN c.hora>=18 THEN 10 ELSE 0 END))
 ), compras AS (
- SELECT c.*,a.asientos FROM candidatas c CROSS JOIN LATERAL (
-   SELECT jsonb_agg(asiento ORDER BY posicion) asientos FROM (
-     SELECT asiento,posicion FROM jsonb_array_elements_text(c.plano_json->'asientos') WITH ORDINALITY a(asiento,posicion) ORDER BY posicion LIMIT 2
-   ) elegidas
- ) a WHERE (c.dia+c.sala_id)%2=0
+ SELECT id,sala_id,pelicula_id,experiencia_id,tipo_sala_id,inicio_utc,dia,hora,grupo,
+   round(precio*(100-descuento)/100,2) AS precio,
+   jsonb_agg(asiento ORDER BY posicion) AS asientos,count(*)::int AS cantidad
+ FROM asientos GROUP BY id,sala_id,pelicula_id,experiencia_id,tipo_sala_id,inicio_utc,dia,hora,grupo,precio,descuento
 )
 INSERT INTO cine.ventas(id,numero_factura,codigo,usuario_id,operador_id,funcion_id,solicitud,total,cantidad,metodo_pago,fecha_utc,verificada_utc,snapshot_json)
-SELECT md5('historial:'||c.id)::uuid,'F-HIST-'||upper(substr(md5(c.id::text),1,16)),upper(substr(md5('validacion:'||c.id),1,12)),
- u.id,NULL,c.id,'historial:'||c.id,round(c.precio*(100-c.descuento)/100,2)*2,2,
- CASE WHEN c.dia%2=0 THEN 'Pago QR' ELSE 'Tarjeta de débito' END,c.inicio_utc-interval '2 hours',c.inicio_utc-interval '15 minutes',
+SELECT md5('historial:'||c.id||':'||c.grupo)::uuid,'F-HIST-'||upper(substr(md5(c.id||':'||c.grupo),1,16)),upper(substr(md5('validacion:'||c.id||':'||c.grupo),1,12)),
+ u.id,NULL,c.id,'historial:'||c.id||':'||c.grupo,c.precio*c.cantidad,c.cantidad,
+ CASE WHEN (c.dia+c.grupo)%2=0 THEN 'Pago QR' ELSE 'Tarjeta de débito' END,
+ c.inicio_utc-make_interval(mins=>30+((c.dia*13+c.sala_id*7+c.grupo*11)%120)::int),c.inicio_utc-interval '15 minutes',
  jsonb_build_object('peliculaId',c.pelicula_id,'pelicula',p.titulo,'numeroSala',c.sala_id,'tipoSala',c.tipo_sala_id,'tipoExperiencia',c.experiencia_id,
- 'horario','10:00','fechaFuncion',to_char(c.inicio_utc AT TIME ZONE 'America/La_Paz','YYYY-MM-DD"T"HH24:MI:SS'),
- 'ticketsMayores',2,'ticketsMenores',0,'asientos',c.asientos,'cliente',u.nombre||' '||u.apellido,'documentoCliente',u.ci,'emailUsuario',u.email,
- 'esPagoSimulado',true,'asientosMayoresPorCategoria',jsonb_build_object('0',2),'preciosMayoresPorCategoria',jsonb_build_object('0',round(c.precio*(100-c.descuento)/100,2)))
-FROM compras c JOIN cine.peliculas p ON p.id=c.pelicula_id JOIN clientes u ON u.posicion=(c.dia+c.sala_id)%u.cantidad_clientes;
+ 'horario',to_char(c.inicio_utc AT TIME ZONE 'America/La_Paz','HH24:MI'),'fechaFuncion',to_char(c.inicio_utc AT TIME ZONE 'America/La_Paz','YYYY-MM-DD"T"HH24:MI:SS'),
+ 'ticketsMayores',c.cantidad,'ticketsMenores',0,'asientos',c.asientos,'cliente',u.nombre||' '||u.apellido,'documentoCliente',u.ci,'emailUsuario',u.email,
+ 'esPagoSimulado',true,'asientosMayoresPorCategoria',jsonb_build_object('0',c.cantidad),'preciosMayoresPorCategoria',jsonb_build_object('0',c.precio))
+FROM compras c JOIN cine.peliculas p ON p.id=c.pelicula_id JOIN clientes u ON u.posicion=(c.dia+c.sala_id+c.hora+c.grupo)%u.cantidad_clientes;
 INSERT INTO cine.butacas_vendidas(funcion_id,asiento,venta_id)
  SELECT v.funcion_id,a,v.id FROM cine.ventas v CROSS JOIN LATERAL jsonb_array_elements_text(v.snapshot_json->'asientos') a WHERE v.solicitud LIKE 'historial:%';
 
@@ -1257,40 +1271,51 @@ FROM compras c JOIN cine.peliculas p ON p.id=c.pelicula_id CROSS JOIN(SELECT * F
 INSERT INTO cine.butacas_vendidas(funcion_id,asiento,venta_id)
  SELECT v.funcion_id,a,v.id FROM cine.ventas v CROSS JOIN LATERAL jsonb_array_elements_text(v.snapshot_json->'asientos') a WHERE v.solicitud LIKE 'cliente-pelicula:%';
 
--- Ocupación realista de las próximas funciones: llena, media y libre.
+-- Ocupación de hoy y próximas funciones: completas, parciales y libres en todos los horarios.
 -- Tres primeras fechas de cada película/sala, siempre relativas al BAT.
--- En cada jornada, dos de cuatro horarios tienen ventas; los demás quedan libres.
+-- La mezcla rota por sala, día y turno; ningún horario queda artificialmente vacío.
 -- Compras de hasta cuatro entradas repartidas entre los clientes de prueba.
+-- Sus pagos se distribuyen durante treinta días, siempre antes de la función y nunca en el futuro.
 WITH fechas AS (
  SELECT f.*,s.precio,s.descuento,s.tipo_sala_id,d.plano_json,
    dense_rank() OVER(PARTITION BY f.sala_id,f.pelicula_id ORDER BY (f.inicio_utc AT TIME ZONE 'America/La_Paz')::date) AS dia,
    row_number() OVER(PARTITION BY f.sala_id,(f.inicio_utc AT TIME ZONE 'America/La_Paz')::date ORDER BY f.inicio_utc,f.id) AS turno
  FROM cine.funciones f JOIN cine.salas s ON s.id=f.sala_id JOIN cine.disenos d ON d.id=s.diseno_id
  WHERE (f.inicio_utc AT TIME ZONE 'America/La_Paz')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date
+), objetivos AS (
+  SELECT f.*,CASE (f.sala_id*3+f.dia+f.turno)%8
+    WHEN 0 THEN jsonb_array_length(f.plano_json->'asientos')
+    WHEN 1 THEN 0
+    ELSE greatest(1,jsonb_array_length(f.plano_json->'asientos')*(25+((f.sala_id*7+f.dia*11+f.turno*17)%51)::int)/100)
+  END AS objetivo
+  FROM fechas f WHERE f.dia<=3
 ), clientes AS (
  SELECT u.*,row_number() OVER(ORDER BY u.id)-1 AS posicion,count(*) OVER() AS cantidad_clientes
  FROM cine.usuarios u WHERE u.activo AND u.email <> 'cliente@cliente.com'
+  AND u.fecha_registro_utc <= (((CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date-30)::timestamp AT TIME ZONE 'America/La_Paz')
  AND EXISTS(SELECT 1 FROM cine.usuarios_roles ur JOIN cine.roles r ON r.id=ur.role_id WHERE ur.user_id=u.id AND r.name='Cliente')
 ), asientos AS (
  SELECT f.*,a.asiento,a.posicion,
    (a.posicion-1)/4 AS grupo
- FROM fechas f CROSS JOIN LATERAL (
+  FROM objetivos f CROSS JOIN LATERAL (
    SELECT asiento,row_number() OVER(ORDER BY regexp_replace(asiento,'[0-9]','','g'),substring(asiento from '[0-9]+')::int) AS posicion
    FROM jsonb_array_elements_text(f.plano_json->'asientos') a(asiento)
  ) a
- WHERE f.dia<=3 AND f.turno IN(1,2)
-   AND a.posicion <= CASE WHEN f.turno=1 THEN jsonb_array_length(f.plano_json->'asientos') ELSE jsonb_array_length(f.plano_json->'asientos')/2 END
+  WHERE a.posicion <= f.objetivo
    AND NOT EXISTS(SELECT 1 FROM cine.butacas_vendidas b WHERE b.funcion_id=f.id AND b.asiento=a.asiento)
 ), compras AS (
- SELECT id,sala_id,pelicula_id,experiencia_id,tipo_sala_id,inicio_utc,grupo,
+  SELECT id,sala_id,pelicula_id,experiencia_id,tipo_sala_id,inicio_utc,dia,grupo,
    round(precio*(100-descuento)/100,2) AS precio,
    jsonb_agg(asiento ORDER BY posicion) AS asientos,count(*)::int AS cantidad
- FROM asientos GROUP BY id,sala_id,pelicula_id,experiencia_id,tipo_sala_id,inicio_utc,grupo,precio,descuento
+  FROM asientos GROUP BY id,sala_id,pelicula_id,experiencia_id,tipo_sala_id,inicio_utc,dia,grupo,precio,descuento
 )
 INSERT INTO cine.ventas(id,numero_factura,codigo,usuario_id,operador_id,funcion_id,solicitud,total,cantidad,metodo_pago,fecha_utc,snapshot_json)
 SELECT md5('ocupacion:'||c.id||':'||c.grupo)::uuid,'F-OCUP-'||upper(substr(md5(c.id||':'||c.grupo),1,16)),
  upper(substr(md5('ingreso:'||c.id||':'||c.grupo),1,12)),u.id,NULL,c.id,'ocupacion:'||c.id||':'||c.grupo,c.precio*c.cantidad,c.cantidad,
- CASE WHEN c.grupo%2=0 THEN 'Pago QR' ELSE 'Tarjeta de débito' END,least(CURRENT_TIMESTAMP-make_interval(hours=>1+(c.grupo%36)::int),c.inicio_utc-interval '1 hour'),
+ CASE WHEN c.grupo%2=0 THEN 'Pago QR' ELSE 'Tarjeta de débito' END,
+ least(CURRENT_TIMESTAMP,c.inicio_utc-interval '1 hour',
+   (((CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date-((c.sala_id*7+c.grupo*11+c.pelicula_id+c.dia*5)%30)::int)::timestamp
+     +make_interval(hours=>8+((c.sala_id+c.grupo)%14)::int,mins=>((c.grupo*17+c.sala_id)%60)::int)) AT TIME ZONE 'America/La_Paz'),
  jsonb_build_object('solicitud','ocupacion:'||c.id||':'||c.grupo,'peliculaId',p.id,'pelicula',p.titulo,'numeroSala',c.sala_id,
  'tipoSala',c.tipo_sala_id,'tipoExperiencia',c.experiencia_id,'horario',to_char(c.inicio_utc AT TIME ZONE 'America/La_Paz','HH24:MI'),
  'ticketsMayores',c.cantidad,'ticketsMenores',0,'asientos',c.asientos,'cliente',u.nombre||' '||u.apellido,
@@ -1311,16 +1336,27 @@ UPDATE cine.ventas v SET snapshot_json=v.snapshot_json || jsonb_build_object(
  'tipoSala',s.tipo_sala_id,'tipoSalaNombre',ts.nombre,'experienciaNombre',e.nombre)
  FROM cine.funciones f JOIN cine.peliculas p ON p.id=f.pelicula_id JOIN cine.salas s ON s.id=f.sala_id JOIN cine.tipos_sala ts ON ts.id=s.tipo_sala_id JOIN cine.experiencias e ON e.id=f.experiencia_id WHERE f.id=v.funcion_id;
 
--- Confitería: una compra realista por día y categoría para poblar las tendencias.
+-- Confitería ligada a las visitas del histórico: dos de cada tres compras llevan un combo.
+-- Varían los clientes, productos y cantidades; pago y retiro preceden a la función.
+WITH compras AS (
+ SELECT v.*,f.sala_id,f.inicio_utc,row_number() OVER(ORDER BY f.inicio_utc,v.id) AS posicion
+ FROM cine.ventas v JOIN cine.funciones f ON f.id=v.funcion_id WHERE v.solicitud LIKE 'historial:%'
+), combos AS (
+ SELECT c.*,row_number() OVER(ORDER BY c.id)-1 AS posicion,count(*) OVER() AS cantidad_combos
+ FROM cine.combos c WHERE c.publicado
+)
 INSERT INTO cine.pedidos (id,numero,token,solicitud,codigo,usuario_id,propietario_invitado,nombre_retiro,estado,metodo_pago,total,creado_utc,retirado_utc,entregado_por_id,pagado_utc)
-SELECT md5('seed-pedido:'||dia||':'||c.id)::uuid,'P-SEED-'||dia||'-'||c.id,md5('token:'||dia||':'||c.id)||substr(md5(c.id::text),1,16),'seed-pedido:'||dia||':'||c.id,
- 'CF-SEED-'||dia||'-'||c.id,u.id,'',u.nombre||' '||u.apellido,'Retirado',CASE WHEN c.id%2=0 THEN 'QR' ELSE 'Tarjeta' END,c.precio*(1+(dia+c.id)%3),
- CURRENT_TIMESTAMP-make_interval(days=>dia)-interval '2 hours',CURRENT_TIMESTAMP-make_interval(days=>dia),w.usuario_id,CURRENT_TIMESTAMP-make_interval(days=>dia)-interval '2 hours'
-FROM generate_series(0,29) dia CROSS JOIN cine.combos c
-CROSS JOIN (SELECT id,nombre,apellido FROM cine.usuarios WHERE email='cliente@cliente.com') u
-CROSS JOIN (SELECT usuario_id FROM cine.trabajadores ORDER BY id LIMIT 1) w WHERE c.publicado AND (dia+c.id)%4=0;
+SELECT md5('seed-pedido:'||v.id)::uuid,'P-SEED-'||upper(substr(md5(v.id::text),1,16)),md5('token:'||v.id)||substr(md5(c.id::text),1,16),'seed-pedido:'||v.id||':'||c.id,
+ 'CF-SEED-'||upper(substr(md5(v.id::text),1,16)),u.id,'',u.nombre||' '||u.apellido,'Retirado',CASE WHEN v.posicion%2=0 THEN 'QR' ELSE 'Tarjeta' END,
+ c.precio*least(v.cantidad,2+((v.posicion+v.sala_id)%3)::int),
+ v.inicio_utc-interval '55 minutes',v.inicio_utc-interval '30 minutes',w.usuario_id,v.inicio_utc-interval '45 minutes'
+FROM compras v JOIN combos c ON c.posicion=(v.posicion+v.sala_id)%c.cantidad_combos
+JOIN cine.usuarios u ON u.id=v.usuario_id
+CROSS JOIN (SELECT t.usuario_id FROM cine.trabajadores t JOIN cine.usuarios u ON u.id=t.usuario_id
+ WHERE u.fecha_registro_utc <= (((CURRENT_TIMESTAMP AT TIME ZONE 'America/La_Paz')::date-30)::timestamp AT TIME ZONE 'America/La_Paz')
+ ORDER BY u.fecha_registro_utc,t.id LIMIT 1) w WHERE v.posicion%3<>0;
 INSERT INTO cine.pedido_lineas(id,pedido_id,combo_id,nombre,categoria,cantidad,precio_unitario)
-SELECT 55+row_number() OVER(ORDER BY p.id,c.id),p.id,c.id,c.nombre,cat.nombre,1+(split_part(p.solicitud,':',2)::int+c.id)%3,c.precio
+SELECT (SELECT coalesce(max(id),0) FROM cine.pedido_lineas)+row_number() OVER(ORDER BY p.id,c.id),p.id,c.id,c.nombre,cat.nombre,(p.total/c.precio)::int,c.precio
 FROM cine.pedidos p JOIN cine.combos c ON c.id=split_part(p.solicitud,':',3)::int JOIN cine.categorias cat ON cat.id=c.categoria_id WHERE p.solicitud LIKE 'seed-pedido:%';
 
 -- Reseñas de otros clientes: únicamente funciones compradas y terminadas.

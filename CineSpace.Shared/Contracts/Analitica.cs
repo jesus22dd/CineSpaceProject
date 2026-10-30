@@ -20,6 +20,7 @@ public sealed class AnaliticaCine
 public sealed class OcupacionDashboard
 {
     public DateOnly Fecha { get; set; }
+    public DateTime CambioDiaUtc { get; set; }
     public List<DatoGrafico> Estados { get; set; } = [];
     public List<DatoGrafico> Horarios { get; set; } = [];
     public int Funciones => (int)Estados.Sum(x => x.Valor);

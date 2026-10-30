@@ -7,16 +7,14 @@ namespace CineSpace.Server.Services;
 
 public interface IOcupacionDashboardService
 {
-    Task<OcupacionDashboard> ConsultarAsync(DateOnly? fecha, int? experiencia, CancellationToken ct);
+    Task<OcupacionDashboard> ConsultarHoyAsync(CancellationToken ct);
 }
 
-public sealed class OcupacionDashboardService(CineSpaceDbContext db) : IOcupacionDashboardService
+public sealed class OcupacionDashboardService(CineSpaceDbContext db, TimeProvider reloj) : IOcupacionDashboardService
 {
-    public async Task<OcupacionDashboard> ConsultarAsync(DateOnly? fecha, int? experiencia, CancellationToken ct)
+    public async Task<OcupacionDashboard> ConsultarHoyAsync(CancellationToken ct)
     {
-        if (experiencia is <= 0) throw new ArgumentException("Selecciona una experiencia válida.");
-        var dia = fecha ?? DateOnly.FromDateTime(ReglasCine.Ahora);
-        if (dia == DateOnly.MaxValue) throw new ArgumentException("Selecciona otra fecha.");
+        var dia = DateOnly.FromDateTime(ReglasCine.Local(reloj.GetUtcNow().UtcDateTime));
         var desde = ReglasCine.Utc(dia.ToDateTime(TimeOnly.MinValue));
         var hasta = ReglasCine.Utc(dia.AddDays(1).ToDateTime(TimeOnly.MinValue));
         // One bounded round trip. Filter by the indexed UTC range before counting
@@ -29,7 +27,6 @@ public sealed class OcupacionDashboardService(CineSpaceDbContext db) : IOcupacio
                 JOIN cine.disenos d ON d.id=s.diseno_id
                 JOIN cine.peliculas p ON p.id=f.pelicula_id
                 WHERE f.inicio_utc >= {desde} AND f.inicio_utc < {hasta} AND s.activa AND p.publicada
-                  AND ({experiencia}::integer IS NULL OR f.experiencia_id={experiencia}::integer)
             ), ocupacion AS MATERIALIZED (
                 SELECT f.id, f.inicio_utc, f.capacidad, count(b.asiento)::int AS vendidas
                 FROM seleccion f LEFT JOIN cine.butacas_vendidas b ON b.funcion_id=f.id
@@ -49,6 +46,7 @@ public sealed class OcupacionDashboardService(CineSpaceDbContext db) : IOcupacio
         return new()
         {
             Fecha = dia,
+            CambioDiaUtc = hasta,
             Estados = new[] { "Completas", "Con disponibilidad", "Sin ventas" }.Select(nombre =>
                 estados.TryGetValue(nombre, out var fila)
                     ? new DatoGrafico(nombre, fila.Funciones, Tickets: fila.Vendidas, Capacidad: fila.Capacidad)

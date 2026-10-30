@@ -21,7 +21,7 @@ public sealed class ApiCine(HttpClient http, ActividadSolicitudes actividad, IJS
     {
         var path = ruta.Split('?')[0];
         var cacheable = !path.StartsWith("api/auth/", StringComparison.Ordinal) &&
-            path is not "api/ventas/mias" and not "api/resenas/pendientes" &&
+            path is not "api/ventas/mias" and not "api/resenas/pendientes" and not "api/analitica/ocupacion" &&
             !path.StartsWith("api/funciones/", StringComparison.Ordinal) &&
             !path.Contains("/verificar", StringComparison.Ordinal) && !path.Contains("/carrito", StringComparison.Ordinal) &&
             (!path.StartsWith("api/pedidos/", StringComparison.Ordinal) || path == "api/pedidos/mios");
